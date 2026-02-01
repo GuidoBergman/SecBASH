@@ -217,15 +217,9 @@ So that **my scripts and conditional logic work correctly**.
 
 ## Epic 2: LLM Security Validation
 
-<<<<<<< HEAD
-User's commands are validated by AI for security threats before execution. Every command gets analyzed, and the user receives appropriate security responses.
-
-### Story 2.1: LLM Client with Provider Fallback
-=======
 User's commands are validated by AI for security threats before execution. Every command gets analyzed, and the user receives appropriate security responses. Uses LiteLLM for unified provider access with built-in caching and fallbacks.
 
 ### Story 2.1: LLM Client with LiteLLM Integration
->>>>>>> 61055ce (first commit)
 
 As a **sysadmin**,
 I want **SecBASH to connect to LLM providers reliably**,
