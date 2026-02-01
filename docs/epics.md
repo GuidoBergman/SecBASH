@@ -6,6 +6,8 @@ inputDocuments:
 workflowType: 'epics-stories'
 status: 'complete'
 completedAt: '2026-01-28'
+lastRevised: '2026-01-31'
+revisionNote: 'Added Story 3.6: Configurable LLM Models'
 project_name: 'SecBASH'
 user_name: 'guido'
 ---
@@ -53,14 +55,16 @@ This document provides the complete epic and story breakdown for SecBASH, decomp
 
 **From Architecture - Project Initialization:**
 - Greenfield project using Python 3.10+, uv package manager, Typer CLI framework
-- Dependencies: typer, openai, anthropic SDKs
+- Dependencies: typer, litellm
 - Project structure: src/secbash/ with 6 modules (main.py, shell.py, validator.py, llm_client.py, executor.py, config.py)
 
 **From Architecture - LLM Integration:**
+- LLM abstraction: LiteLLM (unified API, built-in caching/fallbacks)
 - LLM provider fallback chain: OpenRouter (LlamaGuard) → OpenAI → Anthropic
 - Environment variables for credentials: OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
 - LLM response format must be: {action: "allow"|"warn"|"block", reason: string, confidence: 0.0-1.0}
-- Error handling: Exponential backoff with max retries, then fail-open (allow execution)
+- Built-in caching for repeated command validation (reduces latency and API costs)
+- Error handling: LiteLLM handles retries/fallbacks, then fail-open (allow execution)
 
 **From Architecture - Code Standards:**
 - PEP 8 naming conventions (snake_case functions, PascalCase classes)
@@ -108,7 +112,7 @@ User can launch SecBASH and execute commands exactly like bash. This epic delive
 User's commands are validated by AI for security threats before execution. Every command gets analyzed, and the user receives appropriate security responses.
 
 **FRs covered:** FR6, FR7, FR8, FR9, FR10, FR11, FR12, FR13, FR14
-**Additional:** LLM provider fallback chain, response format, error handling from Architecture
+**Additional:** LiteLLM integration with provider fallback chain, built-in caching, response format from Architecture
 
 ### Epic 3: User Control & Configuration
 User can configure SecBASH, override warnings when needed, and use it as their daily shell.
@@ -213,9 +217,15 @@ So that **my scripts and conditional logic work correctly**.
 
 ## Epic 2: LLM Security Validation
 
+<<<<<<< HEAD
 User's commands are validated by AI for security threats before execution. Every command gets analyzed, and the user receives appropriate security responses.
 
 ### Story 2.1: LLM Client with Provider Fallback
+=======
+User's commands are validated by AI for security threats before execution. Every command gets analyzed, and the user receives appropriate security responses. Uses LiteLLM for unified provider access with built-in caching and fallbacks.
+
+### Story 2.1: LLM Client with LiteLLM Integration
+>>>>>>> 61055ce (first commit)
 
 As a **sysadmin**,
 I want **SecBASH to connect to LLM providers reliably**,
@@ -223,21 +233,26 @@ So that **command validation works even if one provider is unavailable**.
 
 **Acceptance Criteria:**
 
-**Given** OPENROUTER_API_KEY is configured
+**Given** LiteLLM is configured with provider fallback chain
 **When** a validation request is made
 **Then** the request goes to OpenRouter (LlamaGuard) first
 
 **Given** OpenRouter fails or times out
-**When** OPENAI_API_KEY is configured
-**Then** the request falls back to OpenAI
+**When** fallback providers are configured
+**Then** LiteLLM automatically falls back to OpenAI, then Anthropic
 
-**Given** OpenAI also fails
-**When** ANTHROPIC_API_KEY is configured
-**Then** the request falls back to Anthropic
-
-**Given** all providers fail after retries with exponential backoff
-**When** max retries are exhausted
+**Given** all providers fail after LiteLLM's built-in retries
+**When** retries are exhausted
 **Then** the system fails open (allows the command) with a warning message
+
+**Given** the same or similar command was recently validated
+**When** a validation request is made
+**Then** LiteLLM returns cached response (faster, no API call)
+
+**Implementation Notes:**
+- Use LiteLLM's `completion()` with `fallbacks` parameter
+- Enable LiteLLM caching for repeated commands
+- Configure via environment variables: OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
 
 ### Story 2.2: Command Validation Integration
 
@@ -405,3 +420,32 @@ So that **I can use it as my default shell on servers**.
 **Given** documentation exists
 **When** I read it
 **Then** it includes warnings about testing before setting as login shell
+
+### Story 3.6: Configurable LLM Models
+
+As a **sysadmin**,
+I want **to configure which LLM models SecBASH uses for validation**,
+So that **I can choose models based on my provider access, cost preferences, or performance needs**.
+
+**Acceptance Criteria:**
+
+**Given** environment variables for model configuration are set (e.g., SECBASH_PRIMARY_MODEL, SECBASH_FALLBACK_MODELS)
+**When** SecBASH starts
+**Then** the configured models are used instead of the hardcoded defaults
+
+**Given** no model configuration environment variables are set
+**When** SecBASH starts
+**Then** sensible defaults are used (OpenRouter LlamaGuard → OpenAI → Anthropic)
+
+**Given** an invalid model string is configured
+**When** SecBASH attempts to use it
+**Then** a clear error message is displayed and fallback behavior applies
+
+**Given** I want to use only a specific provider (e.g., only Anthropic)
+**When** I configure SECBASH_PRIMARY_MODEL and leave fallbacks empty
+**Then** only that model is used for validation
+
+**Implementation Notes:**
+- Environment variables: SECBASH_PRIMARY_MODEL, SECBASH_FALLBACK_MODELS (comma-separated)
+- Defaults remain: openrouter/meta-llama/llama-guard-3-8b with openai/gpt-4 and anthropic/claude-3-haiku-20240307 fallbacks
+- Model strings follow LiteLLM format (provider/model-name)

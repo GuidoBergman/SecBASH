@@ -1,6 +1,6 @@
 # Story 1.5: Exit Code Preservation
 
-## Status: Ready for Review
+## Status: Done
 
 ## Story
 

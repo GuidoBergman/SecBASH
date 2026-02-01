@@ -1,8 +1,10 @@
 """Command validation module.
 
-Parses LLM responses and decides the action to take
-(allow, warn, or block) based on the security assessment.
+Validates commands using the LLM client and returns
+security decisions (allow, warn, or block).
 """
+
+from secbash.llm_client import query_llm
 
 
 def validate_command(command: str) -> dict:
@@ -17,16 +19,10 @@ def validate_command(command: str) -> dict:
             - reason: Human-readable explanation
             - confidence: float 0.0 - 1.0
     """
-    raise NotImplementedError("Command validation not yet implemented")
-
-
-def parse_llm_response(response: str) -> dict:
-    """Parse the LLM response into a structured decision.
-
-    Args:
-        response: Raw LLM response text.
-
-    Returns:
-        dict with action, reason, and confidence.
-    """
-    raise NotImplementedError("LLM response parsing not yet implemented")
+    if not command or not command.strip():
+        return {
+            "action": "block",
+            "reason": "Empty command",
+            "confidence": 1.0,
+        }
+    return query_llm(command)
