@@ -14,7 +14,7 @@ import atexit
 import os
 import readline  # Provides line editing and history support
 
-from secbash.config import get_available_providers
+from secbash.config import get_api_key, get_model_chain, get_provider_from_model
 from secbash.executor import execute_command
 from secbash.validator import validate_command
 
@@ -85,14 +85,15 @@ def run_shell() -> int:
     last_exit_code = 0
 
     print("SecBASH - LLM-powered shell with security validation")
-    providers = get_available_providers()
-    # Show provider priority order with status (Task 1.2)
-    priority_order = ["openrouter", "openai", "anthropic"]
-    priority_display = " > ".join(
-        f"{p} (active)" if p in providers else f"{p} (--)"
-        for p in priority_order
-    )
-    print(f"Provider priority: {priority_display}")
+    # Show model chain with availability status
+    model_chain = get_model_chain()
+    model_display_parts = []
+    for model in model_chain:
+        provider = get_provider_from_model(model)
+        has_key = get_api_key(provider) is not None
+        status = "active" if has_key else "--"
+        model_display_parts.append(f"{model} ({status})")
+    print(f"Model chain: {' > '.join(model_display_parts)}")
     print("Type 'exit' or press Ctrl+D to quit.\n")
 
     while True:

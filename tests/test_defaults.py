@@ -12,8 +12,13 @@ import pytest
 from typer.testing import CliRunner
 
 from secbash import __version__
-from secbash.config import get_available_providers, validate_credentials
-from secbash.llm_client import PROVIDER_PRIORITY
+from secbash.config import (
+    get_available_providers,
+    get_model_chain,
+    get_primary_model,
+    get_fallback_models,
+    validate_credentials,
+)
 from secbash.main import app
 from secbash.shell import get_prompt
 
@@ -28,12 +33,31 @@ class TestDefaultPrompt:
         assert prompt == "secbash> "
 
 
-class TestDefaultProviderPriority:
-    """Tests for default LLM provider priority."""
+class TestDefaultModelConfiguration:
+    """Tests for default model configuration."""
 
-    def test_default_provider_priority_order(self):
-        """AC2: Provider priority is openrouter, openai, anthropic."""
-        assert PROVIDER_PRIORITY == ["openrouter", "openai", "anthropic"]
+    def test_default_primary_model(self, mocker):
+        """AC2: Default primary model is openrouter/meta-llama/llama-guard-3-8b."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_primary_model() == "openrouter/meta-llama/llama-guard-3-8b"
+
+    def test_default_fallback_models(self, mocker):
+        """AC2: Default fallbacks are openai/gpt-4 and anthropic/claude-3-haiku."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_fallback_models() == [
+            "openai/gpt-4",
+            "anthropic/claude-3-haiku-20240307",
+        ]
+
+    def test_default_model_chain_order(self, mocker):
+        """AC2: Model chain order is openrouter, openai, anthropic."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        model_chain = get_model_chain()
+        assert model_chain == [
+            "openrouter/meta-llama/llama-guard-3-8b",
+            "openai/gpt-4",
+            "anthropic/claude-3-haiku-20240307",
+        ]
 
 
 class TestWorksWithOneApiKey:
@@ -122,11 +146,11 @@ class TestWorksWithOneApiKey:
         assert exit_code == 0
 
 
-class TestStartupShowsProviderPriority:
-    """Tests for startup message showing provider priority order."""
+class TestStartupShowsModelChain:
+    """Tests for startup message showing model chain with availability status."""
 
-    def test_startup_shows_provider_priority(self, mocker, capsys):
-        """AC2: Startup message shows provider priority order with status."""
+    def test_startup_shows_model_chain(self, mocker, capsys):
+        """AC2: Startup message shows model chain with availability status."""
         mocker.patch.dict(
             os.environ,
             {"OPENROUTER_API_KEY": "test-key", "OPENAI_API_KEY": "test-key2"},
@@ -143,16 +167,16 @@ class TestStartupShowsProviderPriority:
         captured = capsys.readouterr()
         output = captured.out
 
-        # Should show provider priority format
-        assert "provider priority:" in output.lower()
-        assert "openrouter (active)" in output.lower()
-        assert "openai (active)" in output.lower()
-        assert "anthropic (--)" in output.lower()
+        # Should show model chain format with active/inactive status
+        assert "model chain:" in output.lower()
+        assert "openrouter/meta-llama/llama-guard-3-8b (active)" in output.lower()
+        assert "openai/gpt-4 (active)" in output.lower()
+        assert "anthropic/claude-3-haiku-20240307 (--)" in output.lower()
         # Verify priority order indicator
         assert ">" in output
 
-    def test_startup_shows_unconfigured_providers(self, mocker, capsys):
-        """AC2: Startup shows unconfigured providers marked as inactive."""
+    def test_startup_shows_unconfigured_models(self, mocker, capsys):
+        """AC2: Startup shows unconfigured models marked as inactive."""
         mocker.patch.dict(
             os.environ,
             {"ANTHROPIC_API_KEY": "test-key"},
@@ -167,10 +191,10 @@ class TestStartupShowsProviderPriority:
         captured = capsys.readouterr()
         output = captured.out
 
-        # Only anthropic should be active
-        assert "anthropic (active)" in output.lower()
-        assert "openrouter (--)" in output.lower()
-        assert "openai (--)" in output.lower()
+        # Only anthropic model should be active
+        assert "anthropic/claude-3-haiku-20240307 (active)" in output.lower()
+        assert "openrouter/meta-llama/llama-guard-3-8b (--)" in output.lower()
+        assert "openai/gpt-4 (--)" in output.lower()
 
 
 class TestDefaultShell:

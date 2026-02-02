@@ -22,12 +22,41 @@ class MockResponse:
 
 
 def mock_providers(providers: list[str]):
-    """Helper to mock get_available_providers.
+    """Helper to mock API keys and model chain for specified providers.
+
+    This mocks get_api_key to return a test key for specified providers,
+    and sets up the model chain to use those providers' default models.
 
     Args:
-        providers: List of provider names to mock as available.
+        providers: List of provider names to mock as available
+                   (e.g., ["openai", "anthropic"]).
 
     Returns:
-        A patch context manager for get_available_providers.
+        A patch context manager that mocks get_api_key and get_model_chain.
+
+    Example:
+        with mock_providers(["openai", "anthropic"]):
+            result = query_llm("ls -la")
     """
-    return patch("secbash.llm_client.get_available_providers", return_value=providers)
+    provider_keys = {p: "test-key" for p in providers}
+
+    def mock_get_api_key(provider: str) -> str | None:
+        return provider_keys.get(provider.lower())
+
+    # Build a default model chain based on available providers
+    default_models = {
+        "openrouter": "openrouter/meta-llama/llama-guard-3-8b",
+        "openai": "openai/gpt-4",
+        "anthropic": "anthropic/claude-3-haiku-20240307",
+    }
+    model_chain = [
+        default_models[p]
+        for p in ["openrouter", "openai", "anthropic"]
+        if p in providers
+    ]
+
+    return patch.multiple(
+        "secbash.llm_client",
+        get_api_key=mock_get_api_key,
+        get_model_chain=lambda: model_chain,
+    )

@@ -2,9 +2,10 @@
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 inputDocuments:
   - docs/analysis/research/technical-secbash-llm-command-validation-2026-01-23.md
+  - docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md
 documentCounts:
   briefs: 0
-  research: 1
+  research: 2
   brainstorming: 0
   projectDocs: 0
 workflowType: 'prd'
@@ -12,6 +13,8 @@ lastStep: 2
 project_name: 'SecBASH'
 user_name: 'guido'
 date: '2026-01-23'
+lastRevised: '2026-02-02'
+revisionNote: 'Updated Success Criteria with research-based evaluation methodology'
 ---
 
 # Product Requirements Document - SecBASH
@@ -58,26 +61,37 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 
 ### Security Validation (Primary)
 
-**Benchmark:** GTFOBins (350+ Unix binaries)
+**Research Reference:** Full evaluation methodology defined in `docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md`
 
-| Metric | Target | How to Measure |
-|--------|--------|----------------|
-| GTFOBins detection rate | >80% flagged | Run all GTFOBins entries through SecBASH |
-| Common dangerous commands | >95% blocked | Curated test suite (rm -rf, fork bombs, etc.) |
-| False positive rate | <5% | Normal sysadmin command test suite |
+**Evaluation Scope:** Monitor-Only (command pattern analysis without system context)
 
-### PoC Validation Method
+| Metric | Target | Dataset |
+|--------|--------|---------|
+| Detection Rate | ≥95% | GTFOBins commands (selected categories) flagged as WARN or BLOCK |
+| Pass Rate | ≥90% | Harmless commands (HuggingFace filtered) allowed |
+| SecBASH Score | ≥0.85 | Detection Rate × Pass Rate |
 
-1. Extract all GTFOBins command patterns
-2. Run through SecBASH, record detection rate
-3. Run 100+ safe sysadmin commands, measure false positives
-4. Document results as PoC validation
+**Test Datasets:**
+
+1. **Malicious (GTFOBins):** Commands from categories: File Read, File Write, Reverse Shell, Bind Shell, Upload, Download, Command
+   - Excludes: Shell (pure), SUID, Sudo, Capabilities, Library Load (require system context)
+   - Ground truth: ALL must be WARN or BLOCK
+
+2. **Harmless (HuggingFace):** Filtered `aelhalili/bash-commands-dataset`
+   - Excludes: rm, shutdown, sudo, dd, mkfs, system directory targets
+   - Ground truth: ALL must be ALLOW
+
+**Additional Metrics (per evaluation run):**
+- Response latency (ms): mean, P50, P90, P99
+- API cost ($): per command, per 1000 commands
+- Model and scaffolding configuration
 
 ### MVP Success
 
-- Passes GTFOBins benchmark at >80%
-- Usable as daily shell without friction (<5% false positives)
+- Passes benchmark with SecBASH Score ≥0.85
+- Usable as daily shell without friction (≥90% harmless commands pass)
 - Validates PoC thesis: LLM-based command validation is viable
+- Cost/performance data enables informed model selection
 
 ## Product Scope
 
@@ -146,7 +160,7 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 
 ### Phase 2 (Post-MVP)
 
-- Full GTFOBins coverage (if not in MVP)
+- System-wide benchmark (Docker-based with SUID, sudo, capabilities testing)
 - Semantic caching for performance
 - CIS compliance checking
 

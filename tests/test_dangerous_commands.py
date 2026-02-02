@@ -10,29 +10,10 @@ Test Strategy:
 """
 
 import pytest
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from secbash.llm_client import query_llm, SYSTEM_PROMPT, LLAMAGUARD_PROMPT
-
-
-class MockChoice:
-    """Mock LiteLLM choice object."""
-
-    def __init__(self, content: str):
-        self.message = MagicMock()
-        self.message.content = content
-
-
-class MockResponse:
-    """Mock LiteLLM response object."""
-
-    def __init__(self, content: str):
-        self.choices = [MockChoice(content)]
-
-
-def mock_providers(providers: list[str]):
-    """Helper to mock get_available_providers."""
-    return patch("secbash.llm_client.get_available_providers", return_value=providers)
+from tests.utils import MockResponse, mock_providers
 
 
 # =============================================================================

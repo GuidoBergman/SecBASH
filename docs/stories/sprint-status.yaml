@@ -65,5 +65,5 @@ development_status:
   3-3-sensible-defaults: done
   3-4-command-history: done
   3-5-login-shell-setup-documentation: done
-  3-6-configurable-llm-models: backlog
+  3-6-configurable-llm-models: done
   epic-3-retrospective: optional

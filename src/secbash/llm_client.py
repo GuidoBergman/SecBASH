@@ -1,9 +1,14 @@
 """LLM client module.
 
-Handles API calls to LLM providers with fallback chain:
-1. OpenRouter (LlamaGuard)
-2. OpenAI
-3. Anthropic
+Handles API calls to LLM providers with fallback chain.
+Models can be configured via environment variables:
+- SECBASH_PRIMARY_MODEL: Primary model for validation
+- SECBASH_FALLBACK_MODELS: Comma-separated fallback models
+
+Default behavior (no config):
+1. OpenRouter/LlamaGuard (primary)
+2. OpenAI/GPT-4 (fallback)
+3. Anthropic/Claude 3 Haiku (fallback)
 4. Warn user when all providers fail (validation unavailable)
 """
 
@@ -12,28 +17,12 @@ import logging
 
 from litellm import completion
 
-from secbash.config import get_available_providers
+from secbash.config import get_api_key, get_model_chain, get_provider_from_model, is_valid_model_string
 
 logger = logging.getLogger(__name__)
 
 # Maximum command length to send to LLM (prevents token limit issues and excessive costs)
 MAX_COMMAND_LENGTH = 4096
-
-# Model configuration per provider
-# Default models chosen for security validation:
-# - OpenRouter: LlamaGuard 3 8B - purpose-built for content safety classification
-# - OpenAI: GPT-4 - strong reasoning for security analysis
-# - Anthropic: Claude 3 Haiku - fast, cost-effective fallback
-PROVIDER_MODELS = {
-    "openrouter": "openrouter/meta-llama/llama-guard-3-8b",
-    "openai": "openai/gpt-4",
-    "anthropic": "anthropic/claude-3-haiku-20240307",
-}
-
-# Provider priority order
-# OpenRouter preferred: LlamaGuard is specifically designed for security checks.
-# Fallback to general-purpose models if OpenRouter unavailable.
-PROVIDER_PRIORITY = ["openrouter", "openai", "anthropic"]
 
 # System prompt for general LLM providers (not LlamaGuard)
 SYSTEM_PROMPT = """You are a security validator for shell commands. Analyze the given command and respond with a JSON object containing:
@@ -82,12 +71,30 @@ class ParseError(Exception):
     """Raised when LLM response cannot be parsed."""
 
 
+def _is_llamaguard_model(model: str) -> bool:
+    """Check if a model string refers to a LlamaGuard model.
+
+    Args:
+        model: The model string (e.g., "openrouter/meta-llama/llama-guard-3-8b").
+
+    Returns:
+        True if the model is a LlamaGuard variant.
+    """
+    return "llama-guard" in model.lower()
+
+
+
+
 def query_llm(command: str) -> dict:
     """Query the LLM to validate a shell command.
 
-    Tries each available provider in priority order. If a provider fails
-    (API error or unparseable response), tries the next one. If all fail,
-    returns a warn response so the user can decide whether to proceed.
+    Tries each model in the configured chain in order. If a model fails
+    (API error, missing API key, or unparseable response), tries the next one.
+    If all fail, returns a warn response so the user can decide whether to proceed.
+
+    The model chain is configured via environment variables:
+    - SECBASH_PRIMARY_MODEL: Primary model (default: openrouter/meta-llama/llama-guard-3-8b)
+    - SECBASH_FALLBACK_MODELS: Comma-separated fallback models
 
     Args:
         command: The shell command to validate.
@@ -107,48 +114,61 @@ def query_llm(command: str) -> dict:
             f"Command too long ({len(command)} chars)"
         )
 
-    # Check if any providers are available
-    available = get_available_providers()
-    if not available:
+    # Get the ordered model chain from config
+    model_chain = get_model_chain()
+
+    # Filter to models that have API keys configured and valid format
+    models_to_try = []
+    for model in model_chain:
+        # Validate model string format (AC4: clear error for invalid models)
+        if not is_valid_model_string(model):
+            logger.warning(
+                "Invalid model format '%s': expected 'provider/model-name'. Skipping.",
+                model,
+            )
+            continue
+
+        provider = get_provider_from_model(model)
+        if get_api_key(provider):
+            models_to_try.append(model)
+        else:
+            logger.debug("Skipping model %s: no API key for provider %s", model, provider)
+
+    if not models_to_try:
         logger.warning("No LLM providers configured")
         return _validation_failed_response("No API keys configured")
 
-    # Get ordered list of available providers to try
-    providers_to_try = [p for p in PROVIDER_PRIORITY if p in available]
-
     last_error = None
-    for provider in providers_to_try:
-        model = PROVIDER_MODELS[provider]
+    for model in models_to_try:
         try:
-            result = _try_provider(command, provider, model)
+            result = _try_model(command, model)
             if result is not None:
                 return result
-            # Parsing failed, try next provider
-            last_error = f"{provider}: response could not be parsed"
-            logger.warning("Parsing failed for %s, trying next provider", provider)
+            # Parsing failed, try next model
+            last_error = f"{model}: response could not be parsed"
+            logger.warning("Parsing failed for %s, trying next model", model)
 
         except Exception as e:
-            last_error = f"{provider}: {type(e).__name__}: {str(e)}"
+            last_error = f"{model}: {type(e).__name__}: {str(e)}"
             logger.warning(
-                "Provider %s failed (%s: %s), trying next provider",
-                provider,
+                "Model %s failed (%s: %s), trying next model",
+                model,
                 type(e).__name__,
                 str(e),
             )
             continue
 
-    # All providers failed
-    logger.warning("All LLM providers failed, last error: %s", last_error)
-    return _validation_failed_response(last_error or "All providers failed")
+    # All models failed
+    logger.warning("All LLM models failed, last error: %s", last_error)
+    return _validation_failed_response(last_error or "All models failed")
 
 
-def _try_provider(command: str, provider: str, model: str) -> dict | None:
-    """Try a single provider and return parsed result.
+def _try_model(command: str, model: str) -> dict | None:
+    """Try a single model and return parsed result.
 
     Args:
         command: The shell command to validate.
-        provider: Provider name (openrouter, openai, anthropic).
-        model: Full model string for LiteLLM.
+        model: Full model string for LiteLLM (e.g., "openai/gpt-4").
 
     Returns:
         Parsed response dict if successful, None if parsing failed.
@@ -156,7 +176,7 @@ def _try_provider(command: str, provider: str, model: str) -> dict | None:
     Raises:
         Exception: If API call fails.
     """
-    messages = _get_messages_for_model(command, provider)
+    messages = _get_messages_for_model(command, model)
 
     response = completion(
         model=model,
@@ -166,23 +186,26 @@ def _try_provider(command: str, provider: str, model: str) -> dict | None:
 
     content = response.choices[0].message.content
 
-    # Parse based on provider type
-    if provider == "openrouter":
+    # Parse based on model type (LlamaGuard has special format)
+    if _is_llamaguard_model(model):
         return _parse_llamaguard_response(content, command)
     return _parse_response(content)
 
 
-def _get_messages_for_model(command: str, provider: str) -> list[dict]:
-    """Get the appropriate message format for a provider.
+def _get_messages_for_model(command: str, model: str) -> list[dict]:
+    """Get the appropriate message format for a model.
+
+    LlamaGuard models use a specific prompt format, while general models
+    use a system prompt with JSON output instructions.
 
     Args:
         command: The shell command to validate.
-        provider: Provider name.
+        model: Full model string (e.g., "openai/gpt-4").
 
     Returns:
         List of message dicts for the LLM API.
     """
-    if provider == "openrouter":
+    if _is_llamaguard_model(model):
         return [{"role": "user", "content": LLAMAGUARD_PROMPT.format(command=command)}]
 
     return [

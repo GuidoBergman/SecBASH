@@ -109,19 +109,79 @@ export OPENAI_API_KEY="your-key-here"      # optional
 export ANTHROPIC_API_KEY="your-key-here"   # optional
 ```
 
+### Model Configuration
+
+By default, SecBASH uses LlamaGuard for security validation with fallbacks to GPT-4 and Claude. You can customize which models are used:
+
+```bash
+# Primary model for command validation
+export SECBASH_PRIMARY_MODEL="openrouter/meta-llama/llama-guard-3-8b"
+
+# Fallback models (comma-separated, tried in order if primary fails)
+export SECBASH_FALLBACK_MODELS="openai/gpt-4,anthropic/claude-3-haiku-20240307"
+```
+
+#### Default Configuration
+
+If no model environment variables are set, SecBASH uses these defaults:
+
+| Variable | Default Value |
+|----------|---------------|
+| `SECBASH_PRIMARY_MODEL` | `openrouter/meta-llama/llama-guard-3-8b` |
+| `SECBASH_FALLBACK_MODELS` | `openai/gpt-4,anthropic/claude-3-haiku-20240307` |
+
+#### Model String Format
+
+Model strings follow LiteLLM format: `provider/model-name`
+
+Valid examples:
+- `openrouter/meta-llama/llama-guard-3-8b` (recommended for security)
+- `openai/gpt-4`
+- `openai/gpt-4-turbo`
+- `anthropic/claude-3-haiku-20240307`
+- `anthropic/claude-3-opus-20240229`
+
+#### Common Configurations
+
+**Single provider (no fallbacks):**
+```bash
+export SECBASH_PRIMARY_MODEL="anthropic/claude-3-haiku-20240307"
+export SECBASH_FALLBACK_MODELS=""  # Empty = no fallbacks
+```
+
+**Custom model chain:**
+```bash
+export SECBASH_PRIMARY_MODEL="openai/gpt-4-turbo"
+export SECBASH_FALLBACK_MODELS="anthropic/claude-3-opus-20240229"
+```
+
+**Use different LlamaGuard version:**
+```bash
+export SECBASH_PRIMARY_MODEL="openrouter/meta-llama/llama-guard-2-8b"
+```
+
+#### API Key Requirements
+
+Each model requires its provider's API key:
+- `openrouter/*` models require `OPENROUTER_API_KEY`
+- `openai/*` models require `OPENAI_API_KEY`
+- `anthropic/*` models require `ANTHROPIC_API_KEY`
+
+Models without a configured API key are skipped automatically.
+
 ### Provider Priority
 
-Providers are tried in this order:
+Providers are tried in this order (based on model chain):
 
 1. **OpenRouter** - Recommended for LlamaGuard (security-specific model)
 2. **OpenAI** - GPT-4 fallback
 3. **Anthropic** - Claude fallback
 
-The startup message shows which providers are active:
+The startup message shows which models are active:
 
 ```
 SecBASH - LLM-powered shell with security validation
-Provider priority: openrouter (active) > openai (--) > anthropic (--)
+Model chain: openrouter/meta-llama/llama-guard-3-8b (active) > openai/gpt-4 (--) > anthropic/claude-3-haiku-20240307 (--)
 Type 'exit' or press Ctrl+D to quit.
 ```
 
