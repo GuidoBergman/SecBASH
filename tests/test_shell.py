@@ -118,7 +118,7 @@ class TestShellValidation:
                     mock_execute.assert_called_once()
 
     def test_warned_command_sets_exit_code(self):
-        """Warned commands should set exit code to 1."""
+        """Cancelled warned commands should set exit code to EXIT_CANCELLED (2)."""
         with patch("builtins.input", side_effect=["warned_cmd", "n", "ls", "exit"]):
             with patch("secbash.shell.validate_command", side_effect=[
                 {"action": "warn", "reason": "Warning", "confidence": 0.7},
@@ -126,10 +126,10 @@ class TestShellValidation:
             ]):
                 with patch("secbash.shell.execute_command", return_value=0) as mock_exec:
                     run_shell()
-                    # The second command should be called with last_exit_code=1
+                    # The second command should be called with last_exit_code=2 (EXIT_CANCELLED)
                     mock_exec.assert_called_once()
                     call_args = mock_exec.call_args
-                    assert call_args[0][1] == 1  # last_exit_code should be 1
+                    assert call_args[0][1] == 2  # last_exit_code should be EXIT_CANCELLED
 
 
 class TestWarnConfirmation:
@@ -253,8 +253,8 @@ class TestWarnConfirmation:
                     second_call = mock_exec.call_args_list[1]
                     assert second_call[0][1] == 42  # last_exit_code should be 42
 
-    def test_warn_cancelled_sets_exit_code_1(self):
-        """Cancelled warn commands set exit code to 1."""
+    def test_warn_cancelled_sets_exit_code_2(self):
+        """Cancelled warn commands set exit code to EXIT_CANCELLED (2)."""
         with patch("builtins.input", side_effect=["risky-command", "n", "ls", "exit"]):
             with patch("secbash.shell.validate_command", side_effect=[
                 {"action": "warn", "reason": "Risky", "confidence": 0.7},
@@ -265,7 +265,7 @@ class TestWarnConfirmation:
                     # Only the second command (ls) should execute
                     mock_exec.assert_called_once()
                     call_args = mock_exec.call_args
-                    assert call_args[0][1] == 1  # last_exit_code should be 1
+                    assert call_args[0][1] == 2  # last_exit_code should be EXIT_CANCELLED
 
     def test_warn_ctrl_c_sets_exit_code_130(self):
         """Ctrl+C during confirmation sets exit code to 130."""

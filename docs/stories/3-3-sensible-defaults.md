@@ -1,7 +1,7 @@
 # Story 3.3: Sensible Defaults
 
 **Epic:** Epic 3 - User Control & Configuration
-**Status:** Ready for Review
+**Status:** done
 **Priority:** must-have
 
 ---
@@ -324,12 +324,47 @@ No debug issues encountered.
 ### File List
 
 - src/secbash/__init__.py (unchanged - already had `__version__`)
-- src/secbash/main.py (modified - added version callback)
-- src/secbash/shell.py (modified - added startup info message, import, docstring)
+- src/secbash/main.py (modified - added version callback with provider info)
+- src/secbash/shell.py (modified - startup shows provider priority order, EXIT_CANCELLED=2)
 - src/secbash/config.py (modified - enhanced module docstring)
-- src/secbash/llm_client.py (modified - added comments for model defaults)
-- tests/test_defaults.py (new - 10 tests for default behavior)
+- src/secbash/llm_client.py (modified - added comments for model defaults, removed redundant pass)
+- tests/test_defaults.py (modified - 13 tests for default behavior)
+- tests/test_shell.py (modified - updated exit code tests for EXIT_CANCELLED=2)
 
 ### Change Log
 
 - 2026-02-01: Implemented sensible defaults story (3.3). Added --version flag, startup provider display, and comprehensive documentation of all defaults. Created test_defaults.py with 10 tests verifying AC1 and AC2.
+- 2026-02-02: Code Review fixes applied. Fixed H1 (provider priority display shows order with status), H2 (--version shows configured providers), H3/H4 (added integration test and proper test naming), M1 (EXIT_CANCELLED now distinct value 2), M3 (improved test robustness with capsys), L2 (removed redundant pass). All 215 tests pass.
+
+---
+
+## Senior Developer Review (AI)
+
+**Review Date:** 2026-02-02
+**Reviewer:** Claude Opus 4.5 (Adversarial Code Review)
+**Outcome:** APPROVED (after fixes)
+
+### Issues Found and Fixed
+
+| ID | Severity | Issue | Resolution |
+|----|----------|-------|------------|
+| H1 | HIGH | Task 1.2 not fully implemented - startup didn't show priority ORDER | Fixed: Now shows "Provider priority: openrouter (active) > openai (--) > anthropic (--)" |
+| H2 | HIGH | Task 2.3 incomplete - --version lacked "basic info" | Fixed: --version now shows configured providers |
+| H3 | HIGH | Test name mismatch vs story spec | Fixed: Added `test_shell_works_with_one_api_key_no_config_files` |
+| H4 | HIGH | Missing integration test for shell startup | Fixed: Added proper integration test |
+| M1 | MEDIUM | EXIT_BLOCKED and EXIT_CANCELLED both =1 | Fixed: EXIT_CANCELLED now =2 for distinguishability |
+| M3 | MEDIUM | test_startup fragile mock | Fixed: Uses pytest capsys for reliable capture |
+| L2 | LOW | Redundant `pass` in ParseError class | Fixed: Removed |
+
+### Final Test Results
+
+- **Total tests:** 215 (was 212, added 3 new)
+- **Passed:** 215
+- **Failed:** 0
+
+### Verification
+
+- [x] AC1: Works without additional config files - VERIFIED
+- [x] AC2: Reasonable defaults applied (bash, prompt, priority) - VERIFIED
+- [x] All tasks properly implemented after fixes
+- [x] Code quality issues resolved

@@ -19,9 +19,15 @@ app = typer.Typer(
 
 
 def version_callback(value: bool) -> None:
-    """Display version and exit."""
+    """Display version and basic info, then exit."""
     if value:
+        from secbash.config import get_available_providers
         print(f"SecBASH version {__version__}")
+        providers = get_available_providers()
+        if providers:
+            print(f"Configured providers: {', '.join(providers)}")
+        else:
+            print("Configured providers: none (set API key to enable)")
         raise typer.Exit()
 
 

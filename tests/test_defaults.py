@@ -94,21 +94,44 @@ class TestWorksWithOneApiKey:
         providers = get_available_providers()
         assert providers == ["openai"]
 
+    def test_shell_works_with_one_api_key_no_config_files(self, mocker):
+        """AC1: Shell starts and runs with just one API key, no config files.
 
-class TestStartupShowsActiveProviders:
-    """Tests for startup message showing active providers."""
+        This is the integration test specified in Task 4.1 - verifies the
+        shell can actually start and accept input with minimal configuration.
+        """
+        mocker.patch.dict(
+            os.environ,
+            {"OPENAI_API_KEY": "test-key"},
+            clear=True
+        )
 
-    def test_startup_shows_active_providers(self, mocker):
-        """AC2: Startup message includes provider info."""
+        # Mock input to simulate user typing 'exit' immediately
+        mocker.patch("builtins.input", side_effect=["exit"])
+
+        # Mock the validator to avoid real LLM calls
+        mocker.patch(
+            "secbash.shell.validate_command",
+            return_value={"action": "allow", "reason": "test", "confidence": 1.0}
+        )
+
+        from secbash.shell import run_shell
+        exit_code = run_shell()
+
+        # Shell should exit cleanly
+        assert exit_code == 0
+
+
+class TestStartupShowsProviderPriority:
+    """Tests for startup message showing provider priority order."""
+
+    def test_startup_shows_provider_priority(self, mocker, capsys):
+        """AC2: Startup message shows provider priority order with status."""
         mocker.patch.dict(
             os.environ,
             {"OPENROUTER_API_KEY": "test-key", "OPENAI_API_KEY": "test-key2"},
             clear=True
         )
-
-        # Capture stdout
-        captured_output = StringIO()
-        mocker.patch("sys.stdout", captured_output)
 
         # Mock input to raise EOFError immediately (simulating Ctrl+D)
         mocker.patch("builtins.input", side_effect=EOFError)
@@ -116,11 +139,38 @@ class TestStartupShowsActiveProviders:
         from secbash.shell import run_shell
         run_shell()
 
-        output = captured_output.getvalue()
+        # Use pytest's capsys for reliable stdout capture
+        captured = capsys.readouterr()
+        output = captured.out
 
-        # Should show providers in startup message
-        assert "openrouter" in output.lower()
-        assert "openai" in output.lower()
+        # Should show provider priority format
+        assert "provider priority:" in output.lower()
+        assert "openrouter (active)" in output.lower()
+        assert "openai (active)" in output.lower()
+        assert "anthropic (--)" in output.lower()
+        # Verify priority order indicator
+        assert ">" in output
+
+    def test_startup_shows_unconfigured_providers(self, mocker, capsys):
+        """AC2: Startup shows unconfigured providers marked as inactive."""
+        mocker.patch.dict(
+            os.environ,
+            {"ANTHROPIC_API_KEY": "test-key"},
+            clear=True
+        )
+
+        mocker.patch("builtins.input", side_effect=EOFError)
+
+        from secbash.shell import run_shell
+        run_shell()
+
+        captured = capsys.readouterr()
+        output = captured.out
+
+        # Only anthropic should be active
+        assert "anthropic (active)" in output.lower()
+        assert "openrouter (--)" in output.lower()
+        assert "openai (--)" in output.lower()
 
 
 class TestDefaultShell:
@@ -143,19 +193,40 @@ class TestDefaultShell:
 class TestVersionFlag:
     """Tests for --version flag."""
 
-    def test_version_flag_outputs_version(self):
-        """AC2: --version shows version string."""
+    def test_version_flag_outputs_version(self, mocker):
+        """AC2: --version shows version string and basic info."""
+        mocker.patch.dict(
+            os.environ,
+            {"OPENAI_API_KEY": "test-key"},
+            clear=True
+        )
         runner = CliRunner()
         result = runner.invoke(app, ["--version"])
 
         assert result.exit_code == 0
         assert __version__ in result.output
         assert "SecBASH" in result.output
+        # Task 2.3: Should show basic info (configured providers)
+        assert "Configured providers:" in result.output
 
-    def test_version_short_flag_outputs_version(self):
+    def test_version_short_flag_outputs_version(self, mocker):
         """AC2: -v shows version string."""
+        mocker.patch.dict(
+            os.environ,
+            {"OPENAI_API_KEY": "test-key"},
+            clear=True
+        )
         runner = CliRunner()
         result = runner.invoke(app, ["-v"])
 
         assert result.exit_code == 0
         assert __version__ in result.output
+
+    def test_version_shows_no_providers_when_none_configured(self, mocker):
+        """AC2: --version shows helpful message when no providers configured."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        runner = CliRunner()
+        result = runner.invoke(app, ["--version"])
+
+        assert result.exit_code == 0
+        assert "none" in result.output.lower()

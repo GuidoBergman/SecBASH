@@ -81,8 +81,6 @@ Consider these threat categories:
 class ParseError(Exception):
     """Raised when LLM response cannot be parsed."""
 
-    pass
-
 
 def query_llm(command: str) -> dict:
     """Query the LLM to validate a shell command.

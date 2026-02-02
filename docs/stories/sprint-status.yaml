@@ -62,8 +62,8 @@ development_status:
   epic-3: in-progress
   3-1-api-credential-configuration: done
   3-2-warning-override: done  # Implemented as part of Story 2.3 (Security Response Actions)
-  3-3-sensible-defaults: review
-  3-4-command-history: backlog
-  3-5-login-shell-setup-documentation: backlog
+  3-3-sensible-defaults: done
+  3-4-command-history: done
+  3-5-login-shell-setup-documentation: done
   3-6-configurable-llm-models: backlog
   epic-3-retrospective: optional

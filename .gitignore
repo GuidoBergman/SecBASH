@@ -26,6 +26,8 @@ build/
 
 # Testing
 .pytest_cache/
+src/secbash/__pycache__/*
+tests/__pycache__/*
 .coverage
 htmlcov/
 
