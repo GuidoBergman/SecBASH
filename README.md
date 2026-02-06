@@ -87,17 +87,25 @@ secbash
 
 ### API Keys
 
-SecBASH requires at least one LLM API key. Set one or more of these environment variables:
+SecBASH requires at least one LLM API key. The quickest way to get started is to copy the example env file:
+
+```bash
+cp .env.example .env
+# Edit .env and fill in your keys, then load them:
+export $(grep -v '^#' .env | xargs)
+```
+
+Or set the environment variables directly:
 
 ```bash
 # OpenRouter (recommended - supports LlamaGuard security model)
-export OPENROUTER_API_KEY="your-key-here"
+export OPENROUTER_API_KEY="your-key-here"   # https://openrouter.ai/
 
 # OpenAI
-export OPENAI_API_KEY="your-key-here"
+export OPENAI_API_KEY="your-key-here"        # https://platform.openai.com/api-keys
 
 # Anthropic
-export ANTHROPIC_API_KEY="your-key-here"
+export ANTHROPIC_API_KEY="your-key-here"     # https://console.anthropic.com/
 ```
 
 Add these to your `~/.bashrc` or `~/.zshrc` for persistence:
@@ -350,6 +358,53 @@ Check your SecBASH version and configured providers:
 ```bash
 secbash --version
 # Expected: SecBASH version 0.1.0
+```
+
+## Running Benchmarks
+
+SecBASH includes an [Inspect AI](https://inspect.aisi.org.uk/) evaluation harness for benchmarking LLM classifiers against the GTFOBins (malicious) and harmless command datasets.
+
+### API Keys for Benchmarks
+
+Inspect uses the **same standard environment variables** as each provider's SDK. You only need keys for the models you want to evaluate:
+
+| Provider | Environment Variable | Signup |
+|----------|---------------------|--------|
+| OpenAI | `OPENAI_API_KEY` | https://platform.openai.com/api-keys |
+| Anthropic | `ANTHROPIC_API_KEY` | https://console.anthropic.com/ |
+| Google | `GOOGLE_API_KEY` | https://aistudio.google.com/apikey |
+| OpenRouter | `OPENROUTER_API_KEY` | https://openrouter.ai/ |
+| HuggingFace | `HF_TOKEN` | https://huggingface.co/settings/tokens |
+
+All of these are listed in `.env.example`.
+
+### Running a Single Evaluation
+
+```bash
+# Evaluate a model against the GTFOBins dataset
+uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
+
+# Evaluate against the harmless dataset
+uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
+
+# Enable Chain-of-Thought scaffolding
+uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
+
+# View results in the Inspect web UI
+uv run inspect view
+```
+
+### Multi-Model Comparison
+
+```bash
+# Compare all default models (needs keys for each)
+uv run -m tests.benchmark.compare
+
+# Compare specific models
+uv run -m tests.benchmark.compare --models openai/gpt-4o-mini,anthropic/claude-3-haiku-20240307
+
+# Generate a report from the latest evaluation
+uv run -m tests.benchmark.report --latest
 ```
 
 ## Contributing

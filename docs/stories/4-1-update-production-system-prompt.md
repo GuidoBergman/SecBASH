@@ -1,6 +1,6 @@
 # Story 4.1: Update Production System Prompt
 
-**Status:** ready-for-dev
+**Status:** done
 
 ## Story
 
@@ -65,31 +65,31 @@ So that **the classifier follows the same rules it will be evaluated against and
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Update SYSTEM_PROMPT with decision tree (AC: #1, #4)
-  - [ ] 1.1 Add priority-ordered decision tree with all 12 rules
-  - [ ] 1.2 Add context section explaining SecBASH monitor-only mode
-  - [ ] 1.3 Add obfuscation handling instructions (base64, hex evaluation)
+- [x] Task 1: Update SYSTEM_PROMPT with decision tree (AC: #1, #4)
+  - [x] 1.1 Add priority-ordered decision tree with all 12 rules
+  - [x] 1.2 Add context section explaining SecBASH monitor-only mode
+  - [x] 1.3 Add obfuscation handling instructions (base64, hex evaluation)
 
-- [ ] Task 2: Add few-shot examples to SYSTEM_PROMPT (AC: #2)
-  - [ ] 2.1 Add BLOCK examples for each category (10 examples)
-  - [ ] 2.2 Add WARN examples (2 examples)
-  - [ ] 2.3 Add ALLOW examples (1+ examples)
-  - [ ] 2.4 Format examples clearly for LLM consumption
+- [x] Task 2: Add few-shot examples to SYSTEM_PROMPT (AC: #2)
+  - [x] 2.1 Add BLOCK examples for each category (10 examples)
+  - [x] 2.2 Add WARN examples (2 examples)
+  - [x] 2.3 Add ALLOW examples (1+ examples)
+  - [x] 2.4 Format examples clearly for LLM consumption
 
-- [ ] Task 3: Update LLAMAGUARD_PROMPT (AC: #3)
-  - [ ] 3.1 Mirror decision tree rules in LlamaGuard format
-  - [ ] 3.2 Ensure double curly braces for .format() compatibility
-  - [ ] 3.3 Add relevant examples for LlamaGuard context
+- [x] Task 3: Update LLAMAGUARD_PROMPT (AC: #3)
+  - [x] 3.1 Mirror decision tree rules in LlamaGuard format
+  - [x] 3.2 Ensure double curly braces for .format() compatibility
+  - [x] 3.3 Add relevant examples for LlamaGuard context
 
-- [ ] Task 4: Verify backward compatibility (AC: #5)
-  - [ ] 4.1 Run existing test suite (`tests/test_dangerous_commands.py`)
-  - [ ] 4.2 Run existing test suite (`tests/test_llm_client.py`)
-  - [ ] 4.3 Verify all prompt content tests still pass
+- [x] Task 4: Verify backward compatibility (AC: #5)
+  - [x] 4.1 Run existing test suite (`tests/test_dangerous_commands.py`)
+  - [x] 4.2 Run existing test suite (`tests/test_llm_client.py`)
+  - [x] 4.3 Verify all prompt content tests still pass
 
-- [ ] Task 5: Add new tests for decision tree categories
-  - [ ] 5.1 Add tests for each new BLOCK category not covered
-  - [ ] 5.2 Add tests for WARN categories (enumeration, download)
-  - [ ] 5.3 Add prompt content tests for new patterns
+- [x] Task 5: Add new tests for decision tree categories
+  - [x] 5.1 Add tests for each new BLOCK category not covered
+  - [x] 5.2 Add tests for WARN categories (enumeration, download)
+  - [x] 5.3 Add prompt content tests for new patterns
 
 ## Dev Notes
 
@@ -264,21 +264,38 @@ Output: {"action": "block", "reason": "Shell escape bypasses SecBASH", "confiden
 <!-- Story context complete - comprehensive developer guide created -->
 
 ### Agent Model Used
-{{agent_model_name_version}}
+Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### Completion Notes List
 - Story 4.1 is the first story of Epic 4 (no dependencies)
 - Blocks Stories 4.4 and 4.5 (evaluation harness uses this prompt)
 - Research documents provide authoritative decision tree
-- Existing test coverage is comprehensive - focus on additions not rewrites
+- Implementation verified complete on 2026-02-03:
+  - SYSTEM_PROMPT contains complete 13-rule decision tree (matching research document)
+  - Special Cases section added: cron payload analysis, file operation TARGET+CONTENT evaluation
+  - Few-shot examples for all categories: 10 BLOCK, 2 WARN, 1 ALLOW
+  - LLAMAGUARD_PROMPT mirrors 13-rule decision tree with .format()-safe braces, includes key examples and special cases
+  - Priority order instruction present: "Apply rules in order - first match determines action"
+  - All 110 tests in test_dangerous_commands.py pass (9 added in review)
+  - All 56 tests in test_llm_client.py pass
+  - Full test suite (396 tests) passes with no regressions
+- Code review fixes applied on 2026-02-04:
+  - H1: Added missing research Rule 12 (write non-critical benign -> WARN), renumbered Rule 13
+  - H2: Added structured key examples to LLAMAGUARD_PROMPT (AC3 compliance)
+  - H3: Added Special Cases section (cron analysis, file op dual-evaluation) to both prompts
+  - M1: Updated mock test class docstrings to clarify they are pass-through validation
+  - M2: Corrected File List to show test_dangerous_commands.py as Modified
+  - M3: Added TestPromptStructuralIntegrity with rule count and ordering validation
 
 ### File List
-**To Modify:**
-- `src/secbash/llm_client.py`
-
-**To Add Tests:**
-- `tests/test_dangerous_commands.py` (add new test cases)
+**Modified:**
+- `src/secbash/llm_client.py` - SYSTEM_PROMPT and LLAMAGUARD_PROMPT updated with complete 13-rule decision tree, special cases, and examples
+- `tests/test_dangerous_commands.py` - Added TestDecisionTreeCategories, TestWarnCategories, TestPromptDecisionTreeContent, TestLlamaGuardDecisionTreeContent, TestPromptStructuralIntegrity (9 new tests from review)
 
 **Reference Documents:**
 - `docs/analysis/research/gtfobins-labeling-prompt.md`
 - `docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md`
+
+### Change Log
+- 2026-02-04: Code review - Fixed 6 issues (3H, 3M): added missing Rule 12, LLAMAGUARD examples, Special Cases section, structural tests, corrected File List, clarified mock test docstrings. 396 tests passing.
+- 2026-02-03: Story verified complete - all ACs satisfied, all tests passing

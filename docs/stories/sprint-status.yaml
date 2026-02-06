@@ -69,12 +69,12 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Benchmark Evaluation
-  epic-4: backlog
-  4-1-update-production-system-prompt: ready-for-dev
-  4-2-extract-gtfobins-test-dataset: drafted
-  4-3-create-harmless-command-baseline: drafted
-  4-4-build-evaluation-harness-inspect: drafted
-  4-5-implement-metrics-reporting-inspect: drafted
-  4-6-create-llm-comparison-framework: drafted
+  epic-4: in-progress
+  4-1-update-production-system-prompt: done
+  4-2-extract-gtfobins-test-dataset: done
+  4-3-create-harmless-command-baseline: done
+  4-4-build-evaluation-harness-inspect: done
+  4-5-implement-metrics-reporting-inspect: done
+  4-6-create-llm-comparison-framework: done
   4-7-generate-comparison-plots: drafted
   epic-4-retrospective: optional

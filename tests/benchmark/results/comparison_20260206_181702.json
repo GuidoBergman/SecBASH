@@ -1,0 +1,700 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-06T18:17:02Z",
+    "models_evaluated": 11,
+    "datasets": [
+      "gtfobins",
+      "harmless"
+    ],
+    "scaffolding": "standard",
+    "gtfobins_count": 431,
+    "harmless_count": 310,
+    "source": "reaggregated from best eval logs"
+  },
+  "results": {
+    "anthropic/claude-haiku-4-5-20251001": {
+      "model": "anthropic/claude-haiku-4-5-20251001",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.888631090487239,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.888631090487239,
+          "stderr": 0.015170800863922427,
+          "total_commands": 431,
+          "correct": 383,
+          "latency": {
+            "mean": 19249.438515081205,
+            "p50": 17767.0,
+            "p90": 30500.0,
+            "p99": 51393.4,
+            "max": 64471.99999999999
+          },
+          "cost": {
+            "total_cost": 1.013555,
+            "cost_per_1000": 2.3516357308584688,
+            "cost_per_command": 0.0023516357308584687
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.9870967741935484,
+          "false_positive_rate": 0.012903225806451646,
+          "accuracy": 0.9870967741935484,
+          "stderr": 0.00642021800692453,
+          "total_commands": 310,
+          "correct": 306,
+          "latency": {
+            "mean": 36272.07741935484,
+            "p50": 34582.0,
+            "p90": 52077.7,
+            "p99": 92903.65,
+            "max": 143136.0
+          },
+          "cost": {
+            "total_cost": 0.6673589999999999,
+            "cost_per_1000": 2.1527709677419353,
+            "cost_per_command": 0.0021527709677419352
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.8771648828680487,
+        "secbash_score_se": 0.016025025686597274,
+        "total_cost_usd": 1.680914,
+        "cost_per_1000_combined": 2.2684399460188938,
+        "avg_latency_ms": 27760.75796721802
+      }
+    },
+    "anthropic/claude-opus-4-6": {
+      "model": "anthropic/claude-opus-4-6",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.9535962877030162,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.9535962877030162,
+          "stderr": 0.010144354344881564,
+          "total_commands": 431,
+          "correct": 411,
+          "latency": {
+            "mean": 37664.29930394432,
+            "p50": 35412.0,
+            "p90": 52995.0,
+            "p99": 180029.9,
+            "max": 190081.0
+          },
+          "cost": {
+            "total_cost": 5.158695000000001,
+            "cost_per_1000": 11.969129930394434,
+            "cost_per_command": 0.011969129930394434
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.9193548387096774,
+          "false_positive_rate": 0.08064516129032262,
+          "accuracy": 0.9193548387096774,
+          "stderr": 0.015490002961591016,
+          "total_commands": 310,
+          "correct": 285,
+          "latency": {
+            "mean": 33140.64838709677,
+            "p50": 27026.5,
+            "p90": 51171.1,
+            "p99": 178330.28,
+            "max": 180034.0
+          },
+          "cost": {
+            "total_cost": 3.2299700000000002,
+            "cost_per_1000": 10.419258064516129,
+            "cost_per_command": 0.01041925806451613
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.8766933612753536,
+        "secbash_score_se": 0.017469051884583225,
+        "total_cost_usd": 8.388665000000001,
+        "cost_per_1000_combined": 11.320735492577601,
+        "avg_latency_ms": 35402.473845520544
+      }
+    },
+    "anthropic/claude-sonnet-4-5-20250929": {
+      "model": "anthropic/claude-sonnet-4-5-20250929",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.951276102088167,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.951276102088167,
+          "stderr": 0.01038221642377117,
+          "total_commands": 431,
+          "correct": 410,
+          "latency": {
+            "mean": 37780.24593967517,
+            "p50": 36264.0,
+            "p90": 53900.0,
+            "p99": 174680.1,
+            "max": 180038.0
+          },
+          "cost": {
+            "total_cost": 2.8478670000000004,
+            "cost_per_1000": 6.607580046403713,
+            "cost_per_command": 0.006607580046403713
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.9548387096774194,
+          "false_positive_rate": 0.04516129032258065,
+          "accuracy": 0.9548387096774194,
+          "stderr": 0.011813237621562342,
+          "total_commands": 310,
+          "correct": 296,
+          "latency": {
+            "mean": 33358.309677419355,
+            "p50": 21543.0,
+            "p90": 68812.8,
+            "p99": 129029.43,
+            "max": 180024.0
+          },
+          "cost": {
+            "total_cost": 1.968738,
+            "cost_per_1000": 6.350767741935485,
+            "cost_per_command": 0.006350767741935485
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.9083152458648305,
+        "secbash_score_se": 0.014985297598435606,
+        "total_cost_usd": 4.816605000000001,
+        "cost_per_1000_combined": 6.50014170040486,
+        "avg_latency_ms": 35569.27780854727
+      }
+    },
+    "google/gemini-3-flash-preview": {
+      "model": "google/gemini-3-flash-preview",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.925754060324826,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.925754060324826,
+          "stderr": 0.012642994210134663,
+          "total_commands": 431,
+          "correct": 399,
+          "latency": {
+            "mean": 28654.828306264502,
+            "p50": 21240.0,
+            "p90": 52015.0,
+            "p99": 64416.69999999999,
+            "max": 65844.0
+          },
+          "cost": {
+            "total_cost": 0.0,
+            "cost_per_1000": 0.0,
+            "cost_per_command": 0.0
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.8290322580645161,
+          "false_positive_rate": 0.17096774193548392,
+          "accuracy": 0.8290322580645161,
+          "stderr": 0.02141724293632158,
+          "total_commands": 310,
+          "correct": 257,
+          "latency": {
+            "mean": 46250.235483870965,
+            "p50": 46572.5,
+            "p90": 58604.8,
+            "p99": 64306.94999999999,
+            "max": 66313.0
+          },
+          "cost": {
+            "total_cost": 0.0,
+            "cost_per_1000": 0.0,
+            "cost_per_command": 0.0
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.7674799790434848,
+        "secbash_score_se": 0.022427096865843155,
+        "total_cost_usd": 0.0,
+        "cost_per_1000_combined": 0.0,
+        "avg_latency_ms": 37452.53189506773
+      }
+    },
+    "google/gemini-3-pro-preview": {
+      "model": "google/gemini-3-pro-preview",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.4802784222737819,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.4802784222737819,
+          "stderr": 0.024093377425110224,
+          "total_commands": 431,
+          "correct": 207,
+          "latency": {
+            "mean": 44954.30626450116,
+            "p50": 55175.0,
+            "p90": 61947.0,
+            "p99": 64934.9,
+            "max": 68876.0
+          },
+          "cost": {
+            "total_cost": 0.0,
+            "cost_per_1000": 0.0,
+            "cost_per_command": 0.0
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.054838709677419356,
+          "false_positive_rate": 0.9451612903225807,
+          "accuracy": 0.054838709677419356,
+          "stderr": 0.012951418509899218,
+          "total_commands": 310,
+          "correct": 17,
+          "latency": {
+            "mean": 59824.18387096774,
+            "p50": 60622.5,
+            "p90": 62254.9,
+            "p99": 65889.55,
+            "max": 66221.0
+          },
+          "cost": {
+            "total_cost": 0.0,
+            "cost_per_1000": 0.0,
+            "cost_per_command": 0.0
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.026337848963400946,
+        "secbash_score_se": 0.006359061984409982,
+        "total_cost_usd": 0.0,
+        "cost_per_1000_combined": 0.0,
+        "avg_latency_ms": 52389.245067734446
+      }
+    },
+    "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai": {
+      "model": "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.9907192575406032,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.9907192575406032,
+          "stderr": 0.004624155555542912,
+          "total_commands": 431,
+          "correct": 427,
+          "latency": {
+            "mean": 9110.139211136891,
+            "p50": 8671.0,
+            "p90": 12836.0,
+            "p99": 20515.6,
+            "max": 23049.0
+          },
+          "cost": {
+            "total_cost": 0.6281781376518218,
+            "cost_per_1000": 1.4574898785425099,
+            "cost_per_command": 0.00145748987854251
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.9032258064516129,
+          "false_positive_rate": 0.09677419354838712,
+          "accuracy": 0.9032258064516129,
+          "stderr": 0.016818943416345194,
+          "total_commands": 310,
+          "correct": 280,
+          "latency": {
+            "mean": 4766.683870967742,
+            "p50": 4485.0,
+            "p90": 6197.2,
+            "p99": 8775.17,
+            "max": 9407.0
+          },
+          "cost": {
+            "total_cost": 0.45182186234817817,
+            "cost_per_1000": 1.45748987854251,
+            "cost_per_command": 0.0014574898785425102
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.8948432003592545,
+        "secbash_score_se": 0.017178331366216062,
+        "total_cost_usd": 1.08,
+        "cost_per_1000_combined": 1.45748987854251,
+        "avg_latency_ms": 6938.411541052317
+      }
+    },
+    "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai": {
+      "model": "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.9907192575406032,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.9907192575406032,
+          "stderr": 0.004624155555542912,
+          "total_commands": 431,
+          "correct": 427,
+          "latency": {
+            "mean": 11970.874709976799,
+            "p50": 15467.0,
+            "p90": 19979.0,
+            "p99": 25386.1,
+            "max": 27707.0
+          },
+          "cost": {
+            "total_cost": 0.6281781376518218,
+            "cost_per_1000": 1.4574898785425099,
+            "cost_per_command": 0.00145748987854251
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.7935483870967742,
+          "false_positive_rate": 0.20645161290322578,
+          "accuracy": 0.7935483870967742,
+          "stderr": 0.023025899617188667,
+          "total_commands": 310,
+          "correct": 246,
+          "latency": {
+            "mean": 3740.451612903226,
+            "p50": 2831.5,
+            "p90": 4902.4,
+            "p99": 21316.23,
+            "max": 30218.0
+          },
+          "cost": {
+            "total_cost": 0.45182186234817817,
+            "cost_per_1000": 1.45748987854251,
+            "cost_per_command": 0.0014574898785425102
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.7861836688870594,
+        "secbash_score_se": 0.023105448135015395,
+        "total_cost_usd": 1.08,
+        "cost_per_1000_combined": 1.45748987854251,
+        "avg_latency_ms": 7855.663161440012
+      }
+    },
+    "openai/gpt-5-mini": {
+      "model": "openai/gpt-5-mini",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.888631090487239,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.888631090487239,
+          "stderr": 0.015170800863922427,
+          "total_commands": 431,
+          "correct": 383,
+          "latency": {
+            "mean": 23986.78886310905,
+            "p50": 22854.0,
+            "p90": 34138.0,
+            "p99": 45884.4,
+            "max": 60224.0
+          },
+          "cost": {
+            "total_cost": 0.52014925,
+            "cost_per_1000": 1.206842807424594,
+            "cost_per_command": 0.001206842807424594
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.8709677419354839,
+          "false_positive_rate": 0.12903225806451613,
+          "accuracy": 0.8709677419354839,
+          "stderr": 0.019070889254792767,
+          "total_commands": 310,
+          "correct": 270,
+          "latency": {
+            "mean": 20593.94516129032,
+            "p50": 18765.0,
+            "p90": 30653.6,
+            "p99": 49473.65,
+            "max": 63218.0
+          },
+          "cost": {
+            "total_cost": 0.28052475,
+            "cost_per_1000": 0.9049185483870967,
+            "cost_per_command": 0.0009049185483870967
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.7739690142953372,
+        "secbash_score_se": 0.021489323501104222,
+        "total_cost_usd": 0.800674,
+        "cost_per_1000_combined": 1.080531713900135,
+        "avg_latency_ms": 22290.367012199684
+      }
+    },
+    "openai/gpt-5.1": {
+      "model": "openai/gpt-5.1",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.9095127610208816,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.9095127610208816,
+          "stderr": 0.013834511830341073,
+          "total_commands": 431,
+          "correct": 392,
+          "latency": {
+            "mean": 16665.25754060325,
+            "p50": 15467.0,
+            "p90": 23104.0,
+            "p99": 39354.8,
+            "max": 55878.0
+          },
+          "cost": {
+            "total_cost": 1.11975625,
+            "cost_per_1000": 2.598042343387471,
+            "cost_per_command": 0.002598042343387471
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.9741935483870968,
+          "false_positive_rate": 0.02580645161290318,
+          "accuracy": 0.9741935483870968,
+          "stderr": 0.009020020642355795,
+          "total_commands": 310,
+          "correct": 302,
+          "latency": {
+            "mean": 20607.535483870968,
+            "p50": 17999.0,
+            "p90": 30402.5,
+            "p99": 53629.83,
+            "max": 66225.0
+          },
+          "cost": {
+            "total_cost": 0.7828137500000001,
+            "cost_per_1000": 2.5252056451612908,
+            "cost_per_command": 0.0025252056451612907
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.8860414639622782,
+        "secbash_score_se": 0.015778007524203018,
+        "total_cost_usd": 1.90257,
+        "cost_per_1000_combined": 2.5675708502024293,
+        "avg_latency_ms": 18636.39651223711
+      }
+    },
+    "openrouter/meta-llama/llama-guard-3-8b": {
+      "model": "openrouter/meta-llama/llama-guard-3-8b",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.3689095127610209,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.3689095127610209,
+          "stderr": 0.023268667632349745,
+          "total_commands": 431,
+          "correct": 159,
+          "latency": {
+            "mean": 13631.517401392111,
+            "p50": 1022.9999999999999,
+            "p90": 60011.0,
+            "p99": 60049.2,
+            "max": 60239.0
+          },
+          "cost": {
+            "total_cost": 0.0168779,
+            "cost_per_1000": 0.03915986078886311,
+            "cost_per_command": 3.915986078886311e-05
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.4161290322580645,
+          "false_positive_rate": 0.5838709677419355,
+          "accuracy": 0.4161290322580645,
+          "stderr": 0.02804098138076158,
+          "total_commands": 310,
+          "correct": 129,
+          "latency": {
+            "mean": 13524.73870967742,
+            "p50": 1182.0,
+            "p90": 60010.0,
+            "p99": 60195.12,
+            "max": 70023.0
+          },
+          "cost": {
+            "total_cost": 0.01184992,
+            "cost_per_1000": 0.038225548387096776,
+            "cost_per_command": 3.8225548387096774e-05
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.15351395853603775,
+        "secbash_score_se": 0.014169207217280062,
+        "total_cost_usd": 0.02872782,
+        "cost_per_1000_combined": 0.038768987854251015,
+        "avg_latency_ms": 13578.128055534766
+      }
+    },
+    "openrouter/microsoft/phi-4": {
+      "model": "openrouter/microsoft/phi-4",
+      "cot": false,
+      "status": "success",
+      "datasets": {
+        "gtfobins": {
+          "detection_rate": 0.9466357308584686,
+          "pass_rate": 0.0,
+          "false_positive_rate": 1.0,
+          "accuracy": 0.9466357308584686,
+          "stderr": 0.010838832418081729,
+          "total_commands": 431,
+          "correct": 408,
+          "latency": {
+            "mean": 15964.0,
+            "p50": 15430.0,
+            "p90": 25980.0,
+            "p99": 34089.4,
+            "max": 52717.0
+          },
+          "cost": {
+            "total_cost": 0.0600682,
+            "cost_per_1000": 0.13936937354988402,
+            "cost_per_command": 0.000139369373549884
+          }
+        },
+        "harmless": {
+          "detection_rate": 0.0,
+          "pass_rate": 0.7258064516129032,
+          "false_positive_rate": 0.27419354838709675,
+          "accuracy": 0.7258064516129032,
+          "stderr": 0.02537813997088524,
+          "total_commands": 310,
+          "correct": 225,
+          "latency": {
+            "mean": 25899.348387096776,
+            "p50": 22499.0,
+            "p90": 42978.5,
+            "p99": 68605.43,
+            "max": 77779.0
+          },
+          "cost": {
+            "total_cost": 0.042715199999999995,
+            "cost_per_1000": 0.13779096774193547,
+            "cost_per_command": 0.00013779096774193546
+          }
+        }
+      },
+      "composite": {
+        "secbash_score": 0.6870743207843725,
+        "secbash_score_se": 0.02527911378676037,
+        "total_cost_usd": 0.1027834,
+        "cost_per_1000_combined": 0.13870904183535762,
+        "avg_latency_ms": 20931.674193548388
+      }
+    }
+  },
+  "ranking": [
+    {
+      "rank": 1,
+      "model": "anthropic/claude-sonnet-4-5-20250929",
+      "secbash_score": 0.9083152458648305,
+      "cost_per_1000": 6.50014170040486
+    },
+    {
+      "rank": 2,
+      "model": "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
+      "secbash_score": 0.8948432003592545,
+      "cost_per_1000": 1.45748987854251
+    },
+    {
+      "rank": 3,
+      "model": "openai/gpt-5.1",
+      "secbash_score": 0.8860414639622782,
+      "cost_per_1000": 2.5675708502024293
+    },
+    {
+      "rank": 4,
+      "model": "anthropic/claude-haiku-4-5-20251001",
+      "secbash_score": 0.8771648828680487,
+      "cost_per_1000": 2.2684399460188938
+    },
+    {
+      "rank": 5,
+      "model": "anthropic/claude-opus-4-6",
+      "secbash_score": 0.8766933612753536,
+      "cost_per_1000": 11.320735492577601
+    },
+    {
+      "rank": 6,
+      "model": "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
+      "secbash_score": 0.7861836688870594,
+      "cost_per_1000": 1.45748987854251
+    },
+    {
+      "rank": 7,
+      "model": "openai/gpt-5-mini",
+      "secbash_score": 0.7739690142953372,
+      "cost_per_1000": 1.080531713900135
+    },
+    {
+      "rank": 8,
+      "model": "google/gemini-3-flash-preview",
+      "secbash_score": 0.7674799790434848,
+      "cost_per_1000": 0.0
+    },
+    {
+      "rank": 9,
+      "model": "openrouter/microsoft/phi-4",
+      "secbash_score": 0.6870743207843725,
+      "cost_per_1000": 0.13870904183535762
+    },
+    {
+      "rank": 10,
+      "model": "openrouter/meta-llama/llama-guard-3-8b",
+      "secbash_score": 0.15351395853603775,
+      "cost_per_1000": 0.038768987854251015
+    },
+    {
+      "rank": 11,
+      "model": "google/gemini-3-pro-preview",
+      "secbash_score": 0.026337848963400946,
+      "cost_per_1000": 0.0
+    }
+  ]
+}

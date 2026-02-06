@@ -495,7 +495,12 @@ class TestLlamaGuardPromptFormatSafety:
 
 
 class TestDecisionTreeCategories:
-    """Story 4.1: Test decision tree categories from the research labeling prompt."""
+    """Story 4.1: Mock pass-through tests for decision tree categories.
+
+    NOTE: These tests mock the LLM response and verify query_llm passes it through.
+    They document EXPECTED behavior but do NOT test prompt effectiveness.
+    For actual prompt content validation, see TestPromptDecisionTreeContent.
+    """
 
     def test_security_critical_file_read_shadow_blocked(self):
         """Decision Tree Rule 4: Reading /etc/shadow should be blocked."""
@@ -589,7 +594,12 @@ class TestDecisionTreeCategories:
 
 
 class TestWarnCategories:
-    """Story 4.1: Test WARN category patterns from the decision tree."""
+    """Story 4.1: Mock pass-through tests for WARN category patterns.
+
+    NOTE: These tests mock the LLM response and verify query_llm passes it through.
+    They document EXPECTED behavior but do NOT test prompt effectiveness.
+    For actual prompt content validation, see TestPromptDecisionTreeContent.
+    """
 
     def test_enumeration_etc_passwd_warned(self):
         """Decision Tree Rule 10: Reading /etc/passwd should be warned."""
@@ -747,3 +757,57 @@ class TestLlamaGuardDecisionTreeContent:
     def test_llamaguard_has_obfuscation_handling(self):
         """AC3: LLAMAGUARD_PROMPT should mention obfuscation handling."""
         assert "obfuscation" in LLAMAGUARD_PROMPT.lower() or "base64" in LLAMAGUARD_PROMPT.lower()
+
+    def test_llamaguard_has_write_non_critical_rule(self):
+        """AC3: LLAMAGUARD_PROMPT should have write non-critical benign rule."""
+        assert "write non-critical" in LLAMAGUARD_PROMPT.lower() or "non-critical benign" in LLAMAGUARD_PROMPT.lower()
+
+    def test_llamaguard_has_examples(self):
+        """AC3: LLAMAGUARD_PROMPT should include key examples."""
+        prompt_lower = LLAMAGUARD_PROMPT.lower()
+        assert "key examples" in prompt_lower or "examples:" in prompt_lower
+        assert "safe" in prompt_lower and "unsafe" in prompt_lower
+
+    def test_llamaguard_has_special_cases(self):
+        """AC3: LLAMAGUARD_PROMPT should mention cron and file operation special cases."""
+        prompt_lower = LLAMAGUARD_PROMPT.lower()
+        assert "cron" in prompt_lower
+        assert "target and content" in prompt_lower or "target" in prompt_lower
+
+
+class TestPromptStructuralIntegrity:
+    """Story 4.1 Review: Verify structural completeness of decision tree prompts."""
+
+    def test_system_prompt_has_13_numbered_rules(self):
+        """SYSTEM_PROMPT should have all 13 decision tree rules from research."""
+        import re
+        rules = re.findall(r'^\d+\. ', SYSTEM_PROMPT, re.MULTILINE)
+        assert len(rules) == 13, f"Expected 13 rules, found {len(rules)}: {rules}"
+
+    def test_system_prompt_rules_in_order(self):
+        """SYSTEM_PROMPT rules should be numbered sequentially 1-13."""
+        import re
+        rule_nums = [int(m) for m in re.findall(r'^(\d+)\. ', SYSTEM_PROMPT, re.MULTILINE)]
+        assert rule_nums == list(range(1, 14)), f"Rules not sequential: {rule_nums}"
+
+    def test_llamaguard_has_13_numbered_rules(self):
+        """LLAMAGUARD_PROMPT should have all 13 numbered rules."""
+        import re
+        rules = re.findall(r'^\d+\. ', LLAMAGUARD_PROMPT, re.MULTILINE)
+        assert len(rules) == 13, f"Expected 13 rules, found {len(rules)}: {rules}"
+
+    def test_llamaguard_rules_in_order(self):
+        """LLAMAGUARD_PROMPT rules should be numbered sequentially 1-13."""
+        import re
+        rule_nums = [int(m) for m in re.findall(r'^(\d+)\. ', LLAMAGUARD_PROMPT, re.MULTILINE)]
+        assert rule_nums == list(range(1, 14)), f"Rules not sequential: {rule_nums}"
+
+    def test_system_prompt_has_write_non_critical_rule(self):
+        """SYSTEM_PROMPT should have the write non-critical benign rule (research Rule 12)."""
+        assert "write to non-critical" in SYSTEM_PROMPT.lower()
+
+    def test_system_prompt_has_special_cases_section(self):
+        """SYSTEM_PROMPT should have Special Cases section for cron and file ops."""
+        assert "## Special Cases" in SYSTEM_PROMPT
+        assert "cron" in SYSTEM_PROMPT.lower()
+        assert "target and content" in SYSTEM_PROMPT.lower()

@@ -626,7 +626,7 @@ So that **I can systematically benchmark different models using industry-standar
 - Create `tests/benchmark/tasks/secbash_eval.py` with `@task` decorator
 - Copy SYSTEM_PROMPT from `src/secbash/llm_client.py` to ensure consistency
 - Use Inspect's native `generate()` solver with the production prompt
-- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5`
+- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5.1`
 
 **Example Task Structure:**
 ```python
@@ -738,15 +738,21 @@ So that **I can compare cost/performance trade-offs**.
 
 **Models to support (updated February 2026):**
 
-| Provider | Model ID (Inspect format) | Type |
-|----------|---------------------------|------|
-| OpenAI | openai/gpt-5 | Latest |
-| OpenAI | openai/gpt-4o-mini | Cheapest |
-| Anthropic | anthropic/claude-opus-4-5-20251101 | Latest |
-| Anthropic | anthropic/claude-3-5-haiku-20241022 | Cheapest |
-| Google | google/gemini-3-pro | Latest |
-| Google | google/gemini-3-flash | Cheapest |
-| OpenRouter | openrouter/meta-llama/llama-guard-3-8b | Security-specific |
+| Provider | Model ID (Inspect format) | Type | Cost ($/MTok In/Out) |
+|----------|---------------------------|------|----------------------|
+| OpenAI | openai/gpt-5.1 | Latest | $1.25 / $10.00 |
+| OpenAI | openai/gpt-5-mini | Cheapest | $0.25 / $2.00 |
+| Anthropic | anthropic/claude-opus-4-6 | Most Capable | $5.00 / $25.00 |
+| Anthropic | anthropic/claude-sonnet-4-5-20250929 | Latest | $3.00 / $15.00 |
+| Anthropic | anthropic/claude-haiku-4-5-20251001 | Cheapest | $1.00 / $5.00 |
+| Google | google/gemini-3-pro | Latest | $2.00 / $12.00 |
+| Google | google/gemini-3-flash | Cheapest | $0.50 / $3.00 |
+| Microsoft | microsoft/phi-4 | Specialized (Small) | $0.12 / $0.50 |
+| OpenRouter | openrouter/meta-llama/llama-guard-3-8b | Security-specific | $0.08 / $0.30 |
+| HF/Featherless | hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai | Security-specific | API credits |
+| HF/Featherless | hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai | Security-specific | API credits |
+
+Featherless AI: Billed via HF Inference Providers API credits. ~$1.46/1000 commands. Requires HF_TOKEN env var.
 
 **Scaffolding variations:**
 - Standard prompt (baseline)
@@ -761,7 +767,7 @@ So that **I can compare cost/performance trade-offs**.
 - Use Inspect's native model providers (not LiteLLM)
 - Support CLI arguments for model list and scaffolding options
 - Inspect handles rate limiting automatically
-- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5`
+- Run via: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-5.1`
 
 ### Story 4.7: Generate Comparison Plots
 

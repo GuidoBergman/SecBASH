@@ -84,11 +84,14 @@ def validate_credentials() -> tuple[bool, str]:
 SecBASH requires at least one API key to validate commands.
 
 Set one or more of these environment variables:
-  export OPENROUTER_API_KEY="your-key-here"
-  export OPENAI_API_KEY="your-key-here"
-  export ANTHROPIC_API_KEY="your-key-here"
+  export OPENROUTER_API_KEY="your-key-here"   # https://openrouter.ai/
+  export OPENAI_API_KEY="your-key-here"        # https://platform.openai.com/api-keys
+  export ANTHROPIC_API_KEY="your-key-here"     # https://console.anthropic.com/
 
-Recommended: Use OpenRouter for LlamaGuard (security-specific model).""")
+Recommended: Use OpenRouter for LlamaGuard (security-specific model).
+
+Tip: Copy .env.example to .env and fill in your keys, then source it:
+  cp .env.example .env && export $(grep -v '^#' .env | xargs)""")
 
     return (True, f"Using providers: {', '.join(available)}")
 
