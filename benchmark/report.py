@@ -4,13 +4,13 @@ Reads Inspect eval logs and produces formatted console output and JSON exports.
 
 Usage:
     # Report on latest eval log
-    python -m tests.benchmark.report --latest
+    python -m benchmark.report --latest
 
     # Report on specific log file
-    python -m tests.benchmark.report --log-file ./logs/2026-02-04_eval.eval
+    python -m benchmark.report --log-file ./logs/2026-02-04_eval.eval
 
     # Export JSON results
-    python -m tests.benchmark.report --latest --export
+    python -m benchmark.report --latest --export
 """
 
 import argparse
@@ -54,7 +54,10 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     },
     "google/gemini-3-pro": {"input": 2.00 / 1_000_000, "output": 12.00 / 1_000_000},
     "google/gemini-3-flash": {"input": 0.50 / 1_000_000, "output": 3.00 / 1_000_000},
-    "openrouter/microsoft/phi-4": {"input": 0.06 / 1_000_000, "output": 0.14 / 1_000_000},
+    "openrouter/microsoft/phi-4": {
+        "input": 0.06 / 1_000_000,
+        "output": 0.14 / 1_000_000,
+    },
     # Featherless AI models via HF Inference Providers (API credits).
     # No token usage reported by the API, so we use per-command pricing.
     # Cost derived from actual HF billing: $1.08 per model / 741 commands.

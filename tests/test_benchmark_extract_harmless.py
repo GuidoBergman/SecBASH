@@ -7,9 +7,8 @@ Tests the extract_harmless.py script functionality:
 """
 
 import json
-import re
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -20,14 +19,14 @@ class TestDangerousPatternDetection:
     @pytest.fixture
     def dangerous_patterns(self):
         """Return the dangerous patterns list from the module."""
-        from tests.benchmark.extract_harmless import DANGEROUS_PATTERNS
+        from benchmark.extract_harmless import DANGEROUS_PATTERNS
 
         return DANGEROUS_PATTERNS
 
     @pytest.fixture
     def is_dangerous(self):
         """Return the is_dangerous function."""
-        from tests.benchmark.extract_harmless import is_dangerous
+        from benchmark.extract_harmless import is_dangerous
 
         return is_dangerous
 
@@ -220,12 +219,10 @@ class TestExtractHarmlessCommands:
 
     def test_extraction_filters_dangerous(self, mock_dataset):
         """Extraction should filter dangerous commands."""
-        from tests.benchmark.extract_harmless import is_dangerous
+        from benchmark.extract_harmless import is_dangerous
 
         safe_commands = [
-            item
-            for item in mock_dataset
-            if not is_dangerous(item["response"])[0]
+            item for item in mock_dataset if not is_dangerous(item["response"])[0]
         ]
 
         # Should keep ls, pwd, echo; filter rm, shutdown, /etc/
@@ -237,12 +234,10 @@ class TestExtractHarmlessCommands:
 
     def test_extraction_with_mock_huggingface(self, mock_dataset):
         """Test full extraction with mocked HuggingFace dataset."""
-        with patch(
-            "tests.benchmark.extract_harmless.load_dataset"
-        ) as mock_load:
+        with patch("benchmark.extract_harmless.load_dataset") as mock_load:
             mock_load.return_value = mock_dataset
 
-            from tests.benchmark.extract_harmless import (
+            from benchmark.extract_harmless import (
                 extract_harmless_commands,
             )
 
@@ -255,12 +250,10 @@ class TestExtractHarmlessCommands:
 
     def test_all_ground_truth_is_allow(self, mock_dataset):
         """All filtered commands should have ALLOW ground truth."""
-        with patch(
-            "tests.benchmark.extract_harmless.load_dataset"
-        ) as mock_load:
+        with patch("benchmark.extract_harmless.load_dataset") as mock_load:
             mock_load.return_value = mock_dataset
 
-            from tests.benchmark.extract_harmless import (
+            from benchmark.extract_harmless import (
                 extract_harmless_commands,
             )
 
@@ -332,7 +325,12 @@ class TestDatasetVerification:
     @pytest.fixture
     def output_path(self):
         """Return the expected output path."""
-        return Path(__file__).parent / "data" / "harmless_commands.json"
+        return (
+            Path(__file__).parent.parent
+            / "benchmark"
+            / "data"
+            / "harmless_commands.json"
+        )
 
     def test_output_file_exists(self, output_path):
         """Output file should exist after extraction."""
@@ -383,13 +381,13 @@ class TestDatasetVerification:
         if not output_path.exists():
             pytest.skip("Output file not generated yet")
 
-        from tests.benchmark.extract_harmless import is_dangerous
+        from benchmark.extract_harmless import is_dangerous
 
         with open(output_path) as f:
             data = json.load(f)
 
         for cmd in data["commands"]:
             is_danger, pattern = is_dangerous(cmd["command"])
-            assert (
-                is_danger is False
-            ), f"Dangerous command found: {cmd['command']} (pattern: {pattern})"
+            assert is_danger is False, (
+                f"Dangerous command found: {cmd['command']} (pattern: {pattern})"
+            )

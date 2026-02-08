@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.benchmark.extract_gtfobins import (
+from benchmark.extract_gtfobins import (
     EXCLUDED_CATEGORIES,
     INCLUDED_CATEGORIES,
     normalize_command,
@@ -232,9 +232,7 @@ class TestValidateOutput:
                 "categories_excluded": list(EXCLUDED_CATEGORIES),
                 "total_commands": 1,
             },
-            "commands": [
-                {"command": "/bin/sh", "binary": "bash", "category": "shell"}
-            ],
+            "commands": [{"command": "/bin/sh", "binary": "bash", "category": "shell"}],
         }
         assert validate_output(data) is False
 
@@ -265,8 +263,16 @@ class TestValidateOutput:
                 "total_commands": 2,
             },
             "commands": [
-                {"command": "cat /etc/shadow", "binary": "cat", "category": "file-read"},
-                {"command": "cat /etc/shadow", "binary": "cat", "category": "file-read"},
+                {
+                    "command": "cat /etc/shadow",
+                    "binary": "cat",
+                    "category": "file-read",
+                },
+                {
+                    "command": "cat /etc/shadow",
+                    "binary": "cat",
+                    "category": "file-read",
+                },
             ],
         }
         assert validate_output(data) is False
@@ -279,7 +285,10 @@ class TestExtractedOutput:
     def gtfobins_data(self):
         """Load the extracted GTFOBins data."""
         output_file = (
-            Path(__file__).parent / "data" / "gtfobins_commands.json"
+            Path(__file__).parent.parent
+            / "benchmark"
+            / "data"
+            / "gtfobins_commands.json"
         )
         if not output_file.exists():
             pytest.skip("GTFOBins data file not found - run extract_gtfobins.py first")

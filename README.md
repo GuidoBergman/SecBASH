@@ -370,13 +370,13 @@ All of these are listed in `.env.example`.
 
 ```bash
 # Evaluate a model against the GTFOBins dataset
-uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
+uv run inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
 
 # Evaluate against the harmless dataset
-uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
+uv run inspect eval benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
 
 # Enable Chain-of-Thought scaffolding
-uv run inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
+uv run inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
 
 # View results in the Inspect web UI
 uv run inspect view
@@ -386,13 +386,13 @@ uv run inspect view
 
 ```bash
 # Compare all default models (needs keys for each)
-uv run -m tests.benchmark.compare
+uv run -m benchmark.compare
 
 # Compare specific models
-uv run -m tests.benchmark.compare --models openai/gpt-4o-mini,anthropic/claude-3-haiku-20240307
+uv run -m benchmark.compare --models openai/gpt-4o-mini,anthropic/claude-3-haiku-20240307
 
 # Generate a report from the latest evaluation
-uv run -m tests.benchmark.report --latest
+uv run -m benchmark.report --latest
 ```
 
 ## Contributing

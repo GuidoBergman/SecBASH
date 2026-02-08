@@ -2,7 +2,7 @@
   "metadata": {
     "source": "GTFOBins",
     "repository": "https://github.com/GTFOBins/GTFOBins.github.io",
-    "extraction_date": "2026-02-03",
+    "extraction_date": "2026-02-08",
     "categories_included": [
       "bind-shell",
       "command",
@@ -19,8 +19,8 @@
       "sudo",
       "suid"
     ],
-    "total_commands": 431,
-    "total_binaries": 261
+    "total_commands": 432,
+    "total_binaries": 262
   },
   "commands": [
     {
@@ -302,6 +302,11 @@
       "command": "cmp /etc/shadow /dev/zero -b -l",
       "binary": "cmp",
       "category": "file-read"
+    },
+    {
+      "command": "code tunnel --name xxxxxx",
+      "binary": "code",
+      "category": "download"
     },
     {
       "command": "column /etc/shadow",

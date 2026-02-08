@@ -249,11 +249,33 @@ secbash/
 │       ├── executor.py         # subprocess.run wrapper
 │       └── config.py           # Environment variable loading
 │
+├── benchmark/                  # Evaluation infrastructure
+│   ├── __init__.py
+│   ├── tasks/                  # Inspect eval tasks
+│   ├── scorers/                # Custom Inspect scorers
+│   ├── metrics/                # Custom Inspect metrics
+│   ├── data/                   # Test datasets (GTFOBins, harmless)
+│   ├── results/                # Evaluation results and plots
+│   ├── compare.py              # Multi-model comparison framework
+│   ├── report.py               # Post-evaluation reporting
+│   ├── plots.py                # Visualization generation
+│   ├── extract_gtfobins.py     # GTFOBins dataset extraction
+│   └── extract_harmless.py     # Harmless dataset extraction
+│
 └── tests/
     ├── __init__.py
+    ├── conftest.py             # Shared pytest fixtures
+    ├── utils.py                # Mock utilities (MockChoice, MockResponse)
     ├── test_validator.py       # Validation logic tests
     ├── test_llm_client.py      # Mock LLM response tests
-    └── test_executor.py        # Subprocess execution tests
+    ├── test_executor.py        # Subprocess execution tests
+    ├── test_config.py          # Configuration loading tests
+    ├── test_dangerous_commands.py  # Dangerous command detection tests
+    ├── test_defaults.py        # Default settings tests
+    ├── test_main.py            # CLI entry point tests
+    ├── test_shell.py           # Shell interaction tests
+    ├── test_history.py         # Command history tests
+    └── test_benchmark_*.py     # Benchmark evaluation tests (6 files)
 ```
 
 ### Module Responsibilities

@@ -1,14 +1,14 @@
 """Benchmark visualization plots for SecBASH LLM comparison results.
 
 Generates scatter plots, bar charts, and summary tables from comparison
-JSON files produced by ``tests.benchmark.compare``.
+JSON files produced by ``benchmark.compare``.
 
 Usage:
     # Generate all plots from comparison results
-    python -m tests.benchmark.plots tests/benchmark/results/comparison_20260206_181702.json
+    python -m benchmark.plots benchmark/results/comparison_20260206_181702.json
 
     # Specify output directory
-    python -m tests.benchmark.plots results.json --output-dir ./plots
+    python -m benchmark.plots results.json --output-dir ./plots
 """
 
 import argparse
@@ -233,12 +233,24 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
         frontier = compute_pareto_frontier(costs, scores)
         if len(frontier) >= 2:
             legend_handles.append(
-                plt.Line2D([0], [0], color="red", linestyle="--", alpha=0.7,
-                           label="Pareto Frontier")
+                plt.Line2D(
+                    [0],
+                    [0],
+                    color="red",
+                    linestyle="--",
+                    alpha=0.7,
+                    label="Pareto Frontier",
+                )
             )
     legend_handles.append(
-        plt.Line2D([0], [0], color="green", linestyle="--", alpha=0.5,
-                   label="Target Score (0.85)")
+        plt.Line2D(
+            [0],
+            [0],
+            color="green",
+            linestyle="--",
+            alpha=0.5,
+            label="Target Score (0.85)",
+        )
     )
     for provider, color in PROVIDER_COLORS.items():
         if any(get_provider(m) == provider for m in models):
@@ -309,10 +321,18 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
 
     # Set axis limits before drawing target zone
     # Pad slightly beyond data range, but never exceed 105%
-    all_pass = [harm.get("pass_rate", 0.0) * 100 for d in successful.values()
-                for harm in [d.get("datasets", {}).get("harmless", {})] if harm]
-    all_det = [gtfo.get("detection_rate", 0.0) * 100 for d in successful.values()
-               for gtfo in [d.get("datasets", {}).get("gtfobins", {})] if gtfo]
+    all_pass = [
+        harm.get("pass_rate", 0.0) * 100
+        for d in successful.values()
+        for harm in [d.get("datasets", {}).get("harmless", {})]
+        if harm
+    ]
+    all_det = [
+        gtfo.get("detection_rate", 0.0) * 100
+        for d in successful.values()
+        for gtfo in [d.get("datasets", {}).get("gtfobins", {})]
+        if gtfo
+    ]
     if all_pass and all_det:
         x_min = max(0, min(all_pass) - 5)
         y_min = max(0, min(all_det) - 5)
@@ -651,12 +671,12 @@ def main() -> None:
         "--output-dir",
         type=Path,
         default=None,
-        help="Output directory for plots (default: tests/benchmark/results/plots/)",
+        help="Output directory for plots (default: benchmark/results/plots/)",
     )
     args = parser.parse_args()
 
     if args.output_dir is None:
-        args.output_dir = Path("tests/benchmark/results/plots")
+        args.output_dir = Path("benchmark/results/plots")
 
     generate_all_plots(args.comparison_file, args.output_dir)
 

@@ -2,7 +2,7 @@
   "metadata": {
     "source": "HuggingFace aelhalili/bash-commands-dataset",
     "source_url": "https://huggingface.co/datasets/aelhalili/bash-commands-dataset",
-    "extraction_date": "2026-02-03",
+    "extraction_date": "2026-02-08",
     "original_count": 840,
     "filtered_count": 310,
     "removed_count": 276,
@@ -42,15 +42,15 @@
       "/dev/udp/"
     ],
     "dangerous_patterns_matched": [
-      "\\breboot\\b",
-      "\\bshutdown\\b",
       "\\bsudo\\b",
-      "\\bchmod\\b",
-      "/etc/",
-      "\\brm\\b",
-      "\\brmdir\\b",
       "/var/",
-      "\\bkill\\b"
+      "\\brmdir\\b",
+      "\\brm\\b",
+      "\\bchmod\\b",
+      "\\bshutdown\\b",
+      "\\bkill\\b",
+      "\\breboot\\b",
+      "/etc/"
     ],
     "license": "MIT"
   },

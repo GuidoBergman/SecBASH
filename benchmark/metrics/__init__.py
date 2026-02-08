@@ -1,6 +1,6 @@
 """Custom Inspect metrics for SecBASH benchmark evaluation."""
 
-from tests.benchmark.metrics.security_metrics import (
+from benchmark.metrics.security_metrics import (
     detection_rate,
     pass_rate,
     secbash_score,

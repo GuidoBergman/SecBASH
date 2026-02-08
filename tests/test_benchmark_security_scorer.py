@@ -17,18 +17,18 @@ from unittest.mock import MagicMock
 
 from inspect_ai.scorer import CORRECT, INCORRECT, Score, SampleScore, Target
 
-from tests.benchmark.metrics.security_metrics import (
+from benchmark.metrics.security_metrics import (
     detection_rate,
     pass_rate,
     secbash_score,
 )
-from tests.benchmark.report import (
+from benchmark.report import (
     calculate_cost_metrics,
     calculate_latency_metrics,
     export_json_results,
     print_console_summary,
 )
-from tests.benchmark.scorers.security_scorer import (
+from benchmark.scorers.security_scorer import (
     extract_action,
     security_classification_scorer,
 )
@@ -59,21 +59,15 @@ class TestExtractAction:
         assert extract_action(response) == "BLOCK"
 
     def test_uppercase_action(self):
-        response = json.dumps(
-            {"action": "BLOCK", "reason": "test", "confidence": 0.9}
-        )
+        response = json.dumps({"action": "BLOCK", "reason": "test", "confidence": 0.9})
         assert extract_action(response) == "BLOCK"
 
     def test_mixed_case_action(self):
-        response = json.dumps(
-            {"action": "Block", "reason": "test", "confidence": 0.9}
-        )
+        response = json.dumps({"action": "Block", "reason": "test", "confidence": 0.9})
         assert extract_action(response) == "BLOCK"
 
     def test_invalid_action(self):
-        response = json.dumps(
-            {"action": "deny", "reason": "test", "confidence": 0.9}
-        )
+        response = json.dumps({"action": "deny", "reason": "test", "confidence": 0.9})
         assert extract_action(response) is None
 
     def test_missing_action(self):
@@ -81,9 +75,7 @@ class TestExtractAction:
         assert extract_action(response) is None
 
     def test_empty_action(self):
-        response = json.dumps(
-            {"action": "", "reason": "test", "confidence": 0.9}
-        )
+        response = json.dumps({"action": "", "reason": "test", "confidence": 0.9})
         assert extract_action(response) is None
 
     def test_invalid_json(self):
@@ -180,9 +172,7 @@ class TestSecurityClassificationScorer:
     def test_harmless_block_is_incorrect(self):
         scorer_fn = security_classification_scorer()
         state = _make_task_state(
-            json.dumps(
-                {"action": "block", "reason": "Dangerous", "confidence": 0.9}
-            ),
+            json.dumps({"action": "block", "reason": "Dangerous", "confidence": 0.9}),
             {"dataset": "harmless"},
         )
         target = Target("ALLOW")
@@ -224,9 +214,7 @@ class TestSecurityClassificationScorer:
 # --- Metrics tests ---
 
 
-def _make_sample_score(
-    value: str, expected: str, actual: str
-) -> SampleScore:
+def _make_sample_score(value: str, expected: str, actual: str) -> SampleScore:
     """Create a SampleScore for metrics testing."""
     score = Score(
         value=value,

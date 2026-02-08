@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.benchmark.plots import (
+from benchmark.plots import (
     compute_pareto_frontier,
     generate_all_plots,
     get_provider,
@@ -446,7 +446,7 @@ class TestCliArgParsing:
     def test_parse_comparison_file_positional(self):
         import argparse
 
-        from tests.benchmark.plots import main  # noqa: F401
+        from benchmark.plots import main  # noqa: F401
 
         parser = argparse.ArgumentParser()
         parser.add_argument("comparison_file", type=Path)
@@ -475,7 +475,7 @@ class TestCliArgParsing:
             parser.parse_args([])
 
     def test_default_output_dir_when_none(self):
-        """Verify main() defaults output_dir to tests/benchmark/results/plots/."""
+        """Verify main() defaults output_dir to benchmark/results/plots/."""
         import argparse
 
         parser = argparse.ArgumentParser()
@@ -483,8 +483,8 @@ class TestCliArgParsing:
         parser.add_argument("--output-dir", type=Path, default=None)
         args = parser.parse_args(["test.json"])
         if args.output_dir is None:
-            args.output_dir = Path("tests/benchmark/results/plots")
-        assert args.output_dir == Path("tests/benchmark/results/plots")
+            args.output_dir = Path("benchmark/results/plots")
+        assert args.output_dir == Path("benchmark/results/plots")
 
 
 class TestZeroCostModels:

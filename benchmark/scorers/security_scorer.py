@@ -19,7 +19,7 @@ from inspect_ai.scorer import (
 )
 from inspect_ai.solver import TaskState
 
-from tests.benchmark.metrics.security_metrics import (
+from benchmark.metrics.security_metrics import (
     detection_rate,
     pass_rate,
     secbash_score,

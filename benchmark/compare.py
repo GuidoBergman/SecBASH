@@ -9,16 +9,16 @@ limiting, etc.) so this script iterates models and delegates to
 
 Usage:
     # Run all 10 models with both datasets
-    python -m tests.benchmark.compare
+    python -m benchmark.compare
 
     # Run specific models
-    python -m tests.benchmark.compare --models openai/gpt-5.1,openai/gpt-5-mini
+    python -m benchmark.compare --models openai/gpt-5.1,openai/gpt-5-mini
 
     # Run with Chain-of-Thought scaffolding
-    python -m tests.benchmark.compare --cot
+    python -m benchmark.compare --cot
 
     # Run only GTFOBins dataset
-    python -m tests.benchmark.compare --dataset gtfobins
+    python -m benchmark.compare --dataset gtfobins
 """
 
 import argparse
@@ -30,14 +30,14 @@ from pathlib import Path
 
 from inspect_ai import eval as inspect_eval
 
-from tests.benchmark.report import (
+from benchmark.report import (
     RESULTS_DIR,
     _count_correct,
     _get_metric_value,
     calculate_cost_metrics,
     calculate_latency_metrics,
 )
-from tests.benchmark.tasks.secbash_eval import (
+from benchmark.tasks.secbash_eval import (
     secbash_gtfobins,
     secbash_harmless,
 )
@@ -57,7 +57,6 @@ DEFAULT_MODELS: list[str] = [
     "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
     "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
 ]
-
 
 
 def parse_models(models_arg: str | None) -> list[str]:
@@ -502,7 +501,8 @@ def find_models_with_timeouts(logs_dir: Path | None = None) -> dict[str, int]:
         try:
             with zipfile.ZipFile(eval_path, "r") as zf:
                 sample_names = [
-                    n for n in zf.namelist()
+                    n
+                    for n in zf.namelist()
                     if n.startswith("samples/") and n.endswith(".json")
                 ]
                 count = 0
@@ -567,8 +567,11 @@ def run_comparison(
         )
         try:
             logs = inspect_eval(
-                tasks, model=models_to_eval, fail_on_error=0.5,
-                retry_on_error=5, time_limit=time_limit,
+                tasks,
+                model=models_to_eval,
+                fail_on_error=0.5,
+                retry_on_error=5,
+                time_limit=time_limit,
             )
             _process_logs(logs, models_to_eval, cot, dataset, results)
         except Exception as e:

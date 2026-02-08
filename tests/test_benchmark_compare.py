@@ -19,7 +19,7 @@ from unittest.mock import MagicMock
 
 from inspect_ai.scorer import CORRECT, Score
 
-from tests.benchmark.compare import (
+from benchmark.compare import (
     DEFAULT_MODELS,
     _build_tasks,
     _detect_log_dataset,
@@ -318,17 +318,16 @@ class TestCoTScaffolding:
     """Tests for Chain-of-Thought scaffolding flag handling."""
 
     def test_standard_task_has_2_solvers(self):
-        from tests.benchmark.tasks.secbash_eval import secbash_gtfobins
+        from benchmark.tasks.secbash_eval import secbash_gtfobins
 
         task = secbash_gtfobins(cot=False)
         assert len(task.solver) == 2  # system_message + generate
 
     def test_cot_task_has_3_solvers(self):
-        from tests.benchmark.tasks.secbash_eval import secbash_gtfobins
+        from benchmark.tasks.secbash_eval import secbash_gtfobins
 
         task = secbash_gtfobins(cot=True)
         assert len(task.solver) == 3  # system_message + chain_of_thought + generate
-
 
 
 # --- Partial run detection tests (Task 8.6) ---
@@ -446,7 +445,12 @@ class TestComparisonTableFormatting:
             },
         }
         ranking = [
-            {"rank": 1, "model": "test/free-model", "secbash_score": 0.25, "cost_per_1000": 0.0}
+            {
+                "rank": 1,
+                "model": "test/free-model",
+                "secbash_score": 0.25,
+                "cost_per_1000": 0.0,
+            }
         ]
 
         print_comparison_table(results, ranking)
@@ -529,7 +533,9 @@ class TestDatasetSelection:
         assert len(DEFAULT_MODELS) == 10
 
     def test_hf_models_are_in_defaults(self):
-        hf_models = [m for m in DEFAULT_MODELS if m.startswith("hf-inference-providers/")]
+        hf_models = [
+            m for m in DEFAULT_MODELS if m.startswith("hf-inference-providers/")
+        ]
         assert len(hf_models) >= 2
 
 
@@ -812,7 +818,9 @@ class TestFindModelsWithTimeouts:
 
     def test_ignores_bad_zip(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            bad_path = Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_bad.eval"
+            bad_path = (
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_bad.eval"
+            )
             bad_path.write_text("not a zip file")
             result = find_models_with_timeouts(Path(tmpdir))
             assert result == {}

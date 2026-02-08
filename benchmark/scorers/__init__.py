@@ -1,6 +1,6 @@
 """Custom Inspect scorers for SecBASH benchmark evaluation."""
 
-from tests.benchmark.scorers.security_scorer import (
+from benchmark.scorers.security_scorer import (
     security_classification_scorer,
 )
 

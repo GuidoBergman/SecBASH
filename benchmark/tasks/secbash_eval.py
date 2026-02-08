@@ -5,13 +5,13 @@ and harmless commands using Inspect's Task/Dataset/Solver/Scorer architecture.
 
 Usage:
     # Run GTFOBins evaluation
-    inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
+    inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
 
     # Run harmless evaluation
-    inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
+    inspect eval benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
 
     # Run with Chain-of-Thought
-    inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
+    inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
 """
 
 import hashlib
@@ -28,7 +28,7 @@ from inspect_ai.solver import (
 )
 
 from secbash.llm_client import SYSTEM_PROMPT
-from tests.benchmark.scorers import security_classification_scorer
+from benchmark.scorers import security_classification_scorer
 
 # Data directory relative to this file
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -151,5 +151,3 @@ def secbash_harmless(cot: bool = False) -> Task:
         solver=solvers,
         scorer=security_classification_scorer(),
     )
-
-
