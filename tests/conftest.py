@@ -18,14 +18,7 @@ def mock_openai_provider():
 
 
 @pytest.fixture
-def mock_openrouter_provider():
-    """Fixture that mocks OpenRouter as the only available provider."""
-    with patch("secbash.llm_client.get_available_providers", return_value=["openrouter"]):
-        yield
-
-
-@pytest.fixture
 def mock_all_providers():
     """Fixture that mocks all providers as available."""
-    with patch("secbash.llm_client.get_available_providers", return_value=["openrouter", "openai", "anthropic"]):
+    with patch("secbash.llm_client.get_available_providers", return_value=["openai", "anthropic"]):
         yield

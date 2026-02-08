@@ -7,8 +7,8 @@ workflowType: 'architecture'
 lastStep: 8
 status: 'complete'
 completedAt: '2026-01-28'
-lastRevised: '2026-01-31'
-revisionNote: 'Updated LLM client strategy from individual SDKs to LiteLLM'
+lastRevised: '2026-02-08'
+revisionNote: 'Removed LlamaGuard/OpenRouter from fallback chain, added shell spawner guidance'
 project_name: 'SecBASH'
 user_name: 'guido'
 date: '2026-01-28'
@@ -117,7 +117,7 @@ secbash/
 |----------|--------|-----------|
 | Command interception | Interactive wrapper + subprocess | Simple, feels like shell, bash handles complexity |
 | LLM abstraction | LiteLLM | Unified API for 100+ providers, built-in caching, fallbacks, retries |
-| LLM providers | OpenRouter (LlamaGuard) → OpenAI → Anthropic | Security-specific model first, fallbacks for resilience |
+| LLM providers | OpenAI → Anthropic | Primary provider with fallback for resilience |
 | Credential storage | Environment variables | Industry standard, simple |
 | Subprocess shell | bash -c (configurable) | Can swap for zsh if needed |
 
@@ -145,10 +145,9 @@ secbash/
 - Easy to add local models (Ollama, VLLM) later
 
 **Fallback chain (manual iteration):**
-1. OpenRouter → LlamaGuard (security-specific)
-2. OpenAI GPT-4
-3. Anthropic Claude
-4. Warn user if all fail (user decides whether to proceed)
+1. OpenAI GPT
+2. Anthropic Claude
+3. Warn user if all fail (user decides whether to proceed)
 
 Each provider is tried in order. If a provider fails (API error or unparseable response), the next provider is attempted. If all providers fail, the user is warned and can choose to proceed or cancel.
 
@@ -157,7 +156,7 @@ Each provider is tried in order. If a provider fails (API error or unparseable r
 from litellm import completion
 
 # Each provider is called individually for better error handling
-for provider in ["openrouter", "openai", "anthropic"]:
+for provider in ["openai", "anthropic"]:
     try:
         response = completion(model=PROVIDER_MODELS[provider], messages=messages, caching=True)
         result = parse_response(response)
@@ -171,7 +170,6 @@ return {"action": "warn", "reason": "Could not validate command", "confidence": 
 ```
 
 **Environment variables:**
-- `OPENROUTER_API_KEY`
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 
@@ -247,7 +245,7 @@ secbash/
 │       ├── main.py             # Typer CLI entry point
 │       ├── shell.py            # readline loop, user interaction
 │       ├── validator.py        # LLM validation logic
-│       ├── llm_client.py       # OpenRouter/OpenAI/Anthropic clients
+│       ├── llm_client.py       # OpenAI/Anthropic LLM clients
 │       ├── executor.py         # subprocess.run wrapper
 │       └── config.py           # Environment variable loading
 │
@@ -296,7 +294,7 @@ User input → shell.py → validator.py → llm_client.py → LLM API
 
 **Decision Compatibility:**
 - Python 3.10+ + uv + Typer + LiteLLM: All compatible
-- LiteLLM handles OpenRouter/OpenAI/Anthropic fallback chain internally
+- LiteLLM handles OpenAI/Anthropic fallback chain internally
 - subprocess approach with readline: Compatible
 
 **Pattern Consistency:**
@@ -402,7 +400,7 @@ This could potentially trick the LLM into returning an "allow" response for dang
    - Limit special character usage
 
 4. **Defense in Depth:**
-   - Use LlamaGuard (security-specific model) as primary
+   - Use security-focused models as primary
    - Cross-validate with multiple models
    - Implement rate limiting to prevent brute-force attacks
 

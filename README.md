@@ -8,7 +8,7 @@ LLM-powered shell with security validation. SecBASH validates every command agai
 ## Features
 
 - **Security validation** - Every command is validated by an LLM before execution
-- **Provider fallback** - Supports OpenRouter, OpenAI, and Anthropic with automatic failover
+- **Provider fallback** - Supports OpenAI and Anthropic with automatic failover
 - **Command history** - Persistent history with up/down arrow navigation
 - **Exit code preservation** - Maintains `$?` semantics for scripting
 
@@ -17,7 +17,7 @@ LLM-powered shell with security validation. SecBASH validates every command agai
 ### Prerequisites
 
 - Python 3.10 or higher
-- At least one LLM API key (OpenRouter, OpenAI, or Anthropic)
+- At least one LLM API key (OpenAI or Anthropic)
 
 ### Install with uv (recommended)
 
@@ -68,7 +68,7 @@ secbash
 
 1. Set up an API key:
    ```bash
-   export OPENROUTER_API_KEY="your-key-here"
+   export OPENAI_API_KEY="your-key-here"
    ```
 
 2. Launch SecBASH:
@@ -98,13 +98,10 @@ export $(grep -v '^#' .env | xargs)
 Or set the environment variables directly:
 
 ```bash
-# OpenRouter (recommended - supports LlamaGuard security model)
-export OPENROUTER_API_KEY="your-key-here"   # https://openrouter.ai/
-
-# OpenAI
+# OpenAI (primary)
 export OPENAI_API_KEY="your-key-here"        # https://platform.openai.com/api-keys
 
-# Anthropic
+# Anthropic (fallback)
 export ANTHROPIC_API_KEY="your-key-here"     # https://console.anthropic.com/
 ```
 
@@ -112,21 +109,20 @@ Add these to your `~/.bashrc` or `~/.zshrc` for persistence:
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-export OPENROUTER_API_KEY="your-key-here"
-export OPENAI_API_KEY="your-key-here"      # optional
+export OPENAI_API_KEY="your-key-here"
 export ANTHROPIC_API_KEY="your-key-here"   # optional
 ```
 
 ### Model Configuration
 
-By default, SecBASH uses LlamaGuard for security validation with fallbacks to GPT-4 and Claude. You can customize which models are used:
+By default, SecBASH uses GPT-4 for security validation with Claude as a fallback. You can customize which models are used:
 
 ```bash
 # Primary model for command validation
-export SECBASH_PRIMARY_MODEL="openrouter/meta-llama/llama-guard-3-8b"
+export SECBASH_PRIMARY_MODEL="openai/gpt-4"
 
 # Fallback models (comma-separated, tried in order if primary fails)
-export SECBASH_FALLBACK_MODELS="openai/gpt-4,anthropic/claude-3-haiku-20240307"
+export SECBASH_FALLBACK_MODELS="anthropic/claude-3-haiku-20240307"
 ```
 
 #### Default Configuration
@@ -135,15 +131,14 @@ If no model environment variables are set, SecBASH uses these defaults:
 
 | Variable | Default Value |
 |----------|---------------|
-| `SECBASH_PRIMARY_MODEL` | `openrouter/meta-llama/llama-guard-3-8b` |
-| `SECBASH_FALLBACK_MODELS` | `openai/gpt-4,anthropic/claude-3-haiku-20240307` |
+| `SECBASH_PRIMARY_MODEL` | `openai/gpt-4` |
+| `SECBASH_FALLBACK_MODELS` | `anthropic/claude-3-haiku-20240307` |
 
 #### Model String Format
 
 Model strings follow LiteLLM format: `provider/model-name`
 
 Valid examples:
-- `openrouter/meta-llama/llama-guard-3-8b` (recommended for security)
 - `openai/gpt-4`
 - `openai/gpt-4-turbo`
 - `anthropic/claude-3-haiku-20240307`
@@ -163,15 +158,9 @@ export SECBASH_PRIMARY_MODEL="openai/gpt-4-turbo"
 export SECBASH_FALLBACK_MODELS="anthropic/claude-3-opus-20240229"
 ```
 
-**Use different LlamaGuard version:**
-```bash
-export SECBASH_PRIMARY_MODEL="openrouter/meta-llama/llama-guard-2-8b"
-```
-
 #### API Key Requirements
 
 Each model requires its provider's API key:
-- `openrouter/*` models require `OPENROUTER_API_KEY`
 - `openai/*` models require `OPENAI_API_KEY`
 - `anthropic/*` models require `ANTHROPIC_API_KEY`
 
@@ -181,15 +170,14 @@ Models without a configured API key are skipped automatically.
 
 Providers are tried in this order (based on model chain):
 
-1. **OpenRouter** - Recommended for LlamaGuard (security-specific model)
-2. **OpenAI** - GPT-4 fallback
-3. **Anthropic** - Claude fallback
+1. **OpenAI** - GPT-4 primary
+2. **Anthropic** - Claude fallback
 
 The startup message shows which models are active:
 
 ```
 SecBASH - LLM-powered shell with security validation
-Model chain: openrouter/meta-llama/llama-guard-3-8b (active) > openai/gpt-4 (--) > anthropic/claude-3-haiku-20240307 (--)
+Model chain: openai/gpt-4 (active) > anthropic/claude-3-haiku-20240307 (active)
 Type 'exit' or press Ctrl+D to quit.
 ```
 
@@ -260,7 +248,7 @@ Before setting SecBASH as your login shell, verify:
 4. **Ensure API keys load on login** - API keys must be set in `~/.profile` or `~/.bash_profile`, not just `~/.bashrc`:
    ```bash
    # Add to ~/.profile (read by login shells)
-   export OPENROUTER_API_KEY="your-key-here"
+   export OPENAI_API_KEY="your-key-here"
    ```
 
 5. **Have a backup shell available** - Know how to access root via single-user mode or recovery console

@@ -30,23 +30,28 @@ class TestMainCredentialValidation:
         """AC2: Error message goes to stderr, not stdout.
 
         Uses subprocess to properly capture separated stdout/stderr streams.
+        Runs from a temp directory to prevent .env auto-loading from injecting keys.
         """
+        import tempfile
+
         # Run the CLI as a subprocess with cleared API key env vars
         env = {k: v for k, v in os.environ.items()
                if not k.endswith("_API_KEY")}
 
-        # Run Python with inline code to invoke the Typer app
-        result = subprocess.run(
-            [sys.executable, "-c", "from secbash.main import app; app()"],
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        # Run from temp dir to avoid .env auto-loading by litellm/dotenv
+        with tempfile.TemporaryDirectory() as tmpdir:
+            result = subprocess.run(
+                [sys.executable, "-c", "from secbash.main import app; app()"],
+                capture_output=True,
+                text=True,
+                env=env,
+                cwd=tmpdir,
+            )
 
         # Verify error is in stderr
         assert result.returncode == 1
         assert "No LLM API credentials configured" in result.stderr
-        assert "OPENROUTER_API_KEY" in result.stderr
+        assert "OPENAI_API_KEY" in result.stderr
         # stdout should not contain the error message
         assert "No LLM API credentials configured" not in result.stdout
 
@@ -60,7 +65,6 @@ class TestMainCredentialValidation:
 
         # CliRunner mixes output, but we can verify content is present
         assert "export" in result.output
-        assert "OPENROUTER_API_KEY" in result.output
         assert "OPENAI_API_KEY" in result.output
         assert "ANTHROPIC_API_KEY" in result.output
 

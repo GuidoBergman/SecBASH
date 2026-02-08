@@ -12,8 +12,6 @@ from secbash.config import get_provider_from_model
 from secbash.llm_client import (
     query_llm,
     _parse_response,
-    _parse_llamaguard_response,
-    _is_llamaguard_model,
 )
 from tests.utils import MockResponse, mock_providers
 
@@ -126,42 +124,42 @@ class TestQueryLLM:
                 assert "reason" in result
                 assert "confidence" in result
 
-    def test_primary_provider_is_openrouter(self):
-        """AC1: Primary provider should be OpenRouter (LlamaGuard) when available."""
-        mock_content = "safe"  # LlamaGuard response format
-        with mock_providers(["openrouter", "openai"]):
+    def test_primary_provider_is_openai(self):
+        """AC1: Primary provider should be OpenAI when available."""
+        mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
+        with mock_providers(["openai"]):
             with patch("secbash.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 query_llm("ls -la")
 
-                # Verify the model used is OpenRouter (first call)
+                # Verify the model used is OpenAI (first call)
                 call_args = mock_completion.call_args
-                assert "openrouter" in call_args.kwargs.get("model", "").lower()
+                assert "openai" in call_args.kwargs.get("model", "").lower()
 
     def test_fallback_on_parsing_failure(self):
         """When parsing fails for one provider, try the next."""
-        with mock_providers(["openrouter", "openai"]):
+        with mock_providers(["openai", "anthropic"]):
             with patch("secbash.llm_client.completion") as mock_completion:
-                # First call (openrouter) returns unparseable, second (openai) succeeds
+                # First call (openai) returns unparseable, second (anthropic) succeeds
                 mock_completion.side_effect = [
-                    MockResponse("garbage response"),  # LlamaGuard fails to parse
+                    MockResponse("garbage response"),
                     MockResponse('{"action": "allow", "reason": "Safe", "confidence": 0.9}'),
                 ]
                 result = query_llm("ls -la")
 
                 # Should have tried both providers
                 assert mock_completion.call_count == 2
-                # Should return the successful result from openai
+                # Should return the successful result from anthropic
                 assert result["action"] == "allow"
                 assert result["reason"] == "Safe"
 
     def test_fallback_on_api_failure(self):
         """When API fails for one provider, try the next."""
-        with mock_providers(["openrouter", "openai"]):
+        with mock_providers(["openai", "anthropic"]):
             with patch("secbash.llm_client.completion") as mock_completion:
                 # First call fails, second succeeds
                 mock_completion.side_effect = [
-                    ConnectionError("OpenRouter down"),
+                    ConnectionError("OpenAI down"),
                     MockResponse('{"action": "block", "reason": "Dangerous", "confidence": 0.95}'),
                 ]
                 result = query_llm("rm -rf /")
@@ -261,84 +259,11 @@ class TestConfidenceClamping:
                 assert result["confidence"] == 0.0
 
 
-class TestLlamaGuardParsing:
-    """Tests for LlamaGuard-specific response parsing."""
-
-    def test_llamaguard_safe_response(self):
-        """LlamaGuard 'safe' response should return allow."""
-        result = _parse_llamaguard_response("safe", "ls -la")
-
-        assert result["action"] == "allow"
-        assert result["confidence"] == 0.9
-        assert "safety check" in result["reason"].lower()
-
-    def test_llamaguard_safe_with_whitespace(self):
-        """LlamaGuard 'safe' with whitespace should still parse."""
-        result = _parse_llamaguard_response("  safe  \n", "ls -la")
-
-        assert result["action"] == "allow"
-
-    def test_llamaguard_unsafe_response(self):
-        """LlamaGuard 'unsafe' response should return block."""
-        result = _parse_llamaguard_response("unsafe\nS1", "rm -rf /")
-
-        assert result["action"] == "block"
-        assert result["confidence"] == 0.9
-        assert "S1" in result["reason"]
-
-    def test_llamaguard_unsafe_without_category(self):
-        """LlamaGuard 'unsafe' without category should still block."""
-        result = _parse_llamaguard_response("unsafe", "rm -rf /")
-
-        assert result["action"] == "block"
-
-    def test_llamaguard_unknown_format_returns_none(self):
-        """Unknown LlamaGuard format should return None to trigger fallback."""
-        result = _parse_llamaguard_response("unknown response", "ls -la")
-
-        assert result is None
-
-    def test_llamaguard_integration_with_query(self):
-        """Test LlamaGuard parsing integrates with query_llm."""
-        mock_content = "safe"
-        with mock_providers(["openrouter"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
-                mock_completion.return_value = MockResponse(mock_content)
-                result = query_llm("ls -la")
-
-                assert result["action"] == "allow"
-                assert result["confidence"] == 0.9
-
-    def test_llamaguard_unsafe_integration(self):
-        """Test LlamaGuard unsafe response integrates with query_llm."""
-        mock_content = "unsafe\nS1"
-        with mock_providers(["openrouter"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
-                mock_completion.return_value = MockResponse(mock_content)
-                result = query_llm("rm -rf /")
-
-                assert result["action"] == "block"
-
-    def test_llamaguard_unknown_triggers_fallback(self):
-        """Unknown LlamaGuard format should trigger fallback to next provider."""
-        with mock_providers(["openrouter", "openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
-                mock_completion.side_effect = [
-                    MockResponse("This is a verbose response about safety"),  # LlamaGuard unknown
-                    MockResponse('{"action": "allow", "reason": "Safe", "confidence": 0.8}'),
-                ]
-                result = query_llm("ls -la")
-
-                # Should have tried both providers
-                assert mock_completion.call_count == 2
-                assert result["action"] == "allow"
-
-
 class TestModelSelection:
     """Tests for dynamic model selection based on available providers."""
 
-    def test_uses_openai_when_no_openrouter(self):
-        """Should use OpenAI model when OpenRouter not available."""
+    def test_uses_openai_as_primary(self):
+        """Should use OpenAI model as primary provider."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
             with patch("secbash.llm_client.completion") as mock_completion:
@@ -360,24 +285,22 @@ class TestModelSelection:
                 assert "anthropic" in call_args.kwargs.get("model", "").lower()
 
     def test_tries_providers_in_priority_order(self):
-        """Should try providers in priority order: openrouter, openai, anthropic."""
-        with mock_providers(["anthropic", "openai", "openrouter"]):  # Available in different order
+        """Should try providers in priority order: openai, anthropic."""
+        with mock_providers(["anthropic", "openai"]):  # Available in different order
             with patch("secbash.llm_client.completion") as mock_completion:
-                # All fail except anthropic (last in priority)
+                # First fails, second succeeds
                 mock_completion.side_effect = [
-                    ConnectionError("openrouter down"),
                     ConnectionError("openai down"),
                     MockResponse('{"action": "allow", "reason": "Safe", "confidence": 0.9}'),
                 ]
                 result = query_llm("ls -la")
 
-                # Should have tried all three in priority order
-                assert mock_completion.call_count == 3
+                # Should have tried both in priority order
+                assert mock_completion.call_count == 2
                 # Verify order of model calls
                 calls = mock_completion.call_args_list
-                assert "openrouter" in calls[0].kwargs["model"]
-                assert "openai" in calls[1].kwargs["model"]
-                assert "anthropic" in calls[2].kwargs["model"]
+                assert "openai" in calls[0].kwargs["model"]
+                assert "anthropic" in calls[1].kwargs["model"]
                 assert result["action"] == "allow"
 
 
@@ -481,37 +404,8 @@ class TestParseResponse:
         assert result["confidence"] == 0.5
 
 
-class TestIsLlamaGuardModel:
-    """Tests for _is_llamaguard_model helper function."""
-
-    def test_detects_llamaguard_openrouter_model(self):
-        """Should detect LlamaGuard from OpenRouter model string."""
-        assert _is_llamaguard_model("openrouter/meta-llama/llama-guard-3-8b") is True
-
-    def test_detects_llamaguard_case_insensitive(self):
-        """Should detect LlamaGuard regardless of case."""
-        assert _is_llamaguard_model("openrouter/meta-llama/LLama-Guard-3-8B") is True
-        assert _is_llamaguard_model("OPENROUTER/META-LLAMA/LLAMA-GUARD-3-8B") is True
-
-    def test_non_llamaguard_openrouter_model(self):
-        """Non-LlamaGuard OpenRouter model should return False."""
-        assert _is_llamaguard_model("openrouter/openai/gpt-4") is False
-
-    def test_non_llamaguard_openai_model(self):
-        """OpenAI model should return False."""
-        assert _is_llamaguard_model("openai/gpt-4") is False
-
-    def test_non_llamaguard_anthropic_model(self):
-        """Anthropic model should return False."""
-        assert _is_llamaguard_model("anthropic/claude-3-haiku-20240307") is False
-
-
 class TestGetProviderFromModel:
     """Tests for get_provider_from_model helper function."""
-
-    def test_extract_openrouter_provider(self):
-        """Should extract 'openrouter' from model string."""
-        assert get_provider_from_model("openrouter/meta-llama/llama-guard-3-8b") == "openrouter"
 
     def test_extract_openai_provider(self):
         """Should extract 'openai' from model string."""
@@ -591,26 +485,6 @@ class TestConfigurableModels:
             # Should warn since single model failed
             assert result["action"] == "warn"
 
-    def test_llamaguard_detected_in_custom_model(self, mocker):
-        """LlamaGuard prompt is used when custom model contains 'llama-guard'."""
-        mocker.patch.dict(
-            os.environ,
-            {
-                "SECBASH_PRIMARY_MODEL": "openrouter/meta-llama/llama-guard-3-8b",
-                "SECBASH_FALLBACK_MODELS": "",
-                "OPENROUTER_API_KEY": "test-key",
-            },
-            clear=True
-        )
-        mock_content = "safe"  # LlamaGuard response format
-        with patch("secbash.llm_client.completion") as mock_completion:
-            mock_completion.return_value = MockResponse(mock_content)
-            result = query_llm("ls -la")
-
-            # Should successfully parse LlamaGuard format
-            assert result["action"] == "allow"
-            assert result["confidence"] == 0.9
-
     def test_missing_api_key_for_model_skips(self, mocker):
         """Model is skipped if its provider's API key is missing."""
         mocker.patch.dict(
@@ -639,18 +513,18 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "OPENROUTER_API_KEY": "test-key",
+                "OPENAI_API_KEY": "test-key",
             },
             clear=True
         )
-        mock_content = "safe"
+        mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with patch("secbash.llm_client.completion") as mock_completion:
             mock_completion.return_value = MockResponse(mock_content)
             query_llm("ls -la")
 
             call_args = mock_completion.call_args
-            # Should use default primary: openrouter/meta-llama/llama-guard-3-8b
-            assert call_args.kwargs["model"] == "openrouter/meta-llama/llama-guard-3-8b"
+            # Should use default primary: openai/gpt-4
+            assert call_args.kwargs["model"] == "openai/gpt-4"
 
     def test_invalid_model_error_logged_and_skipped(self, mocker):
         """AC4: Invalid model errors are logged and model is skipped."""

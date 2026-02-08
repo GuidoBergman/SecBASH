@@ -12,7 +12,7 @@ Test Strategy:
 import pytest
 from unittest.mock import patch
 
-from secbash.llm_client import query_llm, SYSTEM_PROMPT, LLAMAGUARD_PROMPT
+from secbash.llm_client import query_llm, SYSTEM_PROMPT
 from tests.utils import MockResponse, mock_providers
 
 
@@ -367,30 +367,6 @@ class TestEdgeCases:
                 assert result["action"] == "block"
 
 
-class TestLlamaGuardIntegration:
-    """Test that dangerous commands work with LlamaGuard provider."""
-
-    def test_llamaguard_unsafe_for_rm_rf(self):
-        """LlamaGuard should return unsafe for rm -rf /."""
-        mock_content = "unsafe\nS1"
-        with mock_providers(["openrouter"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
-                mock_completion.return_value = MockResponse(mock_content)
-                result = query_llm("rm -rf /")
-
-                assert result["action"] == "block"
-
-    def test_llamaguard_safe_for_ls(self):
-        """AC5: LlamaGuard should return safe for ls."""
-        mock_content = "safe"
-        with mock_providers(["openrouter"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
-                mock_completion.return_value = MockResponse(mock_content)
-                result = query_llm("ls -la")
-
-                assert result["action"] == "allow"
-
-
 # =============================================================================
 # Prompt Content Verification Tests
 # =============================================================================
@@ -432,59 +408,6 @@ class TestSystemPromptContent:
         assert "safe commands to allow" in prompt_lower, "Missing safe commands section"
         assert "ls" in prompt_lower, "Missing ls as safe example"
         assert "cat" in prompt_lower, "Missing cat as safe example"
-
-
-class TestLlamaGuardPromptContent:
-    """Verify LLAMAGUARD_PROMPT contains required dangerous pattern keywords."""
-
-    def test_contains_filesystem_destruction(self):
-        """AC1: LLAMAGUARD_PROMPT must mention filesystem destruction."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "rm -rf" in prompt_lower, "Missing rm -rf pattern"
-        assert "dd" in prompt_lower, "Missing dd pattern"
-
-    def test_contains_fork_bomb_pattern(self):
-        """AC2: LLAMAGUARD_PROMPT must mention fork bombs."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "fork bomb" in prompt_lower or "denial of service" in prompt_lower, \
-            "Missing fork bomb/DoS pattern"
-
-    def test_contains_remote_code_execution(self):
-        """AC3: LLAMAGUARD_PROMPT must mention remote code execution."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "curl" in prompt_lower and "bash" in prompt_lower, "Missing curl|bash pattern"
-
-    def test_contains_shell_escape_patterns(self):
-        """AC4: LLAMAGUARD_PROMPT must mention shell escape patterns."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "shell escape" in prompt_lower, "Missing shell escape mention"
-        assert "vim" in prompt_lower, "Missing vim pattern"
-        assert "python" in prompt_lower, "Missing python pattern"
-        assert "perl" in prompt_lower, "Missing perl pattern"
-        assert "awk" in prompt_lower, "Missing awk pattern"
-
-
-class TestLlamaGuardPromptFormatSafety:
-    """Regression tests for LLAMAGUARD_PROMPT .format() safety."""
-
-    def test_format_handles_fork_bomb_braces(self):
-        """Regression: Fork bomb braces don't break .format()."""
-        # This was a bug - curly braces in fork bomb caused KeyError
-        command = ":(){ :|:& };:"
-        result = LLAMAGUARD_PROMPT.format(command=command)
-        assert command in result
-
-    def test_format_handles_arbitrary_braces(self):
-        """Commands with curly braces should not break .format()."""
-        command = "echo ${HOME} && for i in {1..10}; do echo $i; done"
-        result = LLAMAGUARD_PROMPT.format(command=command)
-        assert command in result
-
-    def test_format_handles_nested_braces(self):
-        """Deeply nested braces should not break .format()."""
-        command = "awk 'BEGIN { print \"{{test}}\" }'"
-        result = LLAMAGUARD_PROMPT.format(command=command)
-        assert command in result
 
 
 # =============================================================================
@@ -710,71 +633,6 @@ class TestPromptDecisionTreeContent:
         assert "first match" in SYSTEM_PROMPT.lower() or "in order" in SYSTEM_PROMPT.lower()
 
 
-class TestLlamaGuardDecisionTreeContent:
-    """Story 4.1: Verify LLAMAGUARD_PROMPT has decision tree elements."""
-
-    def test_llamaguard_has_shell_escape_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have shell escape rule."""
-        assert "shell spawn" in LLAMAGUARD_PROMPT.lower() or "shell escape" in LLAMAGUARD_PROMPT.lower()
-        assert "vim" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_reverse_bind_shell_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have reverse/bind shell rule."""
-        assert "reverse" in LLAMAGUARD_PROMPT.lower() or "bind" in LLAMAGUARD_PROMPT.lower()
-        assert "nc -e" in LLAMAGUARD_PROMPT.lower() or "nc -lvp" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_security_critical_read_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have security-critical read rule."""
-        assert "/etc/shadow" in LLAMAGUARD_PROMPT
-        assert "ssh" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_security_critical_write_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have security-critical write rule."""
-        assert "/etc/sudoers" in LLAMAGUARD_PROMPT
-        assert "authorized_keys" in LLAMAGUARD_PROMPT
-
-    def test_llamaguard_has_privilege_escalation_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have privilege escalation rule."""
-        assert "chmod u+s" in LLAMAGUARD_PROMPT or "privilege escalation" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_library_load_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have library load rule."""
-        assert "ld_preload" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_download_execute_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have download+execute rule."""
-        assert "curl" in LLAMAGUARD_PROMPT.lower() and "bash" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_enumeration_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have enumeration rule."""
-        assert "/etc/passwd" in LLAMAGUARD_PROMPT
-        assert "find -perm" in LLAMAGUARD_PROMPT.lower() or "suid" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_priority_order_instruction(self):
-        """AC4: LLAMAGUARD_PROMPT should have priority order instruction."""
-        assert "priority order" in LLAMAGUARD_PROMPT.lower() or "first match" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_obfuscation_handling(self):
-        """AC3: LLAMAGUARD_PROMPT should mention obfuscation handling."""
-        assert "obfuscation" in LLAMAGUARD_PROMPT.lower() or "base64" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_write_non_critical_rule(self):
-        """AC3: LLAMAGUARD_PROMPT should have write non-critical benign rule."""
-        assert "write non-critical" in LLAMAGUARD_PROMPT.lower() or "non-critical benign" in LLAMAGUARD_PROMPT.lower()
-
-    def test_llamaguard_has_examples(self):
-        """AC3: LLAMAGUARD_PROMPT should include key examples."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "key examples" in prompt_lower or "examples:" in prompt_lower
-        assert "safe" in prompt_lower and "unsafe" in prompt_lower
-
-    def test_llamaguard_has_special_cases(self):
-        """AC3: LLAMAGUARD_PROMPT should mention cron and file operation special cases."""
-        prompt_lower = LLAMAGUARD_PROMPT.lower()
-        assert "cron" in prompt_lower
-        assert "target and content" in prompt_lower or "target" in prompt_lower
-
-
 class TestPromptStructuralIntegrity:
     """Story 4.1 Review: Verify structural completeness of decision tree prompts."""
 
@@ -788,18 +646,6 @@ class TestPromptStructuralIntegrity:
         """SYSTEM_PROMPT rules should be numbered sequentially 1-13."""
         import re
         rule_nums = [int(m) for m in re.findall(r'^(\d+)\. ', SYSTEM_PROMPT, re.MULTILINE)]
-        assert rule_nums == list(range(1, 14)), f"Rules not sequential: {rule_nums}"
-
-    def test_llamaguard_has_13_numbered_rules(self):
-        """LLAMAGUARD_PROMPT should have all 13 numbered rules."""
-        import re
-        rules = re.findall(r'^\d+\. ', LLAMAGUARD_PROMPT, re.MULTILINE)
-        assert len(rules) == 13, f"Expected 13 rules, found {len(rules)}: {rules}"
-
-    def test_llamaguard_rules_in_order(self):
-        """LLAMAGUARD_PROMPT rules should be numbered sequentially 1-13."""
-        import re
-        rule_nums = [int(m) for m in re.findall(r'^(\d+)\. ', LLAMAGUARD_PROMPT, re.MULTILINE)]
         assert rule_nums == list(range(1, 14)), f"Rules not sequential: {rule_nums}"
 
     def test_system_prompt_has_write_non_critical_rule(self):

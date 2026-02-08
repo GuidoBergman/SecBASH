@@ -69,12 +69,23 @@ development_status:
   epic-3-retrospective: optional
 
   # Epic 4: Benchmark Evaluation
-  epic-4: in-progress
+  epic-4: done
   4-1-update-production-system-prompt: done
   4-2-extract-gtfobins-test-dataset: done
   4-3-create-harmless-command-baseline: done
   4-4-build-evaluation-harness-inspect: done
   4-5-implement-metrics-reporting-inspect: done
   4-6-create-llm-comparison-framework: done
-  4-7-generate-comparison-plots: drafted
+  4-7-generate-comparison-plots: done
   epic-4-retrospective: optional
+
+  # Epic 5: Benchmark & Production Hardening
+  epic-5: in-progress
+  5-1-remove-llamaguard-from-codebase: done
+  5-2-restructure-benchmark-out-of-tests: ready-for-dev
+  5-3-fix-scoring-methodology: backlog
+  5-4-update-system-prompt-shell-spawner-guidance: backlog
+  5-5-fix-gtfobins-dataset: backlog
+  5-6-fix-and-extend-harmless-dataset: backlog
+  5-7-harden-evaluation-configuration: backlog
+  epic-5-retrospective: optional

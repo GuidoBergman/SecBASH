@@ -7,21 +7,17 @@ Tests cover:
 - JSON output format matches expected schema
 - CoT vs standard scaffolding flags
 - Partial run detection (existing results check)
-- LlamaGuard model detection
 - Comparison table formatting
 - Dataset selection (gtfobins-only, harmless-only, both)
-- LlamaGuard scorer (safe/unsafe response format)
-- LlamaGuard task variants
 """
 
-import asyncio
 import json
 import tempfile
 import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
-from inspect_ai.scorer import CORRECT, INCORRECT, Score, Target
+from inspect_ai.scorer import CORRECT, Score
 
 from tests.benchmark.compare import (
     DEFAULT_MODELS,
@@ -36,15 +32,6 @@ from tests.benchmark.compare import (
     parse_models,
     print_comparison_table,
 )
-from tests.benchmark.scorers.security_scorer import (
-    extract_llamaguard_action,
-    llamaguard_classification_scorer,
-)
-from tests.benchmark.tasks.secbash_eval import (
-    _is_llamaguard_model,
-    secbash_gtfobins_llamaguard,
-    secbash_harmless_llamaguard,
-)
 
 
 # --- Model list parsing tests (Task 8.1) ---
@@ -56,7 +43,7 @@ class TestParseModels:
     def test_none_returns_all_defaults(self):
         result = parse_models(None)
         assert result == DEFAULT_MODELS
-        assert len(result) == 11
+        assert len(result) == 10
 
     def test_single_model(self):
         result = parse_models("openai/gpt-5.1")
@@ -342,15 +329,6 @@ class TestCoTScaffolding:
         task = secbash_gtfobins(cot=True)
         assert len(task.solver) == 3  # system_message + chain_of_thought + generate
 
-    def test_llamaguard_standard_has_2_solvers(self):
-        task = secbash_gtfobins_llamaguard(cot=False)
-        assert len(task.solver) == 2  # llamaguard_formatter + generate
-
-    def test_llamaguard_cot_has_3_solvers(self):
-        task = secbash_gtfobins_llamaguard(cot=True)
-        assert (
-            len(task.solver) == 3
-        )  # chain_of_thought + llamaguard_formatter + generate
 
 
 # --- Partial run detection tests (Task 8.6) ---
@@ -408,127 +386,6 @@ class TestPartialRunDetection:
 
             result = check_existing_results(Path(tmpdir))
             assert result == {}
-
-
-# --- LlamaGuard model detection tests (Task 8.7) ---
-
-
-class TestLlamaGuardModelDetection:
-    """Tests for LlamaGuard model detection."""
-
-    def test_llamaguard_detected(self):
-        assert _is_llamaguard_model("openrouter/meta-llama/llama-guard-3-8b")
-
-    def test_llamaguard_case_insensitive(self):
-        assert _is_llamaguard_model("openrouter/meta-llama/Llama-Guard-3-8B")
-
-    def test_non_llamaguard_model(self):
-        assert not _is_llamaguard_model("openai/gpt-5.1")
-
-    def test_non_llamaguard_llama(self):
-        assert not _is_llamaguard_model("openrouter/meta-llama/llama-3-8b")
-
-
-class TestExtractLlamaGuardAction:
-    """Tests for LlamaGuard safe/unsafe response parsing."""
-
-    def test_safe_response(self):
-        assert extract_llamaguard_action("safe") == "ALLOW"
-
-    def test_unsafe_response(self):
-        assert extract_llamaguard_action("unsafe\nS1") == "BLOCK"
-
-    def test_unsafe_no_category(self):
-        assert extract_llamaguard_action("unsafe") == "BLOCK"
-
-    def test_safe_with_whitespace(self):
-        assert extract_llamaguard_action("  safe  ") == "ALLOW"
-
-    def test_unsafe_with_whitespace(self):
-        assert extract_llamaguard_action("  unsafe\nS1  ") == "BLOCK"
-
-    def test_safe_case_insensitive(self):
-        assert extract_llamaguard_action("Safe") == "ALLOW"
-        assert extract_llamaguard_action("SAFE") == "ALLOW"
-
-    def test_unsafe_case_insensitive(self):
-        assert extract_llamaguard_action("Unsafe\nS2") == "BLOCK"
-
-    def test_unrecognized_response(self):
-        assert extract_llamaguard_action("maybe") is None
-
-    def test_empty_string(self):
-        assert extract_llamaguard_action("") is None
-
-    def test_json_response_not_recognized(self):
-        """LlamaGuard scorer should NOT recognize JSON (handled by fallback)."""
-        assert extract_llamaguard_action('{"action": "block"}') is None
-
-
-class TestLlamaGuardScorer:
-    """Tests for the LlamaGuard classification scorer."""
-
-    def _run(self, coro):
-        return asyncio.run(coro)
-
-    def _make_state(self, completion: str, metadata: dict | None = None) -> MagicMock:
-        state = MagicMock()
-        state.output.completion = completion
-        state.input_text = "Evaluate this shell command for security risks: rm -rf /"
-        state.metadata = metadata or {}
-        return state
-
-    def test_safe_for_harmless_is_correct(self):
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state("safe", {"dataset": "harmless"})
-        target = Target("ALLOW")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == CORRECT
-        assert result.answer == "ALLOW"
-
-    def test_unsafe_for_gtfobins_is_correct(self):
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state("unsafe\nS1", {"dataset": "gtfobins"})
-        target = Target("BLOCK")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == CORRECT
-        assert result.answer == "BLOCK"
-
-    def test_safe_for_gtfobins_is_incorrect(self):
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state("safe", {"dataset": "gtfobins"})
-        target = Target("BLOCK")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == INCORRECT
-        assert result.answer == "ALLOW"
-
-    def test_unsafe_for_harmless_is_incorrect(self):
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state("unsafe\nS1", {"dataset": "harmless"})
-        target = Target("ALLOW")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == INCORRECT
-        assert result.answer == "BLOCK"
-
-    def test_json_fallback(self):
-        """If LlamaGuard returns JSON, the scorer falls back to JSON parsing."""
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state(
-            '{"action": "block", "reason": "Dangerous", "confidence": 0.9}',
-            {"dataset": "gtfobins"},
-        )
-        target = Target("BLOCK")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == CORRECT
-        assert result.answer == "BLOCK"
-
-    def test_unparseable_returns_parse_error(self):
-        scorer_fn = llamaguard_classification_scorer()
-        state = self._make_state("gibberish output", {"dataset": "gtfobins"})
-        target = Target("BLOCK")
-        result = self._run(scorer_fn(state, target))
-        assert result.value == INCORRECT
-        assert result.answer == "PARSE_ERROR"
 
 
 # --- Comparison table formatting tests (Task 8.8) ---
@@ -668,8 +525,8 @@ class TestComparisonTableFormatting:
 class TestDatasetSelection:
     """Tests for dataset selection logic."""
 
-    def test_default_models_list_has_11(self):
-        assert len(DEFAULT_MODELS) == 11
+    def test_default_models_list_has_10(self):
+        assert len(DEFAULT_MODELS) == 10
 
     def test_hf_models_are_in_defaults(self):
         hf_models = [m for m in DEFAULT_MODELS if m.startswith("hf-inference-providers/")]
@@ -784,42 +641,6 @@ class TestCalculateComposite:
         assert result["secbash_score_se"] is None
 
 
-# --- LlamaGuard task variant tests ---
-
-
-class TestLlamaGuardTaskVariants:
-    """Tests for LlamaGuard-specific task definitions."""
-
-    def test_gtfobins_llamaguard_task_loads(self):
-        task = secbash_gtfobins_llamaguard()
-        assert task is not None
-        assert len(task.dataset) == 431
-        # 2 solvers: llamaguard_formatter + generate (no system_message)
-        assert len(task.solver) == 2
-
-    def test_harmless_llamaguard_task_loads(self):
-        task = secbash_harmless_llamaguard()
-        assert task is not None
-        assert len(task.dataset) == 310
-        assert len(task.solver) == 2
-
-    def test_gtfobins_llamaguard_with_cot(self):
-        task = secbash_gtfobins_llamaguard(cot=True)
-        # 3 solvers: chain_of_thought + llamaguard_formatter + generate
-        assert len(task.solver) == 3
-
-    def test_harmless_llamaguard_with_cot(self):
-        task = secbash_harmless_llamaguard(cot=True)
-        assert len(task.solver) == 3
-
-    def test_llamaguard_task_has_no_system_message(self):
-        """LlamaGuard tasks should NOT have a system_message solver."""
-        task = secbash_gtfobins_llamaguard()
-        # The first solver should be llamaguard_formatter, not system_message
-        solver_types = [type(s).__name__ for s in task.solver]
-        assert "SystemMessage" not in str(solver_types)
-
-
 # --- Batch helpers tests ---
 
 
@@ -827,24 +648,20 @@ class TestBuildTasks:
     """Tests for _build_tasks() helper."""
 
     def test_both_standard(self):
-        tasks = _build_tasks("both", cot=False, llamaguard=False)
+        tasks = _build_tasks("both", cot=False)
         assert len(tasks) == 2
 
     def test_gtfobins_only(self):
-        tasks = _build_tasks("gtfobins", cot=False, llamaguard=False)
+        tasks = _build_tasks("gtfobins", cot=False)
         assert len(tasks) == 1
 
     def test_harmless_only(self):
-        tasks = _build_tasks("harmless", cot=False, llamaguard=False)
+        tasks = _build_tasks("harmless", cot=False)
         assert len(tasks) == 1
 
-    def test_both_llamaguard(self):
-        tasks = _build_tasks("both", cot=False, llamaguard=True)
-        assert len(tasks) == 2
-
     def test_cot_adds_solver(self):
-        tasks_no_cot = _build_tasks("gtfobins", cot=False, llamaguard=False)
-        tasks_cot = _build_tasks("gtfobins", cot=True, llamaguard=False)
+        tasks_no_cot = _build_tasks("gtfobins", cot=False)
+        tasks_cot = _build_tasks("gtfobins", cot=True)
         assert len(tasks_cot[0].solver) == len(tasks_no_cot[0].solver) + 1
 
 
@@ -860,11 +677,6 @@ class TestDetectLogDataset:
         log = MagicMock()
         log.eval.task = "secbash_harmless"
         assert _detect_log_dataset(log) == "harmless"
-
-    def test_llamaguard_gtfobins(self):
-        log = MagicMock()
-        log.eval.task = "secbash_gtfobins_llamaguard"
-        assert _detect_log_dataset(log) == "gtfobins"
 
     def test_unknown(self):
         log = MagicMock()

@@ -45,13 +45,12 @@ def mock_providers(providers: list[str]):
 
     # Build a default model chain based on available providers
     default_models = {
-        "openrouter": "openrouter/meta-llama/llama-guard-3-8b",
         "openai": "openai/gpt-4",
         "anthropic": "anthropic/claude-3-haiku-20240307",
     }
     model_chain = [
         default_models[p]
-        for p in ["openrouter", "openai", "anthropic"]
+        for p in ["openai", "anthropic"]
         if p in providers
     ]
 

@@ -8,7 +8,7 @@ limiting, etc.) so this script iterates models and delegates to
 ``inspect_ai.eval()`` which manages its own concurrency.
 
 Usage:
-    # Run all 11 models with both datasets
+    # Run all 10 models with both datasets
     python -m tests.benchmark.compare
 
     # Run specific models
@@ -38,16 +38,13 @@ from tests.benchmark.report import (
     calculate_latency_metrics,
 )
 from tests.benchmark.tasks.secbash_eval import (
-    _is_llamaguard_model,
     secbash_gtfobins,
-    secbash_gtfobins_llamaguard,
     secbash_harmless,
-    secbash_harmless_llamaguard,
 )
 
 logger = logging.getLogger(__name__)
 
-# All 11 comparison models in Inspect format
+# All 10 comparison models in Inspect format
 DEFAULT_MODELS: list[str] = [
     "openai/gpt-5.1",
     "openai/gpt-5-mini",
@@ -57,7 +54,6 @@ DEFAULT_MODELS: list[str] = [
     "google/gemini-3-pro-preview",
     "google/gemini-3-flash-preview",
     "openrouter/microsoft/phi-4",
-    "openrouter/meta-llama/llama-guard-3-8b",
     "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
     "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
 ]
@@ -354,28 +350,21 @@ def _detect_log_dataset(log) -> str:
     return "unknown"
 
 
-def _build_tasks(dataset: str, cot: bool, llamaguard: bool) -> list:
+def _build_tasks(dataset: str, cot: bool) -> list:
     """Build the list of Inspect Task objects for the requested datasets.
 
     Args:
         dataset: "gtfobins", "harmless", or "both".
         cot: Enable Chain-of-Thought scaffolding.
-        llamaguard: True to use LlamaGuard task variants.
 
     Returns:
         List of Task objects.
     """
     tasks = []
     if dataset in ("gtfobins", "both"):
-        if llamaguard:
-            tasks.append(secbash_gtfobins_llamaguard(cot=cot))
-        else:
-            tasks.append(secbash_gtfobins(cot=cot))
+        tasks.append(secbash_gtfobins(cot=cot))
     if dataset in ("harmless", "both"):
-        if llamaguard:
-            tasks.append(secbash_harmless_llamaguard(cot=cot))
-        else:
-            tasks.append(secbash_harmless(cot=cot))
+        tasks.append(secbash_harmless(cot=cot))
     return tasks
 
 
@@ -544,9 +533,6 @@ def run_comparison(
     handles parallelization (concurrent samples and models, rate
     limiting, retries) internally.
 
-    LlamaGuard models require different task variants, so they are
-    batched separately from standard models.
-
     Args:
         models: List of model IDs in Inspect format.
         cot: Enable Chain-of-Thought scaffolding.
@@ -563,67 +549,31 @@ def run_comparison(
     results: dict[str, dict] = {}
     skipped: list[str] = []
 
-    # Split models into standard vs LlamaGuard (need different tasks)
-    standard_models: list[str] = []
-    llamaguard_models: list[str] = []
-
+    models_to_eval: list[str] = []
     for model in models:
         if model in existing_results:
             print(f"  SKIP: {model} (existing results found)")
             results[model] = existing_results[model]
             skipped.append(model)
-        elif _is_llamaguard_model(model):
-            llamaguard_models.append(model)
         else:
-            standard_models.append(model)
+            models_to_eval.append(model)
 
-    # Batch-eval standard models (Inspect parallelizes internally)
-    if standard_models:
-        tasks = _build_tasks(dataset, cot, llamaguard=False)
+    # Batch-eval all models (Inspect parallelizes internally)
+    if models_to_eval:
+        tasks = _build_tasks(dataset, cot)
         print(
-            f"\n  Evaluating {len(standard_models)} standard models "
+            f"\n  Evaluating {len(models_to_eval)} models "
             f"x {len(tasks)} tasks (Inspect parallelizes internally)\n"
         )
         try:
             logs = inspect_eval(
-                tasks, model=standard_models, fail_on_error=0.5,
+                tasks, model=models_to_eval, fail_on_error=0.5,
                 retry_on_error=5, time_limit=time_limit,
             )
-            _process_logs(logs, standard_models, cot, dataset, results)
+            _process_logs(logs, models_to_eval, cot, dataset, results)
         except Exception as e:
-            print(f"  Standard batch FAILED: {e}")
-            for model in standard_models:
-                results[model] = {
-                    "model": model,
-                    "cot": cot,
-                    "status": "error",
-                    "error": str(e),
-                    "datasets": {},
-                    "composite": {
-                        "secbash_score": 0.0,
-                        "secbash_score_se": None,
-                        "total_cost_usd": 0.0,
-                        "cost_per_1000_combined": 0.0,
-                        "avg_latency_ms": 0.0,
-                    },
-                }
-
-    # Batch-eval LlamaGuard models separately (different tasks)
-    if llamaguard_models:
-        tasks = _build_tasks(dataset, cot, llamaguard=True)
-        print(
-            f"\n  Evaluating {len(llamaguard_models)} LlamaGuard models "
-            f"x {len(tasks)} tasks (Inspect parallelizes internally)\n"
-        )
-        try:
-            logs = inspect_eval(
-                tasks, model=llamaguard_models, fail_on_error=0.5,
-                retry_on_error=5, time_limit=time_limit,
-            )
-            _process_logs(logs, llamaguard_models, cot, dataset, results)
-        except Exception as e:
-            print(f"  LlamaGuard batch FAILED: {e}")
-            for model in llamaguard_models:
+            print(f"  Batch FAILED: {e}")
+            for model in models_to_eval:
                 results[model] = {
                     "model": model,
                     "cot": cot,
@@ -693,7 +643,7 @@ def main() -> None:
         "--models",
         type=str,
         default=None,
-        help="Comma-separated model IDs to evaluate (default: all 11 models)",
+        help="Comma-separated model IDs to evaluate (default: all 10 models)",
     )
     parser.add_argument(
         "--cot",

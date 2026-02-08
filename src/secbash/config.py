@@ -4,10 +4,6 @@ Loads API keys and settings from environment variables.
 
 Environment Variables
 ---------------------
-OPENROUTER_API_KEY : str
-    API key for OpenRouter (recommended for LlamaGuard security model).
-    Get one at: https://openrouter.ai/
-
 OPENAI_API_KEY : str
     API key for OpenAI.
     Get one at: https://platform.openai.com/api-keys
@@ -18,11 +14,11 @@ ANTHROPIC_API_KEY : str
 
 SECBASH_PRIMARY_MODEL : str
     Primary LLM model for command validation (format: provider/model-name).
-    Default: openrouter/meta-llama/llama-guard-3-8b
+    Default: openai/gpt-4
 
 SECBASH_FALLBACK_MODELS : str
     Comma-separated list of fallback models (format: provider/model,provider/model).
-    Default: openai/gpt-4,anthropic/claude-3-haiku-20240307
+    Default: anthropic/claude-3-haiku-20240307
     Set to empty string for single-provider mode (no fallbacks).
 
 At least one API key must be configured for SecBASH to operate.
@@ -32,21 +28,20 @@ Models are tried in order: primary model first, then fallbacks.
 import os
 
 # Default model configuration
-DEFAULT_PRIMARY_MODEL = "openrouter/meta-llama/llama-guard-3-8b"
-DEFAULT_FALLBACK_MODELS = ["openai/gpt-4", "anthropic/claude-3-haiku-20240307"]
+DEFAULT_PRIMARY_MODEL = "openai/gpt-4"
+DEFAULT_FALLBACK_MODELS = ["anthropic/claude-3-haiku-20240307"]
 
 
 def get_api_key(provider: str) -> str | None:
     """Get the API key for a provider from environment.
 
     Args:
-        provider: One of "openrouter", "openai", "anthropic".
+        provider: One of "openai", "anthropic".
 
     Returns:
         The API key string or None if not set.
     """
     env_vars = {
-        "openrouter": "OPENROUTER_API_KEY",
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
     }
@@ -64,7 +59,7 @@ def get_available_providers() -> list[str]:
     Returns:
         List of provider names that have API keys set.
     """
-    providers = ["openrouter", "openai", "anthropic"]
+    providers = ["openai", "anthropic"]
     return [p for p in providers if get_api_key(p)]
 
 
@@ -84,11 +79,8 @@ def validate_credentials() -> tuple[bool, str]:
 SecBASH requires at least one API key to validate commands.
 
 Set one or more of these environment variables:
-  export OPENROUTER_API_KEY="your-key-here"   # https://openrouter.ai/
   export OPENAI_API_KEY="your-key-here"        # https://platform.openai.com/api-keys
   export ANTHROPIC_API_KEY="your-key-here"     # https://console.anthropic.com/
-
-Recommended: Use OpenRouter for LlamaGuard (security-specific model).
 
 Tip: Copy .env.example to .env and fill in your keys, then source it:
   cp .env.example .env && export $(grep -v '^#' .env | xargs)""")
@@ -162,7 +154,6 @@ def get_provider_from_model(model: str) -> str:
 
     Model strings follow LiteLLM format: provider/model-name
     For example: "openai/gpt-4" -> "openai"
-                 "openrouter/meta-llama/llama-guard-3-8b" -> "openrouter"
 
     Args:
         model: The model string (e.g., "openai/gpt-4").

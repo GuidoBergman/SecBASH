@@ -92,7 +92,7 @@ class TestHarmlessRecordToSample:
         sample = harmless_record_to_sample(record)
 
         assert sample.input == "Validate this command: ls -la"
-        assert sample.target == "ALLOW"
+        assert sample.target == ["ALLOW"]
         assert sample.metadata["prompt"] == "List all files"
         assert sample.metadata["dataset"] == "harmless"
 
@@ -101,7 +101,7 @@ class TestHarmlessRecordToSample:
         sample = harmless_record_to_sample(record)
 
         assert sample.input == "Validate this command: pwd"
-        assert sample.target == "ALLOW"
+        assert sample.target == ["ALLOW"]
         assert sample.metadata["prompt"] == ""
 
 
@@ -124,7 +124,7 @@ class TestDatasetLoading:
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         )
         assert len(dataset) == 310
-        assert all(s.target == "ALLOW" for s in dataset)
+        assert all(s.target == ["ALLOW"] for s in dataset)
         assert all(s.metadata["dataset"] == "harmless" for s in dataset)
 
     def test_gtfobins_samples_have_binary_metadata(self):

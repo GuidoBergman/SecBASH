@@ -37,24 +37,22 @@ class TestDefaultModelConfiguration:
     """Tests for default model configuration."""
 
     def test_default_primary_model(self, mocker):
-        """AC2: Default primary model is openrouter/meta-llama/llama-guard-3-8b."""
+        """AC2: Default primary model is openai/gpt-4."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_primary_model() == "openrouter/meta-llama/llama-guard-3-8b"
+        assert get_primary_model() == "openai/gpt-4"
 
     def test_default_fallback_models(self, mocker):
-        """AC2: Default fallbacks are openai/gpt-4 and anthropic/claude-3-haiku."""
+        """AC2: Default fallback is anthropic/claude-3-haiku."""
         mocker.patch.dict(os.environ, {}, clear=True)
         assert get_fallback_models() == [
-            "openai/gpt-4",
             "anthropic/claude-3-haiku-20240307",
         ]
 
     def test_default_model_chain_order(self, mocker):
-        """AC2: Model chain order is openrouter, openai, anthropic."""
+        """AC2: Model chain order is openai, anthropic."""
         mocker.patch.dict(os.environ, {}, clear=True)
         model_chain = get_model_chain()
         assert model_chain == [
-            "openrouter/meta-llama/llama-guard-3-8b",
             "openai/gpt-4",
             "anthropic/claude-3-haiku-20240307",
         ]
@@ -62,19 +60,6 @@ class TestDefaultModelConfiguration:
 
 class TestWorksWithOneApiKey:
     """Tests that system works with just one API key (AC1)."""
-
-    def test_works_with_only_openrouter_key(self, mocker):
-        """AC1: System starts with just OPENROUTER_API_KEY."""
-        mocker.patch.dict(
-            os.environ,
-            {"OPENROUTER_API_KEY": "test-key"},
-            clear=True
-        )
-
-        is_valid, message = validate_credentials()
-
-        assert is_valid is True
-        assert "openrouter" in message.lower()
 
     def test_works_with_only_openai_key(self, mocker):
         """AC1: System starts with just OPENAI_API_KEY."""
@@ -153,7 +138,7 @@ class TestStartupShowsModelChain:
         """AC2: Startup message shows model chain with availability status."""
         mocker.patch.dict(
             os.environ,
-            {"OPENROUTER_API_KEY": "test-key", "OPENAI_API_KEY": "test-key2"},
+            {"OPENAI_API_KEY": "test-key", "ANTHROPIC_API_KEY": "test-key2"},
             clear=True
         )
 
@@ -169,9 +154,8 @@ class TestStartupShowsModelChain:
 
         # Should show model chain format with active/inactive status
         assert "model chain:" in output.lower()
-        assert "openrouter/meta-llama/llama-guard-3-8b (active)" in output.lower()
         assert "openai/gpt-4 (active)" in output.lower()
-        assert "anthropic/claude-3-haiku-20240307 (--)" in output.lower()
+        assert "anthropic/claude-3-haiku-20240307 (active)" in output.lower()
         # Verify priority order indicator
         assert ">" in output
 
@@ -193,7 +177,6 @@ class TestStartupShowsModelChain:
 
         # Only anthropic model should be active
         assert "anthropic/claude-3-haiku-20240307 (active)" in output.lower()
-        assert "openrouter/meta-llama/llama-guard-3-8b (--)" in output.lower()
         assert "openai/gpt-4 (--)" in output.lower()
 
 

@@ -22,20 +22,13 @@ from pathlib import Path
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.solver import (
-    Generate,
-    Solver,
-    TaskState,
     chain_of_thought,
     generate,
-    solver,
     system_message,
 )
 
-from secbash.llm_client import LLAMAGUARD_PROMPT, SYSTEM_PROMPT
-from tests.benchmark.scorers import (
-    llamaguard_classification_scorer,
-    security_classification_scorer,
-)
+from secbash.llm_client import SYSTEM_PROMPT
+from tests.benchmark.scorers import security_classification_scorer
 
 # Data directory relative to this file
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -160,84 +153,3 @@ def secbash_harmless(cot: bool = False) -> Task:
     )
 
 
-@solver
-def llamaguard_formatter() -> Solver:
-    """Reformat input for LlamaGuard's single-message prompt format.
-
-    Extracts the command from the "Validate this command: <cmd>" input
-    and replaces it with the LlamaGuard-specific prompt template.
-    No system message is used for LlamaGuard models.
-    """
-
-    async def solve(state: TaskState, generate: Generate) -> TaskState:
-        cmd = state.user_prompt.text.replace("Validate this command: ", "")
-        state.user_prompt.text = LLAMAGUARD_PROMPT.format(command=cmd)
-        return state
-
-    return solve
-
-
-def _is_llamaguard_model(model: str) -> bool:
-    """Check if a model string refers to a LlamaGuard model.
-
-    Args:
-        model: Model string in Inspect format.
-
-    Returns:
-        True if the model contains "llama-guard".
-    """
-    return "llama-guard" in model.lower()
-
-
-@task
-def secbash_gtfobins_llamaguard(cot: bool = False) -> Task:
-    """Evaluate LlamaGuard classification of GTFOBins (malicious) commands.
-
-    Uses LlamaGuard's single-message prompt format and safe/unsafe scorer.
-
-    Args:
-        cot: Enable Chain-of-Thought reasoning.
-
-    Returns:
-        Inspect Task configured for LlamaGuard GTFOBins evaluation.
-    """
-    solvers = []
-    if cot:
-        solvers.append(chain_of_thought())
-    solvers.append(llamaguard_formatter())
-    solvers.append(generate())
-
-    return Task(
-        dataset=load_secbash_dataset(
-            DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
-        ),
-        solver=solvers,
-        scorer=llamaguard_classification_scorer(),
-    )
-
-
-@task
-def secbash_harmless_llamaguard(cot: bool = False) -> Task:
-    """Evaluate LlamaGuard classification of harmless commands.
-
-    Uses LlamaGuard's single-message prompt format and safe/unsafe scorer.
-
-    Args:
-        cot: Enable Chain-of-Thought reasoning.
-
-    Returns:
-        Inspect Task configured for LlamaGuard harmless command evaluation.
-    """
-    solvers = []
-    if cot:
-        solvers.append(chain_of_thought())
-    solvers.append(llamaguard_formatter())
-    solvers.append(generate())
-
-    return Task(
-        dataset=load_secbash_dataset(
-            DATA_DIR / "harmless_commands.json", harmless_record_to_sample
-        ),
-        solver=solvers,
-        scorer=llamaguard_classification_scorer(),
-    )

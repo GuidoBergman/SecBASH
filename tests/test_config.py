@@ -38,7 +38,7 @@ class TestGetApiKey:
         """Missing env var returns None."""
         mocker.patch.dict(os.environ, {}, clear=True)
 
-        result = get_api_key("openrouter")
+        result = get_api_key("openai")
 
         assert result is None
 
@@ -46,7 +46,7 @@ class TestGetApiKey:
         """Invalid provider name returns None."""
         mocker.patch.dict(
             os.environ,
-            {"OPENROUTER_API_KEY": "test-key"},
+            {"OPENAI_API_KEY": "test-key"},
             clear=True
         )
 
@@ -69,18 +69,6 @@ class TestGetApiKey:
 
 class TestGetApiKeyEmptyString:
     """Tests for get_api_key handling of empty strings - all providers."""
-
-    def test_get_api_key_empty_string_openrouter_returns_none(self, mocker):
-        """AC1: Empty OPENROUTER_API_KEY treated as not configured."""
-        mocker.patch.dict(
-            os.environ,
-            {"OPENROUTER_API_KEY": ""},
-            clear=True
-        )
-
-        result = get_api_key("openrouter")
-
-        assert result is None
 
     def test_get_api_key_empty_string_openai_returns_none(self, mocker):
         """AC1: Empty OPENAI_API_KEY treated as not configured."""
@@ -135,23 +123,22 @@ class TestValidateCredentials:
         """AC1: One provider configured returns (True, message)."""
         mocker.patch.dict(
             os.environ,
-            {"OPENROUTER_API_KEY": "test-key"},
+            {"OPENAI_API_KEY": "test-key"},
             clear=True
         )
 
         is_valid, message = validate_credentials()
 
         assert is_valid is True
-        assert "openrouter" in message.lower()
+        assert "openai" in message.lower()
 
     def test_validate_credentials_all_keys_returns_true(self, mocker):
         """AC1: All providers configured returns (True, message)."""
         mocker.patch.dict(
             os.environ,
             {
-                "OPENROUTER_API_KEY": "key1",
-                "OPENAI_API_KEY": "key2",
-                "ANTHROPIC_API_KEY": "key3",
+                "OPENAI_API_KEY": "key1",
+                "ANTHROPIC_API_KEY": "key2",
             },
             clear=True
         )
@@ -159,7 +146,6 @@ class TestValidateCredentials:
         is_valid, message = validate_credentials()
 
         assert is_valid is True
-        assert "openrouter" in message.lower()
         assert "openai" in message.lower()
         assert "anthropic" in message.lower()
 
@@ -170,7 +156,6 @@ class TestValidateCredentials:
         is_valid, message = validate_credentials()
 
         assert is_valid is False
-        assert "OPENROUTER_API_KEY" in message
         assert "OPENAI_API_KEY" in message
         assert "ANTHROPIC_API_KEY" in message
         assert "export" in message  # Setup instruction
@@ -193,7 +178,7 @@ class TestValidateCredentials:
         """Empty string keys should not count as configured."""
         mocker.patch.dict(
             os.environ,
-            {"OPENROUTER_API_KEY": ""},
+            {"OPENAI_API_KEY": ""},
             clear=True
         )
 
@@ -212,7 +197,7 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openrouter/meta-llama/llama-guard-3-8b"
+        assert result == "openai/gpt-4"
 
     def test_custom_primary_model_from_env_var(self, mocker):
         """AC1: Custom primary model via env var."""
@@ -236,7 +221,7 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openrouter/meta-llama/llama-guard-3-8b"
+        assert result == "openai/gpt-4"
 
     def test_whitespace_primary_model_uses_default(self, mocker):
         """AC3: Whitespace-only env var uses default."""
@@ -248,7 +233,7 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openrouter/meta-llama/llama-guard-3-8b"
+        assert result == "openai/gpt-4"
 
 
 class TestGetFallbackModels:
@@ -260,7 +245,7 @@ class TestGetFallbackModels:
 
         result = get_fallback_models()
 
-        assert result == ["openai/gpt-4", "anthropic/claude-3-haiku-20240307"]
+        assert result == ["anthropic/claude-3-haiku-20240307"]
 
     def test_custom_fallback_models_from_env_var(self, mocker):
         """AC2: Custom fallback models via env var."""
@@ -333,7 +318,6 @@ class TestGetModelChain:
         result = get_model_chain()
 
         assert result == [
-            "openrouter/meta-llama/llama-guard-3-8b",
             "openai/gpt-4",
             "anthropic/claude-3-haiku-20240307",
         ]
@@ -405,10 +389,6 @@ class TestGetModelChain:
 class TestGetProviderFromModel:
     """Tests for get_provider_from_model function."""
 
-    def test_extract_openrouter_provider(self):
-        """Should extract 'openrouter' from model string."""
-        assert get_provider_from_model("openrouter/meta-llama/llama-guard-3-8b") == "openrouter"
-
     def test_extract_openai_provider(self):
         """Should extract 'openai' from model string."""
         assert get_provider_from_model("openai/gpt-4") == "openai"
@@ -428,10 +408,6 @@ class TestIsValidModelString:
     def test_valid_openai_model(self):
         """Valid OpenAI model string."""
         assert is_valid_model_string("openai/gpt-4") is True
-
-    def test_valid_openrouter_model(self):
-        """Valid OpenRouter model string with nested path."""
-        assert is_valid_model_string("openrouter/meta-llama/llama-guard-3-8b") is True
 
     def test_valid_anthropic_model(self):
         """Valid Anthropic model string."""
