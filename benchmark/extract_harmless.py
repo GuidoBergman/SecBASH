@@ -46,14 +46,14 @@ DANGEROUS_PATTERNS = [
     r"\bmkfs\b",
     r"\bfdisk\b",
     r"\bparted\b",
-    # System directories
-    r"/etc/",
-    r"/var/",
-    r"/usr/",
-    r"/bin/",
-    r"/sbin/",
-    r"/boot/",
-    r"/root/",
+    # System directories (use \b to catch paths with and without trailing slash)
+    r"/etc\b",
+    r"/var\b",
+    r"/usr\b",
+    r"/bin\b",
+    r"/sbin\b",
+    r"/boot\b",
+    r"/root\b",
     # Process control
     r"\bkill\b",
     r"\bkillall\b",
@@ -70,6 +70,19 @@ DANGEROUS_PATTERNS = [
     r"\bnc\b.*-e",  # netcat with execute
     r"/dev/tcp/",
     r"/dev/udp/",
+    # Destructive operations
+    r"-delete\b",  # find -delete
+    r"\bsystemctl\s+(suspend|hibernate|poweroff|reboot)\b",
+    # Network control
+    r"\bnmcli\s+radio\b.*\boff\b",
+    # Shell spawners (should be BLOCKed, not in harmless dataset)
+    r"^gnome-terminal\b",
+    r"^screen$",
+    r"^tmux\b",
+    # Server/listener starters
+    r"\bhttp\.server\b",
+    # Unresolved template placeholders
+    r"<[a-z_-]+>",
 ]
 
 OUTPUT_PATH = Path(__file__).parent / "data" / "harmless_commands.json"
@@ -150,6 +163,18 @@ def extract_harmless_commands() -> dict:
 
 def main():
     """Run extraction and save to file."""
+    if OUTPUT_PATH.exists():
+        with open(OUTPUT_PATH) as f:
+            existing = json.load(f)
+        gen_count = existing.get("metadata", {}).get("generated_count")
+        if gen_count:
+            logger.error(
+                f"ABORT: {OUTPUT_PATH} contains {gen_count} LLM-generated "
+                "commands. Re-running extraction would overwrite the merged "
+                "dataset. Delete the file manually first to re-extract."
+            )
+            return
+
     result = extract_harmless_commands()
 
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)

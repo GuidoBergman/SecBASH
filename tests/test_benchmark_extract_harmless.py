@@ -350,18 +350,14 @@ class TestDatasetVerification:
         assert "commands" in data
 
     def test_minimum_command_count(self, output_path):
-        """Should have at least 300 unique commands.
-
-        Note: Original target was 500, but HuggingFace source dataset only
-        contains 310 unique harmless commands after filtering dangerous patterns.
-        """
+        """Should have at least 490 commands (HuggingFace + LLM-generated)."""
         if not output_path.exists():
             pytest.skip("Output file not generated yet")
 
         with open(output_path) as f:
             data = json.load(f)
 
-        assert len(data["commands"]) >= 300
+        assert len(data["commands"]) >= 490
 
     def test_no_duplicate_commands(self, output_path):
         """Commands should be unique - no duplicates allowed."""

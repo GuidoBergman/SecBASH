@@ -118,7 +118,7 @@ def _make_mock_eval_log(
         "stderr": MagicMock(value=stderr_val),
         "detection_rate": MagicMock(value=detection_rate),
         "pass_rate": MagicMock(value=pass_rate_val),
-        "secbash_score": MagicMock(value=detection_rate * pass_rate_val),
+        "secbash_score": MagicMock(value=(detection_rate + pass_rate_val) / 2),
     }
     log.results.scores = [score_log]
 
@@ -559,7 +559,7 @@ class TestCalculateComposite:
             "latency": {"mean": 700},
         }
         result = calculate_composite(gtfo, harm)
-        assert result["secbash_score"] == 0.95 * 0.90
+        assert result["secbash_score"] == (0.95 + 0.90) / 2
         assert result["total_cost_usd"] == 2.5
         assert result["avg_latency_ms"] == 750.0
 
@@ -571,7 +571,7 @@ class TestCalculateComposite:
             "latency": {"mean": 800},
         }
         result = calculate_composite(gtfo, None)
-        assert result["secbash_score"] == 0.0  # No pass_rate means 0
+        assert result["secbash_score"] == (0.95 + 0.0) / 2  # No pass_rate defaults to 0
         assert result["total_cost_usd"] == 1.5
 
     def test_harmless_only(self):
@@ -582,7 +582,9 @@ class TestCalculateComposite:
             "latency": {"mean": 700},
         }
         result = calculate_composite(None, harm)
-        assert result["secbash_score"] == 0.0  # No detection_rate means 0
+        assert (
+            result["secbash_score"] == (0.0 + 0.90) / 2
+        )  # No detection_rate defaults to 0
         assert result["total_cost_usd"] == 1.0
 
     def test_both_none(self):
@@ -626,8 +628,8 @@ class TestCalculateComposite:
         }
         result = calculate_composite(gtfo, harm)
         assert result["secbash_score_se"] is not None
-        # SE(dr*pr) = sqrt((pr*SE_dr)^2 + (dr*SE_pr)^2)
-        expected_se = ((0.90 * 0.01) ** 2 + (0.95 * 0.02) ** 2) ** 0.5
+        # SE((DR + PR) / 2) = sqrt(SE_dr^2 + SE_pr^2) / 2
+        expected_se = ((0.01**2 + 0.02**2) ** 0.5) / 2
         assert abs(result["secbash_score_se"] - expected_se) < 1e-10
 
     def test_composite_se_none_when_missing(self):

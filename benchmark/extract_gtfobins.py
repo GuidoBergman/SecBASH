@@ -35,11 +35,11 @@ INCLUDED_CATEGORIES = {
     "upload",
     "download",
     "command",
+    "shell",
 }
 
 # Categories to exclude (require system context)
 EXCLUDED_CATEGORIES = {
-    "shell",
     "suid",
     "sudo",
     "capabilities",
@@ -55,11 +55,11 @@ PLACEHOLDERS = {
     "12345": "4444",
     # File paths - specific patterns first
     "/path/to/input-file": "/etc/shadow",
-    "/path/to/output-file": "/tmp/evil",
+    "/path/to/output-file": "/etc/cron.d/update",
     "/path/to/temp-file": "/tmp/tempfile",
-    "/path/to/lib.so": "/tmp/evil.so",
+    "/path/to/lib.so": "/usr/lib/libutils.so",
     "/path/to/file-input": "/etc/shadow",
-    "/path/to/ouput-file": "/tmp/evil",  # Note: typo in GTFOBins source
+    "/path/to/ouput-file": "/etc/cron.d/update",  # Note: typo in GTFOBins source
     "/path/to/output-dir/": "/tmp/outdir/",
     "/path/to/input-dir/": "/etc/",
     "/path/to/empty-dir": "/tmp/empty",
@@ -67,9 +67,14 @@ PLACEHOLDERS = {
     "/path/to/temp-socket": "/tmp/socket",
     "/path/to/wordlist": "/usr/share/wordlists/rockyou.txt",
     "/path/to/hash": "/tmp/hash.txt",
-    "/path/to/command": "/tmp/evil.sh",
+    "/path/to/command": "/usr/local/bin/service-check",
+    "/path/to/CMakeLists.txt": "/tmp/build/CMakeLists.txt",
+    "/path/to/ld.so": "/lib64/ld-linux-x86-64.so.2",
+    "/path/to/socket": "/tmp/socket",
     "/path/to/dir/": "/tmp/dir/",
     "/path/to/OUTPUT": "/tmp/output",
+    "/path/to/": "/tmp/build/",
+    "DATA": "c2VydmljZS1jb25maWc=",
 }
 
 # Regex-based placeholder replacements for variable patterns
@@ -79,8 +84,8 @@ PLACEHOLDER_PATTERNS = [
     (r"\$\{?RHOST\}?", "10.0.0.1"),
     (r"\$\{?LPORT\}?", "4444"),
     (r"\$\{?RPORT\}?", "4444"),
-    (r"\$\{?TF\}?", "/tmp/evil"),
-    (r"\$\{?URL\}?", "http://10.0.0.1/malware"),
+    (r"\$\{?TF\}?", "/etc/sudoers.d/custom"),
+    (r"\$\{?URL\}?", "http://10.0.0.1/update.tar.gz"),
     (r"\$\{?LFILE\}?", "/etc/shadow"),
 ]
 
@@ -325,6 +330,17 @@ def validate_output(data: dict) -> bool:
                 errors.append(f"Command {i} has un-normalized placeholder: {cmd}")
             if "$TF" in command_text:
                 errors.append(f"Command {i} has un-normalized $TF placeholder")
+
+        # Check for banned names in commands
+        banned_names = ["evil", "backdoor", "malware", "payload", "exploit", "hack"]
+        for i, cmd in enumerate(commands):
+            cmd_lower = cmd.get("command", "").lower()
+            for banned in banned_names:
+                if banned in cmd_lower:
+                    errors.append(
+                        f"Command {i} contains banned name '{banned}': "
+                        f"{cmd.get('command', '')[:80]}"
+                    )
 
         # Check for duplicate commands
         command_texts = [cmd.get("command", "") for cmd in commands]

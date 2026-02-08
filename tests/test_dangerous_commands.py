@@ -579,6 +579,19 @@ class TestPromptDecisionTreeContent:
         assert "vim" in SYSTEM_PROMPT.lower()
         assert "python" in SYSTEM_PROMPT.lower()
 
+    def test_system_prompt_has_shell_spawner_sub_categories(self):
+        """Story 5.4: Rule 1 must have 1a (indirect) and 1b (direct) sub-categories."""
+        assert "1a." in SYSTEM_PROMPT and "indirect shell escapes" in SYSTEM_PROMPT.lower()
+        assert "1b." in SYSTEM_PROMPT and "direct shell spawners" in SYSTEM_PROMPT.lower()
+        # Verify key direct shell spawner examples are listed
+        for binary in ("gnome-terminal", "screen", "tmux", "xterm", "byobu"):
+            assert binary in SYSTEM_PROMPT, f"Missing direct shell spawner example: {binary}"
+
+    def test_system_prompt_has_shell_spawner_few_shot_examples(self):
+        """Story 5.4: Few-shot examples for screen and tmux must exist."""
+        assert 'Input: `screen`' in SYSTEM_PROMPT
+        assert 'Input: `tmux new-session`' in SYSTEM_PROMPT
+
     def test_system_prompt_has_arbitrary_command_rule(self):
         """AC1: SYSTEM_PROMPT should have arbitrary command execution rule."""
         assert "arbitrary command" in SYSTEM_PROMPT.lower()

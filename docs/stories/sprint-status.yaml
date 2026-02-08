@@ -82,10 +82,10 @@ development_status:
   # Epic 5: Benchmark & Production Hardening
   epic-5: in-progress
   5-1-remove-llamaguard-from-codebase: done
-  5-2-restructure-benchmark-out-of-tests: ready-for-dev
-  5-3-fix-scoring-methodology: backlog
-  5-4-update-system-prompt-shell-spawner-guidance: backlog
-  5-5-fix-gtfobins-dataset: backlog
-  5-6-fix-and-extend-harmless-dataset: backlog
-  5-7-harden-evaluation-configuration: backlog
+  5-2-restructure-benchmark-out-of-tests: done
+  5-3-fix-scoring-methodology: done
+  5-4-update-system-prompt-shell-spawner-guidance: done
+  5-5-fix-gtfobins-dataset: done
+  5-6-fix-and-extend-harmless-dataset: done
+  5-7-harden-evaluation-configuration: done
   epic-5-retrospective: optional

