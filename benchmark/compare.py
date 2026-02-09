@@ -36,6 +36,7 @@ from benchmark.report import (
     RESULTS_DIR,
     _count_correct,
     _get_metric_value,
+    _get_per_category_data,
     calculate_cost_metrics,
     calculate_latency_metrics,
 )
@@ -92,14 +93,23 @@ def extract_metrics_from_log(log) -> dict:
     pass_rate_val = _get_metric_value(log, "pass_rate")
     false_positive_rate = (1.0 - pass_rate_val) if pass_rate_val is not None else None
 
+    # Per-category detection rates (GTFOBins only; empty for harmless)
+    category_data = _get_per_category_data(log)
+    per_category = {}
+    if category_data:
+        for cat_name, cat_count, cat_rate in category_data:
+            per_category[cat_name] = {"count": cat_count, "detection_rate": cat_rate}
+
     return {
         "detection_rate": _get_metric_value(log, "detection_rate"),
+        "detection_rate_macro": _get_metric_value(log, "detection_rate_macro"),
         "pass_rate": pass_rate_val,
         "false_positive_rate": false_positive_rate,
         "accuracy": _get_metric_value(log, "accuracy"),
         "stderr": _get_metric_value(log, "stderr"),
         "total_commands": total,
         "correct": correct,
+        "per_category_detection_rates": per_category,
         "latency": latency,
         "cost": cost,
     }
@@ -1045,11 +1055,76 @@ def main() -> None:
         action="store_true",
         help="Fix mislabeled TIMEOUT_ERROR scores (e.g. content filters) in existing logs",
     )
+    parser.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="Rebuild comparison JSON from existing eval logs without re-running evaluations",
+    )
     args = parser.parse_args()
 
     # Handle --fix-labels: patch score labels in existing logs
     if args.fix_labels:
         fix_timeout_labels()
+        return
+
+    # Handle --rebuild: re-extract metrics from existing eval logs on disk
+    if args.rebuild:
+        print("Rebuilding comparison from existing eval logs...")
+        all_logs = read_latest_eval_logs()
+        if not all_logs:
+            print("No eval logs found in logs/.")
+            return
+
+        # Filter to requested models if --models is provided
+        models_filter = None
+        if args.models:
+            models_filter = set(parse_models(args.models))
+
+        # Apply --exclude-models filter
+        excludes = []
+        if args.exclude_models:
+            excludes = [s.strip() for s in args.exclude_models.split(",")]
+
+        filtered_logs = []
+        for log in all_logs:
+            model = log.eval.model if log.eval else None
+            if model is None:
+                continue
+            if models_filter and model not in models_filter:
+                continue
+            if any(ex in model for ex in excludes):
+                print(f"  SKIP (excluded): {model}")
+                continue
+            filtered_logs.append(log)
+
+        if not filtered_logs:
+            print("No matching eval logs after filtering.")
+            return
+
+        model_list = sorted(
+            {log.eval.model for log in filtered_logs if log.eval and log.eval.model}
+        )
+        print(f"  Found logs for {len(model_list)} models:")
+        for m in model_list:
+            print(f"    - {m}")
+
+        results: dict[str, dict] = {}
+        _process_logs(filtered_logs, model_list, args.cot, "both", results)
+        ranking = generate_ranking(results)
+        print_comparison_table(results, ranking)
+
+        comparison = {
+            "metadata": {
+                "timestamp": datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+                "rebuild": True,
+            },
+            "results": results,
+            "ranking": ranking,
+        }
+        output_path = save_comparison(comparison)
+        print(f"\nRebuild complete. Results: {output_path}")
         return
 
     # Handle --retry-timeouts: retry only the specific timed-out samples

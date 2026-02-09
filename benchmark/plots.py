@@ -18,7 +18,8 @@ from pathlib import Path
 
 import matplotlib
 import matplotlib.pyplot as plt
-import seaborn  # noqa: F401 - sets default aesthetic
+import numpy as np
+import seaborn
 from adjustText import adjust_text
 
 matplotlib.use("Agg")
@@ -646,6 +647,170 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
     save_plot(fig, output_dir / "ranking_table")
 
 
+def plot_category_heatmap(results: dict, output_dir: Path) -> None:
+    """Generate per-category detection rate heatmap (models x categories).
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+    """
+    _apply_style()
+    successful = _get_successful_models(results)
+
+    # Collect per-category data across models
+    model_names: list[str] = []
+    all_categories: set[str] = set()
+    model_category_rates: dict[str, dict[str, float]] = {}
+
+    for model, data in successful.items():
+        gtfo = data.get("datasets", {}).get("gtfobins")
+        if not gtfo:
+            continue
+        per_cat = gtfo.get("per_category_detection_rates", {})
+        if not per_cat:
+            continue
+        short = get_short_name(model)
+        model_names.append(short)
+        model_category_rates[short] = {
+            cat: vals["detection_rate"] for cat, vals in per_cat.items()
+        }
+        all_categories.update(per_cat.keys())
+
+    if not model_names or not all_categories:
+        return
+
+    categories = sorted(all_categories)
+
+    # Build matrix (models x categories)
+    matrix = np.full((len(model_names), len(categories)), np.nan)
+    for i, model in enumerate(model_names):
+        for j, cat in enumerate(categories):
+            if cat in model_category_rates[model]:
+                matrix[i, j] = model_category_rates[model][cat] * 100
+
+    fig, ax = plt.subplots(figsize=(max(10, len(categories) * 1.2), max(6, len(model_names) * 0.7)))
+
+    heatmap = seaborn.heatmap(
+        matrix,
+        annot=True,
+        fmt=".1f",
+        cmap="RdYlGn",
+        vmin=0,
+        vmax=100,
+        xticklabels=categories,
+        yticklabels=model_names,
+        linewidths=0.5,
+        linecolor="white",
+        cbar_kws={"label": "Detection Rate (%)"},
+        ax=ax,
+    )
+    # Rotate x-axis labels for readability
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+    ax.set_title("Per-Category Detection Rates by Model (%)")
+
+    save_plot(fig, output_dir / "category_heatmap")
+
+
+def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
+    """Generate grouped bar chart comparing micro and macro detection rates.
+
+    Highlights models with uneven performance across categories
+    (large gap between micro and macro averages).
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+    """
+    _apply_style()
+    successful = _get_successful_models(results)
+
+    # Collect micro/macro pairs
+    data_points: list[tuple[str, float, float, str]] = []  # (short_name, micro, macro, full_model)
+
+    for model, data in successful.items():
+        gtfo = data.get("datasets", {}).get("gtfobins")
+        if not gtfo:
+            continue
+        micro = gtfo.get("detection_rate")
+        macro = gtfo.get("detection_rate_macro")
+        if micro is None or macro is None:
+            continue
+        data_points.append((get_short_name(model), micro * 100, macro * 100, model))
+
+    if not data_points:
+        return
+
+    # Sort by micro detection rate descending
+    data_points.sort(key=lambda x: x[1], reverse=True)
+
+    model_names = [d[0] for d in data_points]
+    micros = [d[1] for d in data_points]
+    macros = [d[2] for d in data_points]
+    full_models = [d[3] for d in data_points]
+
+    x = np.arange(len(model_names))
+    bar_width = 0.35
+
+    fig, ax = plt.subplots(figsize=(max(10, len(model_names) * 1.5), 7))
+
+    bars_micro = ax.bar(
+        x - bar_width / 2,
+        micros,
+        bar_width,
+        label="Micro Avg (overall)",
+        color=[get_provider_color(m) for m in full_models],
+        alpha=0.85,
+        edgecolor="white",
+        linewidth=0.5,
+    )
+    bars_macro = ax.bar(
+        x + bar_width / 2,
+        macros,
+        bar_width,
+        label="Macro Avg (per-category mean)",
+        color=[get_provider_color(m) for m in full_models],
+        alpha=0.45,
+        edgecolor="white",
+        linewidth=0.5,
+        hatch="//",
+    )
+
+    # Value labels on bars
+    for bar in bars_micro:
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.3,
+            f"{bar.get_height():.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+    for bar in bars_macro:
+        ax.text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height() + 0.3,
+            f"{bar.get_height():.1f}",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+        )
+
+    # Target line
+    ax.axhline(y=95, color="green", linestyle="--", alpha=0.5, label="Target (95%)")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(model_names, rotation=45, ha="right")
+    ax.set_ylabel("Detection Rate (%)")
+    ax.set_title("Micro vs Macro Average Detection Rate")
+    ax.legend(loc="lower right", fontsize=9)
+
+    # Set y-axis to show relevant range
+    y_min = max(0, min(min(micros), min(macros)) - 5)
+    ax.set_ylim(y_min, 102)
+
+    save_plot(fig, output_dir / "micro_vs_macro")
+
+
 def generate_all_plots(comparison_file: Path, output_dir: Path) -> list[Path]:
     """Generate all benchmark visualization plots.
 
@@ -667,6 +832,8 @@ def generate_all_plots(comparison_file: Path, output_dir: Path) -> list[Path]:
     plot_latency_distribution(results, output_dir)
     plot_cost_comparison(results, output_dir)
     plot_ranking_table(results, ranking, output_dir)
+    plot_category_heatmap(results, output_dir)
+    plot_micro_vs_macro(results, output_dir)
 
     # Collect generated files
     generated = sorted(output_dir.glob("*.png")) + sorted(output_dir.glob("*.svg"))

@@ -12,10 +12,12 @@ from benchmark.plots import (
     get_provider_color,
     get_short_name,
     load_comparison_results,
+    plot_category_heatmap,
     plot_cost_comparison,
     plot_cost_vs_score,
     plot_detection_vs_pass,
     plot_latency_distribution,
+    plot_micro_vs_macro,
     plot_ranking_table,
     save_plot,
 )
@@ -41,12 +43,19 @@ def minimal_comparison_data() -> dict:
                 "datasets": {
                     "gtfobins": {
                         "detection_rate": 0.96,
+                        "detection_rate_macro": 0.91,
                         "pass_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.96,
                         "stderr": 0.01,
                         "total_commands": 431,
                         "correct": 414,
+                        "per_category_detection_rates": {
+                            "reverse-shell": {"count": 19, "detection_rate": 1.0},
+                            "file-read": {"count": 200, "detection_rate": 0.97},
+                            "shell": {"count": 150, "detection_rate": 0.95},
+                            "command": {"count": 30, "detection_rate": 0.40},
+                        },
                         "latency": {
                             "mean": 25000.0,
                             "p50": 22000.0,
@@ -97,12 +106,19 @@ def minimal_comparison_data() -> dict:
                 "datasets": {
                     "gtfobins": {
                         "detection_rate": 0.89,
+                        "detection_rate_macro": 0.85,
                         "pass_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.89,
                         "stderr": 0.015,
                         "total_commands": 431,
                         "correct": 384,
+                        "per_category_detection_rates": {
+                            "reverse-shell": {"count": 19, "detection_rate": 0.95},
+                            "file-read": {"count": 200, "detection_rate": 0.90},
+                            "shell": {"count": 150, "detection_rate": 0.88},
+                            "command": {"count": 30, "detection_rate": 0.50},
+                        },
                         "latency": {
                             "mean": 15000.0,
                             "p50": 12000.0,
@@ -153,12 +169,19 @@ def minimal_comparison_data() -> dict:
                 "datasets": {
                     "gtfobins": {
                         "detection_rate": 0.951,
+                        "detection_rate_macro": 0.93,
                         "pass_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.951,
                         "stderr": 0.0103,
                         "total_commands": 431,
                         "correct": 410,
+                        "per_category_detection_rates": {
+                            "reverse-shell": {"count": 19, "detection_rate": 1.0},
+                            "file-read": {"count": 200, "detection_rate": 0.96},
+                            "shell": {"count": 150, "detection_rate": 0.94},
+                            "command": {"count": 30, "detection_rate": 0.70},
+                        },
                         "latency": {
                             "mean": 37780.0,
                             "p50": 36264.0,
@@ -411,6 +434,16 @@ class TestPlotFunctions:
         assert (tmp_path / "ranking_table.png").exists()
         assert (tmp_path / "ranking_table.svg").exists()
 
+    def test_plot_category_heatmap(self, minimal_comparison_data, tmp_path):
+        plot_category_heatmap(minimal_comparison_data["results"], tmp_path)
+        assert (tmp_path / "category_heatmap.png").exists()
+        assert (tmp_path / "category_heatmap.svg").exists()
+
+    def test_plot_micro_vs_macro(self, minimal_comparison_data, tmp_path):
+        plot_micro_vs_macro(minimal_comparison_data["results"], tmp_path)
+        assert (tmp_path / "micro_vs_macro.png").exists()
+        assert (tmp_path / "micro_vs_macro.svg").exists()
+
 
 class TestGenerateAllPlots:
     """Tests for generate_all_plots()."""
@@ -420,10 +453,12 @@ class TestGenerateAllPlots:
         generated = generate_all_plots(comparison_json_file, output_dir)
 
         expected_basenames = [
+            "category_heatmap",
             "cost_comparison",
             "cost_vs_score",
             "detection_vs_pass",
             "latency_distribution",
+            "micro_vs_macro",
             "ranking_table",
         ]
 
@@ -431,8 +466,8 @@ class TestGenerateAllPlots:
             assert (output_dir / f"{name}.png").exists(), f"Missing {name}.png"
             assert (output_dir / f"{name}.svg").exists(), f"Missing {name}.svg"
 
-        # 5 plots x 2 formats = 10 files
-        assert len(generated) == 10
+        # 7 plots x 2 formats = 14 files
+        assert len(generated) == 14
 
     def test_creates_output_directory(self, comparison_json_file, tmp_path):
         output_dir = tmp_path / "nested" / "plots"
