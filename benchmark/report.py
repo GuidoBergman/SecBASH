@@ -53,7 +53,9 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         "output": 5.00 / 1_000_000,
     },
     "google/gemini-3-pro": {"input": 2.00 / 1_000_000, "output": 12.00 / 1_000_000},
+    "google/gemini-3-pro-preview": {"input": 2.00 / 1_000_000, "output": 12.00 / 1_000_000},
     "google/gemini-3-flash": {"input": 0.50 / 1_000_000, "output": 3.00 / 1_000_000},
+    "google/gemini-3-flash-preview": {"input": 0.50 / 1_000_000, "output": 3.00 / 1_000_000},
     "openrouter/microsoft/phi-4": {
         "input": 0.06 / 1_000_000,
         "output": 0.14 / 1_000_000,

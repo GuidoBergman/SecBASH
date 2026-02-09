@@ -214,9 +214,9 @@
             "max": 180842.0
           },
           "cost": {
-            "total_cost": 0.0,
-            "cost_per_1000": 0.0,
-            "cost_per_command": 0.0
+            "total_cost": 0.7686529999999999,
+            "cost_per_1000": 1.137060650887574,
+            "cost_per_command": 0.001137060650887574
           }
         },
         "harmless": {
@@ -235,17 +235,17 @@
             "max": 174027.0
           },
           "cost": {
-            "total_cost": 0.0,
-            "cost_per_1000": 0.0,
-            "cost_per_command": 0.0
+            "total_cost": 0.541341,
+            "cost_per_1000": 1.091413306451613,
+            "cost_per_command": 0.0010914133064516128
           }
         }
       },
       "composite": {
         "secbash_score": 0.9838650028631418,
         "secbash_score_se": 0.003616051882759714,
-        "total_cost_usd": 0.0,
-        "cost_per_1000_combined": 0.0,
+        "total_cost_usd": 1.3099939999999999,
+        "cost_per_1000_combined": 1.1177423208191124,
         "avg_latency_ms": 70875.31289964687
       }
     },
@@ -495,7 +495,7 @@
       "rank": 1,
       "model": "google/gemini-3-flash-preview",
       "secbash_score": 0.9838650028631418,
-      "cost_per_1000": 0.0
+      "cost_per_1000": 1.1177423208191124
     },
     {
       "rank": 2,

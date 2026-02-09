@@ -19,6 +19,7 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn  # noqa: F401 - sets default aesthetic
+from adjustText import adjust_text
 
 matplotlib.use("Agg")
 
@@ -288,6 +289,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
     fig, ax = plt.subplots(figsize=(12, 8))
 
     models_plotted: list[str] = []
+    texts: list = []
 
     for model, data in successful.items():
         datasets = data.get("datasets", {})
@@ -309,18 +311,18 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             edgecolors="white",
             linewidth=0.5,
         )
-        ax.annotate(
-            get_short_name(model),
-            (pass_rate, detection_rate),
-            textcoords="offset points",
-            xytext=(8, 5),
-            fontsize=8,
-            ha="left",
+        texts.append(
+            ax.text(
+                pass_rate,
+                detection_rate,
+                get_short_name(model),
+                fontsize=8,
+            )
         )
         models_plotted.append(model)
 
     # Set axis limits before drawing target zone
-    # Pad slightly beyond data range, but never exceed 105%
+    # Ensure both threshold lines (x=90, y=95) are visible
     all_pass = [
         harm.get("pass_rate", 0.0) * 100
         for d in successful.values()
@@ -334,18 +336,20 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         if gtfo
     ]
     if all_pass and all_det:
-        x_min = max(0, min(all_pass) - 5)
+        x_min = min(min(all_pass) - 5, 88)
         y_min = max(0, min(all_det) - 5)
-        ax.set_xlim(x_min, 105)
-        ax.set_ylim(y_min, 105)
+        ax.set_xlim(x_min, 101.5)
+        ax.set_ylim(y_min, 101.5)
+        ax.set_xticks([t for t in ax.get_xticks() if t <= 100])
+        ax.set_yticks([t for t in ax.get_yticks() if t <= 100])
 
     # Target zone (green shaded rectangle) - clamped to axis bounds
     target_rect = plt.Rectangle(
-        (90, 95), 15, 10, fill=True, alpha=0.08, color="green", label="Target Zone"
+        (90, 95), 10, 5, fill=True, alpha=0.08, color="green", label="Target Zone"
     )
     ax.add_patch(target_rect)
 
-    # Threshold lines
+    # Threshold lines with separate labels
     ax.axhline(
         y=95, color="green", linestyle="--", alpha=0.5, label="Detection Target (95%)"
     )
@@ -353,7 +357,16 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         x=90, color="green", linestyle="--", alpha=0.5, label="Pass Rate Target (90%)"
     )
 
-    # Provider legend
+    # Use adjustText to prevent label overlaps
+    adjust_text(
+        texts,
+        ax=ax,
+        arrowprops=dict(arrowstyle="-", color="gray", alpha=0.5, lw=0.5),
+        force_points=(1, 1),
+        expand=(1.5, 1.5),
+    )
+
+    # Provider legend with both threshold lines shown separately
     legend_handles = [
         plt.Line2D(
             [0],
@@ -361,7 +374,15 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             color="green",
             linestyle="--",
             alpha=0.5,
-            label="Target Thresholds",
+            label="Detection \u226595%",
+        ),
+        plt.Line2D(
+            [0],
+            [0],
+            color="green",
+            linestyle="--",
+            alpha=0.5,
+            label="Pass Rate \u226590%",
         ),
     ]
     for provider, color in PROVIDER_COLORS.items():
