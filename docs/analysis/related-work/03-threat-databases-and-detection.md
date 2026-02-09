@@ -49,7 +49,7 @@ Demonstrates the breadth of "Living off the Land" attacks beyond user-space bina
 ## 4. MITRE ATT&CK Framework
 
 ### What It Is
-A globally-accessible knowledge base of adversary tactics, techniques, and procedures (TTPs) based on real-world observations. Organized into 14 tactics (Reconnaissance through Impact) with hundreds of techniques. Version 16 (October 2024) is current.
+A globally-accessible knowledge base of adversary tactics, techniques, and procedures (TTPs) based on real-world observations. Organized into 14 tactics (Reconnaissance through Impact) with hundreds of techniques. Version 18 (October 2025) is current as of early 2026.
 
 ### Relevance to SecBASH
 SecBASH's threat model maps directly to multiple ATT&CK techniques:
@@ -153,7 +153,7 @@ osquery can monitor process creation events including command-line arguments. Qu
 ## 10. Security Datasets and Benchmarks
 
 ### 10.1 Schonlau Masquerade Detection Dataset
-- 15,000 Unix commands from 50 users; foundational benchmark for command-based user identification.
+- 15,000 Unix commands per user across 50 users (750,000 total); foundational benchmark for command-based masquerade detection.
 - **Relevance**: Earliest labeled dataset of Unix commands for security. Different task (user identification vs. command safety) but same domain.
 - **Source**: https://www.schonlau.net/intrusion.html
 
@@ -162,7 +162,7 @@ osquery can monitor process creation events including command-line arguments. Qu
 - **Relevance**: Benchmark for system-call-based IDS. Different abstraction level (syscalls vs. commands) but related problem.
 
 ### 10.3 NL2Bash Corpus
-- 9,305 natural language / bash command pairs from Lin et al. (2018, arXiv:1802.08979).
+- Approximately 10,000 bash one-liner / natural language pairs from Lin et al. (2018, LREC; arXiv:1802.08979).
 - **Relevance**: Demonstrates NLP understanding of bash commands. Could inform SecBASH's approach to command comprehension. Different task (NL-to-bash translation vs. safety classification).
 - **Source**: https://github.com/TellinaTool/nl2bash
 
@@ -176,7 +176,7 @@ osquery can monitor process creation events including command-line arguments. Qu
 - **Relevance**: Large-scale real-world command-line data for security research.
 
 ### 10.6 HuggingFace Bash Commands Dataset
-- Source for SecBASH's harmless command benchmark (aelhalili/bash-commands-dataset). 840 general-purpose bash commands filtered to 290 harmless commands.
+- Source for SecBASH's harmless command benchmark (aelhalili/bash-commands-dataset). 840 original commands filtered to 290 safe commands, then extended with 206 LLM-generated commands covering additional developer workflows for a total of 496 harmless benchmark commands.
 - **Relevance**: Direct component of SecBASH's evaluation methodology.
 
 ---

@@ -4,16 +4,9 @@ This document surveys existing tools and projects that use AI/LLM/ML for command
 
 ---
 
-## 1. LLM-Powered Command Safety Tools (Most Directly Comparable)
+## 1. Command Understanding and Safety Tools
 
-### 1.1 safe-shell (ryanshrott/safe-shell)
-
-- **What it does**: The closest known project to SecBASH. An LLM-based command safety checker that evaluates shell commands before execution using OpenAI's API.
-- **How it relates**: Shares the core concept of LLM-powered pre-execution command validation.
-- **How SecBASH differs**: SecBASH provides a more comprehensive implementation with: multi-provider LLM fallback chains, a three-tier classification system (ALLOW/WARN/BLOCK), persistent command history, configurable models, and a rigorous benchmarking suite against GTFOBins. SecBASH also includes a full interactive shell experience rather than a standalone validation function.
-- **Source**: https://github.com/ryanshrott/safe-shell
-
-### 1.2 ExplainShell
+### 1.1 ExplainShell
 
 - **What it does**: Web-based tool that parses shell commands and provides man-page-sourced explanations for each component. Uses static analysis of man pages, not AI.
 - **How it relates**: Focuses on command understanding/explanation but without security classification.
@@ -69,9 +62,9 @@ This document surveys existing tools and projects that use AI/LLM/ML for command
 - **How it relates**: Uses LLMs for security analysis, including understanding command-line activity in logs.
 - **How SecBASH differs**: Security Copilot is post-incident analysis (helping analysts after events occur); SecBASH is pre-execution prevention (blocking commands before they run). Security Copilot is enterprise-grade infrastructure; SecBASH is a lightweight shell replacement. Different timing (post vs. pre), scope (enterprise SOC vs. individual shell), and use case (analysis vs. enforcement).
 
-### 3.2 Google Security AI Workbench (Sec-PaLM 2 / Gemini)
+### 3.2 Google Security AI Workbench (Sec-PaLM / Gemini)
 
-- **What it does**: Google's AI security platform providing threat intelligence, malware analysis, and security operations assistance using their Gemini models.
+- **What it does**: Google's AI security platform, announced at RSA 2023 with the Sec-PaLM model and later transitioned to Gemini. Provides threat intelligence, malware analysis, and security operations assistance integrated with Mandiant and VirusTotal.
 - **How it relates**: LLM-powered security analysis at enterprise scale.
 - **How SecBASH differs**: Same distinction as Security Copilot -- post-hoc analysis vs. real-time pre-execution enforcement.
 
@@ -177,7 +170,6 @@ This document surveys existing tools and projects that use AI/LLM/ML for command
 | Tool / Category | Approach | Scope | Timing | AI/ML | Explains Decisions |
 |---|---|---|---|---|---|
 | **SecBASH** | LLM semantic analysis | All shell commands | Pre-execution | Yes (LLM) | Yes (NL reasons) |
-| safe-shell | LLM safety checking | All shell commands | Pre-execution | Yes (LLM) | Partial |
 | Claude Code | Permission model | AI-generated commands | Pre-execution | Yes (built-in) | No |
 | Copilot CLI | User confirmation | AI-suggested commands | Pre-execution | No (human decides) | No |
 | Open Interpreter | User confirmation + sandbox | AI-generated code | Pre-execution | No (human decides) | No |

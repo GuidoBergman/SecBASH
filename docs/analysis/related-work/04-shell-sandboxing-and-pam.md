@@ -11,7 +11,7 @@ This document surveys shell sandboxing, command filtering, restricted execution 
 - **What it does**: Python-based shell that restricts users to a predefined set of allowed commands. Supports SSH restrictions, command logging, and timing restrictions. Replaces the user's login shell.
 - **Relevance**: Most architecturally similar traditional tool to SecBASH -- both are Python shell wrappers that validate commands before execution.
 - **How SecBASH differs**: lshell uses static command allowlists; SecBASH uses LLM semantic analysis. lshell blocks anything not on the list (high false positive rate for novel legitimate commands); SecBASH evaluates intent.
-- **Critical flaw**: lshell has had serious security vulnerabilities including remote code execution (CVE-2016-3684).
+- **Critical flaw**: lshell has had serious security vulnerabilities including shell escape via bad syntax parse (CVE-2016-6902) and shell outbreak with multiline commands (CVE-2016-6903).
 - **Source**: https://github.com/ghantoos/lshell
 
 ### 1.2 GNU Rush (Restricted User Shell)
@@ -44,7 +44,7 @@ This document surveys shell sandboxing, command filtering, restricted execution 
 - **What it does**: Identity-based access management for dynamic infrastructure. Manages SSH sessions with identity-aware authorization, session recording, and credential injection.
 - **Relevance**: Access gateway that controls who connects to systems. Like Teleport, focuses on access control rather than command control.
 - **How SecBASH differs**: Boundary answers "can this user connect?"; SecBASH answers "should this command execute?" Different level of granularity.
-- **Source**: https://www.boundaryproject.io/
+- **Source**: https://developer.hashicorp.com/boundary
 
 ### 2.3 StrongDM
 
@@ -127,7 +127,7 @@ Command restriction at the SSH protocol level. Very effective for service accoun
 
 ## 7. System Call Interposition
 
-### 7.1 Systrace (Niels Provos, USENIX Security 2002)
+### 7.1 Systrace (Niels Provos, USENIX Security 2003)
 
 - **What it does**: System call interposition mechanism that enforces access policies for applications. Monitors and restricts system calls made by processes. Supports interactive policy generation -- users approve/deny system calls as they occur.
 - **Relevance**: Closest historical analog to SecBASH at the system call level. Systrace's interactive approval model (user approves/denies syscalls) mirrors SecBASH's WARN workflow (user approves/denies commands). Both provide pre-execution validation with user-in-the-loop.
@@ -197,4 +197,4 @@ Commercial PAM products (CyberArk, BeyondTrust, Delinea) offer command filtering
 Access control systems (bastion hosts, PAM, polkit, sudo) answer: "Is this user authorized for this action?" SecBASH answers: "Is this action safe regardless of who is performing it?" These are complementary questions. An authorized administrator can still accidentally or maliciously execute a dangerous command; SecBASH catches this even when authorization succeeds.
 
 ### Historical Context: From Systrace to SecBASH
-The evolution from Systrace (2002, syscall-level interactive policy) to SecBASH (2026, LLM command-level analysis) represents a shift from low-level mechanism interposition to high-level semantic understanding. Both share the principle of pre-execution validation with user-in-the-loop, but at vastly different abstraction levels.
+The evolution from Systrace (2003, syscall-level interactive policy) to SecBASH (2026, LLM command-level analysis) represents a shift from low-level mechanism interposition to high-level semantic understanding. Both share the principle of pre-execution validation with user-in-the-loop, but at vastly different abstraction levels.
