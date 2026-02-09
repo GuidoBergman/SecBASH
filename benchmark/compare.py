@@ -24,11 +24,13 @@ Usage:
 import argparse
 import json
 import logging
+import shutil
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 from inspect_ai import eval as inspect_eval
+from inspect_ai.log import read_eval_log, recompute_metrics, write_eval_log
 
 from benchmark.report import (
     RESULTS_DIR,
@@ -520,6 +522,358 @@ def find_models_with_timeouts(logs_dir: Path | None = None) -> dict[str, int]:
     return timeouts
 
 
+def find_timed_out_samples(
+    logs_dir: Path | None = None,
+) -> dict[str, list[dict]]:
+    """Scan eval logs for the specific samples that timed out per model.
+
+    Same efficient zip-based scanning as ``find_models_with_timeouts()``,
+    but additionally collects the sample IDs that timed out and the eval
+    log path so callers can retry only those samples.
+
+    Args:
+        logs_dir: Directory containing ``.eval`` files.  Defaults to
+            ``logs/`` relative to the project root.
+
+    Returns:
+        Dict mapping model ID to a list of dicts, each with keys:
+        ``task_name`` (str), ``eval_path`` (Path), ``sample_ids`` (list[int|str]).
+    """
+    if logs_dir is None:
+        logs_dir = Path("logs")
+    if not logs_dir.exists():
+        return {}
+
+    # Collect (model, task) -> (timestamp_str, path) keeping most recent
+    latest: dict[tuple[str, str], tuple[str, Path]] = {}
+
+    for eval_path in sorted(logs_dir.glob("*.eval")):
+        ts_prefix = eval_path.name.split("_secbash")[0]
+        try:
+            with zipfile.ZipFile(eval_path, "r") as zf:
+                with zf.open("_journal/start.json") as f:
+                    start = json.loads(f.read())
+                model = start["eval"]["model"]
+                task = start["eval"]["task"]
+        except (KeyError, json.JSONDecodeError, zipfile.BadZipFile):
+            continue
+
+        key = (model, task)
+        if key not in latest or ts_prefix > latest[key][0]:
+            latest[key] = (ts_prefix, eval_path)
+
+    # Collect timed-out sample IDs per (model, task).
+    # Detect both inspect_ai time limits (limit.type == "time") and
+    # application-level timeouts (score answer == "TIMEOUT_ERROR").
+    result: dict[str, list[dict]] = {}
+    for (model, task), (_ts, eval_path) in latest.items():
+        try:
+            with zipfile.ZipFile(eval_path, "r") as zf:
+                sample_names = [
+                    n
+                    for n in zf.namelist()
+                    if n.startswith("samples/") and n.endswith(".json")
+                ]
+                timed_out_ids: list[int | str] = []
+                for name in sample_names:
+                    with zf.open(name) as f:
+                        sample = json.loads(f.read())
+                    # Check inspect_ai time limit
+                    limit = sample.get("limit")
+                    if isinstance(limit, dict) and limit.get("type") == "time":
+                        timed_out_ids.append(sample["id"])
+                        continue
+                    # Check scorer-level TIMEOUT_ERROR
+                    for ev in sample.get("events", []):
+                        if ev.get("event") == "score":
+                            score = ev.get("score", {})
+                            if score.get("answer") == "TIMEOUT_ERROR":
+                                timed_out_ids.append(sample["id"])
+                                break
+                if timed_out_ids:
+                    if model not in result:
+                        result[model] = []
+                    result[model].append(
+                        {
+                            "task_name": task,
+                            "eval_path": eval_path,
+                            "sample_ids": timed_out_ids,
+                        }
+                    )
+        except (zipfile.BadZipFile, json.JSONDecodeError):
+            continue
+
+    return result
+
+
+def retry_timed_out_samples(
+    timed_out_info: dict[str, list[dict]],
+    cot: bool,
+    time_limit: int,
+) -> dict[tuple[str, str], list]:
+    """Retry only the specific timed-out samples for each (model, task).
+
+    Args:
+        timed_out_info: Output of ``find_timed_out_samples()``.
+        cot: Enable Chain-of-Thought scaffolding.
+        time_limit: Per-sample time limit in seconds for retry.
+
+    Returns:
+        Dict mapping ``(model, task_name)`` to the list of EvalLog objects
+        returned by ``inspect_eval()``.
+    """
+    retry_logs: dict[tuple[str, str], list] = {}
+
+    for model, task_entries in timed_out_info.items():
+        for entry in task_entries:
+            task_name = entry["task_name"]
+            sample_ids = entry["sample_ids"]
+
+            # Build the matching Task object
+            if "gtfobins" in task_name:
+                task = secbash_gtfobins(cot=cot)
+            elif "harmless" in task_name:
+                task = secbash_harmless(cot=cot)
+            else:
+                print(f"  SKIP unknown task: {task_name}")
+                continue
+
+            print(
+                f"  Retrying {len(sample_ids)} timed-out samples "
+                f"for {model} / {task_name}"
+            )
+            try:
+                logs = inspect_eval(
+                    task,
+                    model=model,
+                    sample_id=sample_ids,
+                    log_dir="logs/retry",
+                    time_limit=time_limit,
+                    fail_on_error=0.5,
+                    retry_on_error=5,
+                    seed=42,
+                )
+                retry_logs[(model, task_name)] = logs
+            except Exception as e:
+                print(f"    FAILED: {e}")
+                retry_logs[(model, task_name)] = []
+
+    return retry_logs
+
+
+def _sample_timed_out(sample) -> bool:
+    """Check if an EvalSample timed out (either limit or scorer level)."""
+    # inspect_ai time limit
+    if sample.limit and sample.limit.type == "time":
+        return True
+    # Scorer-level TIMEOUT_ERROR
+    if sample.scores:
+        for score in sample.scores.values():
+            if getattr(score, "answer", None) == "TIMEOUT_ERROR":
+                return True
+    return False
+
+
+def fix_timeout_labels(logs_dir: Path | None = None) -> None:
+    """Fix mislabeled TIMEOUT_ERROR scores in existing eval logs.
+
+    Reads each latest eval log, checks samples with TIMEOUT_ERROR,
+    and relabels based on the model output's stop_reason:
+    - ``content_filter`` -> ``CONTENT_FILTER``
+    - ``max_tokens`` / ``model_length`` -> ``TOKEN_LIMIT``
+
+    Backs up originals to ``logs/originals/`` before overwriting.
+
+    Args:
+        logs_dir: Directory containing ``.eval`` files.  Defaults to
+            ``logs/`` relative to the project root.
+    """
+    if logs_dir is None:
+        logs_dir = Path("logs")
+
+    # Find latest log per (model, task)
+    latest: dict[tuple[str, str], tuple[str, Path]] = {}
+    for eval_path in sorted(logs_dir.glob("*.eval")):
+        ts_prefix = eval_path.name.split("_secbash")[0]
+        try:
+            with zipfile.ZipFile(eval_path, "r") as zf:
+                with zf.open("_journal/start.json") as f:
+                    start = json.loads(f.read())
+                model = start["eval"]["model"]
+                task = start["eval"]["task"]
+        except (KeyError, json.JSONDecodeError, zipfile.BadZipFile):
+            continue
+        key = (model, task)
+        if key not in latest or ts_prefix > latest[key][0]:
+            latest[key] = (ts_prefix, eval_path)
+
+    total_fixed = 0
+    for (model, task), (_ts, eval_path) in sorted(latest.items()):
+        try:
+            log = read_eval_log(eval_path)
+        except Exception as e:
+            print(f"  Could not read {eval_path.name}: {e}")
+            continue
+
+        if log.samples is None:
+            continue
+
+        fixed = 0
+        for sample in log.samples:
+            if sample.scores is None:
+                continue
+            for score in sample.scores.values():
+                if getattr(score, "answer", None) != "TIMEOUT_ERROR":
+                    continue
+                if sample.output and sample.output.choices:
+                    stop = sample.output.choices[0].stop_reason
+                else:
+                    stop = None
+                if stop == "content_filter":
+                    new_label = "CONTENT_FILTER"
+                elif stop in ("max_tokens", "model_length"):
+                    new_label = "TOKEN_LIMIT"
+                else:
+                    continue
+                score.answer = new_label
+                if score.metadata:
+                    score.metadata["actual"] = new_label
+                    score.metadata["stop_reason"] = stop
+                fixed += 1
+
+        if fixed > 0:
+            # Back up original (only if not already backed up)
+            backup_dir = Path("logs/originals")
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            backup_path = backup_dir / eval_path.name
+            if not backup_path.exists():
+                shutil.copy2(eval_path, backup_path)
+
+            recompute_metrics(log)
+            write_eval_log(log, location=eval_path)
+            print(f"  {model} / {task}: fixed {fixed} labels")
+            total_fixed += fixed
+
+    if total_fixed:
+        print(f"\nFixed {total_fixed} mislabeled samples across all logs.")
+    else:
+        print("No mislabeled samples found.")
+
+
+def merge_eval_logs(
+    original_path: Path,
+    retry_logs: list,
+) -> "EvalLog | None":
+    """Merge successful retry samples back into an original eval log.
+
+    Timed-out samples in the original are replaced with retry results,
+    but only if the retry did NOT time out again.  Aggregate metrics
+    are recomputed on the merged log.  The original is backed up to
+    ``logs/originals/`` and the merged log replaces it in ``logs/``.
+
+    Args:
+        original_path: Path to the original ``.eval`` file.
+        retry_logs: List of EvalLog objects from the retry run for
+            the same (model, task).
+
+    Returns:
+        The merged EvalLog, or None if merging was not possible.
+    """
+    try:
+        original = read_eval_log(original_path)
+    except Exception as e:
+        print(f"  Could not read {original_path}: {e}")
+        return None
+
+    if original.samples is None:
+        print(f"  No samples in {original_path}")
+        return None
+
+    # Collect successful retry samples (ones that did NOT time out again)
+    retry_by_id: dict[int | str, "EvalSample"] = {}
+    for rlog in retry_logs:
+        if rlog.samples is None:
+            continue
+        for sample in rlog.samples:
+            if _sample_timed_out(sample):
+                # Still timed out – skip
+                continue
+            retry_by_id[sample.id] = sample
+
+    if not retry_by_id:
+        print(f"  No successful retries to merge for {original_path.name}")
+        return None
+
+    # Replace timed-out samples in original with successful retries
+    replaced = 0
+    merged_samples = []
+    for sample in original.samples:
+        if _sample_timed_out(sample) and sample.id in retry_by_id:
+            merged_samples.append(retry_by_id[sample.id])
+            replaced += 1
+        else:
+            merged_samples.append(sample)
+
+    original.samples = merged_samples
+
+    # Recompute aggregate metrics from merged samples
+    recompute_metrics(original)
+
+    # Back up original to logs/originals/ (only on first merge, to preserve
+    # the true original across repeated --retry-timeouts runs)
+    backup_dir = Path("logs/originals")
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_dir / original_path.name
+    if not backup_path.exists():
+        shutil.copy2(original_path, backup_path)
+        print(f"  Backed up original -> {backup_path}")
+
+    write_eval_log(original, location=original_path)
+    print(f"  Merged {replaced} samples -> {original_path}")
+
+    return original
+
+
+def read_latest_eval_logs(logs_dir: Path | None = None) -> list:
+    """Read the most recent eval log per (model, task) from disk.
+
+    Args:
+        logs_dir: Directory containing ``.eval`` files.  Defaults to
+            ``logs/`` relative to the project root.
+
+    Returns:
+        List of EvalLog objects (one per latest (model, task) pair).
+    """
+    if logs_dir is None:
+        logs_dir = Path("logs")
+    if not logs_dir.exists():
+        return []
+
+    # Find latest eval path per (model, task) — same logic as find_timed_out_samples
+    latest: dict[tuple[str, str], tuple[str, Path]] = {}
+    for eval_path in sorted(logs_dir.glob("*.eval")):
+        ts_prefix = eval_path.name.split("_secbash")[0]
+        try:
+            with zipfile.ZipFile(eval_path, "r") as zf:
+                with zf.open("_journal/start.json") as f:
+                    start = json.loads(f.read())
+                model = start["eval"]["model"]
+                task = start["eval"]["task"]
+        except (KeyError, json.JSONDecodeError, zipfile.BadZipFile):
+            continue
+        key = (model, task)
+        if key not in latest or ts_prefix > latest[key][0]:
+            latest[key] = (ts_prefix, eval_path)
+
+    logs = []
+    for (_model, _task), (_ts, eval_path) in latest.items():
+        try:
+            logs.append(read_eval_log(eval_path))
+        except Exception as e:
+            print(f"  Warning: could not read {eval_path.name}: {e}")
+    return logs
+
+
 def run_comparison(
     models: list[str],
     cot: bool = False,
@@ -680,22 +1034,100 @@ def main() -> None:
         default=180,
         help="Per-sample time limit in seconds (default: 180)",
     )
+    parser.add_argument(
+        "--exclude-models",
+        type=str,
+        default=None,
+        help="Comma-separated model substrings to exclude (e.g. 'gemini-3-pro,phi-4')",
+    )
+    parser.add_argument(
+        "--fix-labels",
+        action="store_true",
+        help="Fix mislabeled TIMEOUT_ERROR scores (e.g. content filters) in existing logs",
+    )
     args = parser.parse_args()
 
-    # Handle --retry-timeouts: discover affected models and override list
+    # Handle --fix-labels: patch score labels in existing logs
+    if args.fix_labels:
+        fix_timeout_labels()
+        return
+
+    # Handle --retry-timeouts: retry only the specific timed-out samples
     if args.retry_timeouts:
-        timeout_counts = find_models_with_timeouts()
-        if not timeout_counts:
-            print("No models with timeouts found in logs/. Nothing to retry.")
+        timed_out_info = find_timed_out_samples()
+
+        # Apply --exclude-models filter
+        if args.exclude_models:
+            excludes = [s.strip() for s in args.exclude_models.split(",")]
+            excluded = {
+                m for m in timed_out_info
+                if any(ex in m for ex in excludes)
+            }
+            for m in excluded:
+                del timed_out_info[m]
+            if excluded:
+                print(f"Excluded: {', '.join(sorted(excluded))}\n")
+
+        if not timed_out_info:
+            print("No timed-out samples found in logs/. Nothing to retry.")
             return
-        print("Models with timeouts in previous evals:")
-        for model, count in sorted(
-            timeout_counts.items(), key=lambda x: x[1], reverse=True
-        ):
-            print(f"  {model}: {count} timeouts")
-        print()
-        models = list(timeout_counts.keys())
-        resume = False
+
+        # Summary
+        print("Timed-out samples to retry:")
+        total_samples = 0
+        for model, entries in sorted(timed_out_info.items()):
+            for entry in entries:
+                n = len(entry["sample_ids"])
+                total_samples += n
+                print(f"  {model} / {entry['task_name']}: {n} samples")
+        print(f"  Total: {total_samples} samples\n")
+
+        # Retry
+        retry_results = retry_timed_out_samples(
+            timed_out_info, cot=args.cot, time_limit=args.time_limit
+        )
+
+        # Merge retry results back into originals
+        print("\nMerging retry results into original logs...")
+        merged_logs = []
+        for model, entries in timed_out_info.items():
+            for entry in entries:
+                key = (model, entry["task_name"])
+                rlogs = retry_results.get(key, [])
+                if rlogs:
+                    merged = merge_eval_logs(entry["eval_path"], rlogs)
+                    if merged is not None:
+                        merged_logs.append(merged)
+
+        # Build full comparison from ALL latest logs in logs/
+        print("\nBuilding full comparison from all logs...")
+        all_logs = read_latest_eval_logs()
+        if all_logs:
+            all_models = list(
+                {log.eval.model for log in all_logs if log.eval and log.eval.model}
+            )
+            results: dict[str, dict] = {}
+            _process_logs(all_logs, all_models, args.cot, "both", results)
+            ranking = generate_ranking(results)
+            print_comparison_table(results, ranking)
+            comparison = {
+                "metadata": {
+                    "timestamp": datetime.now(timezone.utc).strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"
+                    ),
+                    "retry_timeouts": True,
+                    "models_retried": list(timed_out_info.keys()),
+                    "total_samples_retried": total_samples,
+                },
+                "results": results,
+                "ranking": ranking,
+            }
+            output_path = save_comparison(comparison)
+            print(f"\nRetry complete. Results: {output_path}")
+        else:
+            print("\nNo eval logs found in logs/.")
+        return
+
     else:
         models = parse_models(args.models)
         resume = not args.no_resume

@@ -293,8 +293,8 @@ class TestGetProvider:
     def test_openrouter(self):
         assert get_provider("openrouter/microsoft/phi-4") == "openrouter"
 
-    def test_openrouter_llama(self):
-        assert get_provider("openrouter/meta-llama/llama-guard-3-8b") == "openrouter"
+    def test_openrouter_nested(self):
+        assert get_provider("openrouter/microsoft/phi-4") == "openrouter"
 
     def test_hf_inference(self):
         assert (
@@ -324,8 +324,8 @@ class TestGetShortName:
 
     def test_openrouter_nested(self):
         assert (
-            get_short_name("openrouter/meta-llama/llama-guard-3-8b")
-            == "llama-guard-3-8b"
+            get_short_name("openrouter/microsoft/phi-4")
+            == "phi-4"
         )
 
     def test_hf_with_colon(self):

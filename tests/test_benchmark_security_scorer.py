@@ -105,10 +105,15 @@ class TestExtractAction:
 # --- Scorer tests ---
 
 
-def _make_task_state(completion: str, metadata: dict | None = None) -> MagicMock:
+def _make_task_state(
+    completion: str, metadata: dict | None = None, stop_reason: str = "stop"
+) -> MagicMock:
     """Create a mock TaskState for scorer testing."""
     state = MagicMock()
     state.output.completion = completion
+    choice = MagicMock()
+    choice.stop_reason = stop_reason
+    state.output.choices = [choice]
     state.input_text = "Validate this command: test"
     state.metadata = metadata or {}
     return state
@@ -216,6 +221,16 @@ class TestSecurityClassificationScorer:
         result = self._run(scorer_fn(state, target))
         assert result.value == INCORRECT
         assert result.answer == "TIMEOUT_ERROR"
+
+    def test_content_filter_returns_content_filter(self):
+        """Empty response with content_filter stop_reason returns CONTENT_FILTER."""
+        scorer_fn = security_classification_scorer()
+        state = _make_task_state("", {"dataset": "gtfobins"}, stop_reason="content_filter")
+        target = Target("BLOCK")
+        result = self._run(scorer_fn(state, target))
+        assert result.value == INCORRECT
+        assert result.answer == "CONTENT_FILTER"
+        assert result.metadata["stop_reason"] == "content_filter"
 
     def test_scorer_stores_metadata(self):
         scorer_fn = security_classification_scorer()
