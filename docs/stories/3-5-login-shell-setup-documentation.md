@@ -9,7 +9,7 @@
 ## User Story
 
 As a **sysadmin**,
-I want **documentation on setting SecBASH as my login shell**,
+I want **documentation on setting aegish as my login shell**,
 So that **I can use it as my default shell on servers**.
 
 ---
@@ -17,14 +17,14 @@ So that **I can use it as my default shell on servers**.
 ## Acceptance Criteria
 
 ### AC1: Documentation for Adding to /etc/shells
-**Given** SecBASH is installed
+**Given** aegish is installed
 **When** I follow the documentation
-**Then** I can add SecBASH to `/etc/shells`
+**Then** I can add aegish to `/etc/shells`
 
 ### AC2: Login Shell Change Instructions
-**Given** SecBASH is in `/etc/shells`
-**When** I run `chsh -s /path/to/secbash`
-**Then** SecBASH becomes my login shell
+**Given** aegish is in `/etc/shells`
+**When** I run `chsh -s /path/to/aegish`
+**Then** aegish becomes my login shell
 
 ### AC3: Safety Warnings Included
 **Given** documentation exists
@@ -43,8 +43,8 @@ This story creates a **README.md** file in the project root with comprehensive s
 
 The README.md must cover:
 
-1. **Project Overview** - What SecBASH is and why it exists
-2. **Installation** - How to install SecBASH (uv, pip, from source)
+1. **Project Overview** - What aegish is and why it exists
+2. **Installation** - How to install aegish (uv, pip, from source)
 3. **Quick Start** - Basic usage to validate it works
 4. **API Key Configuration** - Required environment variables
 5. **Login Shell Setup** - Step-by-step instructions (AC1, AC2, AC3)
@@ -56,19 +56,19 @@ The README.md must cover:
 Per AC1, AC2, AC3, the login shell section MUST include:
 
 1. **Prerequisites checklist:**
-   - SecBASH installed and working
+   - aegish installed and working
    - At least one LLM API key configured and tested
-   - SecBASH accessible via absolute path
+   - aegish accessible via absolute path
    - Root/sudo access for editing /etc/shells
 
 2. **Step-by-step instructions:**
-   - Find SecBASH installation path: `which secbash`
-   - Add to /etc/shells: `echo "/path/to/secbash" | sudo tee -a /etc/shells`
-   - Change login shell: `chsh -s /path/to/secbash`
+   - Find aegish installation path: `which aegish`
+   - Add to /etc/shells: `echo "/path/to/aegish" | sudo tee -a /etc/shells`
+   - Change login shell: `chsh -s /path/to/aegish`
    - Verify change: `grep $USER /etc/passwd`
 
 3. **Critical safety warnings (AC3):**
-   - ALWAYS test SecBASH in a separate terminal first
+   - ALWAYS test aegish in a separate terminal first
    - Ensure at least one API key is configured and working
    - Keep a root terminal open during initial login shell change
    - Test with `su - $USER` before logging out
@@ -132,14 +132,14 @@ Per architecture.md, this project follows:
 Per architecture.md:
 - **Single README** keeps documentation discoverable
 - **API key docs** reference config.py patterns (OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)
-- **No hardcoded paths** - use `which secbash` for dynamic discovery
+- **No hardcoded paths** - use `which aegish` for dynamic discovery
 
 ### Current Project State
 
 The project currently has:
-- Working shell in `src/secbash/shell.py`
-- CLI entry point via `secbash` command (pyproject.toml scripts)
-- History persistence to `~/.secbash_history`
+- Working shell in `src/aegish/shell.py`
+- CLI entry point via `aegish` command (pyproject.toml scripts)
+- History persistence to `~/.aegish_history`
 - Provider priority: OpenRouter > OpenAI > Anthropic
 - Startup message showing provider status
 
@@ -147,14 +147,14 @@ The project currently has:
 
 **Files to create:**
 ```
-SecBASH/
+aegish/
 └── README.md       # Project documentation (THIS STORY)
 ```
 
 **Relevant existing files:**
-- `pyproject.toml` - Contains `secbash` entry point definition
-- `src/secbash/config.py` - Environment variable handling
-- `src/secbash/shell.py` - Shell behavior reference
+- `pyproject.toml` - Contains `aegish` entry point definition
+- `src/aegish/config.py` - Environment variable handling
+- `src/aegish/shell.py` - Shell behavior reference
 
 ---
 
@@ -163,14 +163,14 @@ SecBASH/
 ### From Story 3.4 (Command History)
 
 **Relevant for documentation:**
-- History file location: `~/.secbash_history`
+- History file location: `~/.aegish_history`
 - History length: 1000 commands (default)
 - Up/down arrow navigation works via readline
 - Persistent history across sessions
 
 **Shell startup message format:**
 ```
-SecBASH - LLM-powered shell with security validation
+aegish - LLM-powered shell with security validation
 Provider priority: openrouter (active) > openai (--) > anthropic (--)
 Type 'exit' or press Ctrl+D to quit.
 ```
@@ -194,7 +194,7 @@ Type 'exit' or press Ctrl+D to quit.
 **Sensible defaults to document:**
 - Works with minimal config (just one API key needed)
 - Default shell is bash for subprocess execution
-- Standard prompt: `secbash> `
+- Standard prompt: `aegish> `
 - No config files required
 
 ---
@@ -222,7 +222,7 @@ Type 'exit' or press Ctrl+D to quit.
 Follow this README outline:
 
 ```markdown
-# SecBASH
+# aegish
 
 Brief description with badges
 
@@ -246,7 +246,7 @@ Brief description with badges
 ### API Keys
 ### Provider Priority
 
-## Setting SecBASH as Login Shell
+## Setting aegish as Login Shell
 
 > **Warning**: Read safety precautions first!
 
@@ -325,22 +325,22 @@ Since this is a documentation story, testing means verifying:
 
 1. **Verify shell works first:**
    ```bash
-   /path/to/secbash  # Must not crash on startup
+   /path/to/aegish  # Must not crash on startup
    exit  # Should exit cleanly
    ```
 
 2. **Add to /etc/shells (requires root):**
    ```bash
-   sudo bash -c 'echo "/path/to/secbash" >> /etc/shells'
+   sudo bash -c 'echo "/path/to/aegish" >> /etc/shells'
    # Or safer:
-   echo "/path/to/secbash" | sudo tee -a /etc/shells
+   echo "/path/to/aegish" | sudo tee -a /etc/shells
    ```
 
 3. **Change login shell:**
    ```bash
-   chsh -s /path/to/secbash
+   chsh -s /path/to/aegish
    # On some systems:
-   usermod -s /path/to/secbash $USER
+   usermod -s /path/to/aegish $USER
    ```
 
 4. **Verify change:**
@@ -367,17 +367,17 @@ Since this is a documentation story, testing means verifying:
 
 ### Python Entry Point Discovery
 
-SecBASH uses pyproject.toml entry points:
+aegish uses pyproject.toml entry points:
 ```toml
 [project.scripts]
-secbash = "secbash.main:app"
+aegish = "aegish.main:app"
 ```
 
-After `uv sync` or `pip install -e .`, the `secbash` command is available.
+After `uv sync` or `pip install -e .`, the `aegish` command is available.
 
 Find installation path:
 ```bash
-which secbash  # Shows /home/user/.local/bin/secbash or similar
+which aegish  # Shows /home/user/.local/bin/aegish or similar
 ```
 
 ---
@@ -399,15 +399,15 @@ None - documentation-only story, no code execution issues.
 ### Completion Notes List
 
 - Created comprehensive README.md (200+ lines) covering all acceptance criteria
-- **AC1 satisfied**: Documentation includes `/etc/shells` instructions with `echo "/path/to/secbash" | sudo tee -a /etc/shells`
-- **AC2 satisfied**: Login shell change instructions with `chsh -s /path/to/secbash` and verification via `/etc/passwd`
+- **AC1 satisfied**: Documentation includes `/etc/shells` instructions with `echo "/path/to/aegish" | sudo tee -a /etc/shells`
+- **AC2 satisfied**: Login shell change instructions with `chsh -s /path/to/aegish` and verification via `/etc/passwd`
 - **AC3 satisfied**: Multiple warning blocks with safety precautions:
   - Prerequisites checklist before changing login shell
   - Safety precautions section with 5 critical steps
   - Recovery instructions covering 4 different recovery scenarios
 - README structure follows story specification with all required sections
 - All code examples use placeholder values (no hardcoded API keys)
-- Commands verified working: `uv run secbash --version` confirms installation path discovery works
+- Commands verified working: `uv run aegish --version` confirms installation path discovery works
 - All 227 existing tests pass - no regressions introduced
 
 ### File List

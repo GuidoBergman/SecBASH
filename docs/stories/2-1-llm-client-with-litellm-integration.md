@@ -9,7 +9,7 @@
 ## User Story
 
 As a **sysadmin**,
-I want **SecBASH to connect to LLM providers reliably**,
+I want **aegish to connect to LLM providers reliably**,
 So that **command validation works even if one provider is unavailable**.
 
 ---
@@ -46,7 +46,7 @@ So that **command validation works even if one provider is unavailable**.
 ## Technical Requirements
 
 ### Implementation Location
-- **Primary file:** `src/secbash/llm_client.py` (replace stub implementation)
+- **Primary file:** `src/aegish/llm_client.py` (replace stub implementation)
 
 ### Dependencies
 - `litellm` (already in pyproject.toml)
@@ -246,7 +246,7 @@ Updated `pyproject.toml` to use `litellm>=1.0.0` instead of direct `openai` and 
 ### File List
 
 **Modified:**
-- `src/secbash/llm_client.py` - Complete LiteLLM implementation
+- `src/aegish/llm_client.py` - Complete LiteLLM implementation
 - `pyproject.toml` - Updated dependencies to use litellm
 
 **Added:**

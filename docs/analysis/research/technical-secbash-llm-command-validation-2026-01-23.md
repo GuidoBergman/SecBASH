@@ -4,7 +4,7 @@ inputDocuments: []
 workflowType: 'research'
 lastStep: 1
 research_type: 'technical'
-research_topic: 'SecBASH - LLM-based shell command validation'
+research_topic: 'aegish - LLM-based shell command validation'
 research_goals: 'Understand existing shell security solutions, LLM-based security tools, command interception techniques, threat models for dangerous commands, and user experience patterns'
 user_name: 'guido'
 date: '2026-01-23'
@@ -12,11 +12,11 @@ web_research_enabled: true
 source_verification: true
 ---
 
-# Technical Research: SecBASH - LLM-based Shell Command Validation
+# Technical Research: aegish - LLM-based Shell Command Validation
 
 ## Technical Research Scope Confirmation
 
-**Research Topic:** SecBASH - LLM-based shell command validation
+**Research Topic:** aegish - LLM-based shell command validation
 
 **Research Goals:** Understand existing shell security solutions, LLM-based security tools, command interception techniques, threat models for dangerous commands, and user experience patterns
 
@@ -72,7 +72,7 @@ _Source: [ptrace manual](https://man7.org/linux/man-pages/man2/ptrace.2.html), [
 
 ### Programming Languages & Frameworks
 
-#### Recommended Stack for SecBASH
+#### Recommended Stack for aegish
 
 | Component | Technology | Rationale |
 |-----------|------------|-----------|
@@ -108,7 +108,7 @@ _Source: [Python readline docs](https://docs.python.org/3/library/readline.html)
 | **AgentFence** | AI agent security testing | Python |
 | **Adversarial Robustness Toolbox (ART)** | ML model security | Python |
 
-These tools address prompt injection, jailbreaks, and unsafe model behavior - patterns directly applicable to SecBASH's command validation.
+These tools address prompt injection, jailbreaks, and unsafe model behavior - patterns directly applicable to aegish's command validation.
 
 _Source: [Mindgard](https://mindgard.ai/blog/best-ai-security-tools-for-llm-and-genai), [LLM Security Tools 2026](https://www.deepchecks.com/top-llm-security-tools-frameworks/), [Guardrails AI](https://research.aimultiple.com/llm-security-tools/)_
 
@@ -142,7 +142,7 @@ _Source: [SUDO_KILLER GitHub](https://github.com/TH3xACE/SUDO_KILLER)_
 
 ### Dangerous Command Categories
 
-Based on security research, commands SecBASH should flag include:
+Based on security research, commands aegish should flag include:
 
 | Category | Examples | Risk Level |
 |----------|----------|------------|
@@ -163,31 +163,31 @@ _Source: [8 Risky Unix Commands - Proofpoint](https://www.proofpoint.com/us/blog
 
 #### Streaming vs Batch Responses [High Confidence]
 
-For SecBASH's command validation, **streaming is not recommended** - you need the complete validation decision before allowing command execution. However, streaming architecture concepts inform the design:
+For aegish's command validation, **streaming is not recommended** - you need the complete validation decision before allowing command execution. However, streaming architecture concepts inform the design:
 
-| Pattern | Use Case for SecBASH | Recommendation |
+| Pattern | Use Case for aegish | Recommendation |
 |---------|---------------------|----------------|
 | **Synchronous (blocking)** | Command validation | **Primary** - wait for full response |
 | **Streaming** | User feedback during long analysis | Optional UX enhancement |
 | **Async batch** | Background learning/analysis | Deferred processing |
 
-The transition from batch to streaming LLM interactions represents a fundamental architectural shift. For SecBASH, the key insight is that streaming enables **early termination** - stop generating when you have enough information to make a decision.
+The transition from batch to streaming LLM interactions represents a fundamental architectural shift. For aegish, the key insight is that streaming enables **early termination** - stop generating when you have enough information to make a decision.
 
 _Source: [Streaming LLM Responses](https://dataa.dev/2025/02/18/streaming-llm-responses-building-real-time-ai-applications/), [Streaming LLMs Reshaping API Design](https://nitishagar.medium.com/the-streaming-llms-reshaping-api-design-a9102db9b8ef)_
 
 #### Server-Sent Events (SSE) Standard
 
-SSE is the de facto standard for LLM streaming, used by OpenAI, Anthropic, and most LLM APIs natively. For SecBASH, if implementing streaming feedback:
+SSE is the de facto standard for LLM streaming, used by OpenAI, Anthropic, and most LLM APIs natively. For aegish, if implementing streaming feedback:
 
 ```
-User types command → SecBASH intercepts → LLM validates (SSE stream) → Decision rendered → Execute or block
+User types command → aegish intercepts → LLM validates (SSE stream) → Decision rendered → Execute or block
 ```
 
 _Source: [Complete Guide to Streaming LLM](https://dev.to/hobbada/the-complete-guide-to-streaming-llm-responses-in-web-applications-from-sse-to-real-time-ui-3534)_
 
 ### Latency Optimization Strategies
 
-#### Critical for SecBASH UX [High Confidence]
+#### Critical for aegish UX [High Confidence]
 
 Command validation must be **fast** to avoid frustrating users. Key optimization strategies:
 
@@ -203,13 +203,13 @@ Command validation must be **fast** to avoid frustrating users. Key optimization
 
 Prompt caching gives the model a "head start," resulting in faster responses and notable reduction in Time To First Token (TTFT). Research shows up to **80% latency improvement** and **90% cost reduction** without affecting output quality.
 
-For SecBASH, cache the system prompt and dangerous command patterns - only the user's specific command changes per request.
+For aegish, cache the system prompt and dangerous command patterns - only the user's specific command changes per request.
 
 _Source: [Claude Reducing Latency](https://docs.anthropic.com/claude/docs/reducing-latency), [Georgian AI Latency Guide](https://georgian.io/reduce-llm-costs-and-latency-guide/)_
 
 #### Token Minimization
 
-Minimize tokens in both input prompt and expected output. For SecBASH:
+Minimize tokens in both input prompt and expected output. For aegish:
 - Use structured JSON output (safer decision: true/false)
 - Keep system prompts concise
 - Request only essential reasoning
@@ -220,12 +220,12 @@ _Source: [Claude Latency Optimization](https://claude-ai.chat/blog/latency-optim
 
 #### Semantic vs Exact Caching [High Confidence]
 
-| Caching Type | Description | SecBASH Application |
+| Caching Type | Description | aegish Application |
 |--------------|-------------|---------------------|
 | **Exact match** | Identical query lookup | Same command = cached decision |
 | **Semantic caching** | Similar query matching via embeddings | Similar commands share validation |
 
-GPTCache uses semantic caching because exact match is less effective for LLM queries. For SecBASH, consider:
+GPTCache uses semantic caching because exact match is less effective for LLM queries. For aegish, consider:
 - **Exact cache**: `rm -rf /home/user` → cached as dangerous
 - **Semantic cache**: `rm -rf /home/*` → matches similar dangerous pattern
 
@@ -243,7 +243,7 @@ _Source: [GPTCache GitHub](https://github.com/zilliztech/GPTCache), [LiteLLM Cac
 
 #### Critical for Reliability [High Confidence]
 
-SecBASH must work when the network is unavailable. Strategies:
+aegish must work when the network is unavailable. Strategies:
 
 | Approach | Pros | Cons |
 |----------|------|------|
@@ -266,7 +266,7 @@ _Source: [How to Run LLMs Offline](https://mljourney.com/how-to-run-llms-offline
 
 ### Validation Pipeline Architecture
 
-#### SecBASH Pipeline Design [High Confidence]
+#### aegish Pipeline Design [High Confidence]
 
 Based on DevSecOps pipeline patterns and the Pipeline Pattern for data processing:
 
@@ -292,7 +292,7 @@ Based on DevSecOps pipeline patterns and the Pipeline Pattern for data processin
 5. **Offline Fallback** - Local model or rule-based if API unavailable
 6. **Decision Enforcement** - Allow, block, or prompt user
 
-The Pipeline Pattern organizes processing into discrete stages where each stage transforms data and passes it to the next - ideal for SecBASH's validation flow.
+The Pipeline Pattern organizes processing into discrete stages where each stage transforms data and passes it to the next - ideal for aegish's validation flow.
 
 _Source: [Pipeline Pattern](https://dev.to/wallacefreitas/the-pipeline-pattern-streamlining-data-processing-in-software-architecture-44hn), [OWASP SPVS](https://owasp.org/www-project-spvs/)_
 
@@ -302,7 +302,7 @@ _Source: [Pipeline Pattern](https://dev.to/wallacefreitas/the-pipeline-pattern-s
 
 Guardrails AI enables streaming validation - validating each valid fragment as the LLM returns it. For JSON responses, it defines a "valid fragment" as a chunk that lints as fully-formed JSON, then performs sub-schema validation.
 
-For SecBASH, this means:
+For aegish, this means:
 - Define a strict JSON schema for validation responses
 - Validate incrementally as tokens arrive
 - Make decision as soon as schema is satisfied
@@ -319,7 +319,7 @@ Both Guardrails AI and native LLM structured outputs follow the pattern:
 3. Send schema to LLM as formatting instructions
 4. Validate response against original model
 
-For SecBASH, define a strict decision schema:
+For aegish, define a strict decision schema:
 
 ```python
 class ValidationDecision(BaseModel):
@@ -337,11 +337,11 @@ _Source: [Structured Outputs Guide](https://agenta.ai/blog/the-guide-to-structur
 
 ### Core Architecture Pattern: Interceptor + Chain of Responsibility
 
-SecBASH's architecture combines two foundational patterns:
+aegish's architecture combines two foundational patterns:
 
 #### Interceptor Pattern [High Confidence]
 
-The Interceptor pattern is ideal for SecBASH because:
+The Interceptor pattern is ideal for aegish because:
 - **Transparency** - The change is transparent; the rest of the system (shell) works as before
 - **Non-intrusive** - Allows extension without modifying the shell or application code
 - **Configurable** - Interceptors can be registered dynamically at runtime or via config
@@ -356,7 +356,7 @@ _Source: [Interceptor Pattern Wikipedia](https://en.wikipedia.org/wiki/Intercept
 
 The Chain of Responsibility pattern allows passing requests along a chain of handlers. Each handler decides to process or pass to the next handler.
 
-| Benefit | Application to SecBASH |
+| Benefit | Application to aegish |
 |---------|----------------------|
 | **Separation of concerns** | Each validation rule is a standalone handler |
 | **Modular code** | Add/remove validations without touching others |
@@ -367,7 +367,7 @@ This pattern eliminates brittle if-else chains that violate the Open/Closed Prin
 
 _Source: [Chain of Responsibility](https://refactoring.guru/design-patterns/chain-of-responsibility), [Validation Pipeline with CoR](https://zeeshan01.medium.com/implement-pipeline-pattern-with-simple-password-validation-2b061995f31e)_
 
-### SecBASH Handler Chain Design
+### aegish Handler Chain Design
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -393,9 +393,9 @@ _Source: [Chain of Responsibility Pattern](https://algomaster.io/learn/lld/chain
 
 ### Security Proxy Pattern [High Confidence]
 
-SecBASH acts as a **Protection Proxy** for shell command execution:
+aegish acts as a **Protection Proxy** for shell command execution:
 
-| Proxy Type | Description | SecBASH Application |
+| Proxy Type | Description | aegish Application |
 |------------|-------------|---------------------|
 | **Protection Proxy** | Controls access based on rights | Validate before execution |
 | **Virtual Proxy** | Placeholder for expensive objects | Lazy-load LLM connection |
@@ -407,15 +407,15 @@ _Source: [Proxy Pattern Wikipedia](https://en.wikipedia.org/wiki/Proxy_pattern),
 
 ### Guardrails Architecture Pattern [High Confidence]
 
-LLM guardrails span five layers - SecBASH primarily operates at the **application** and **runtime** layers:
+LLM guardrails span five layers - aegish primarily operates at the **application** and **runtime** layers:
 
-| Layer | SecBASH Implementation |
+| Layer | aegish Implementation |
 |-------|----------------------|
 | **Application** | Input validation before LLM call |
 | **API** | Structured output enforcement |
 | **Runtime** | Command execution control |
 
-#### Guardrail Types for SecBASH
+#### Guardrail Types for aegish
 
 | Type | Purpose | Implementation |
 |------|---------|----------------|
@@ -424,7 +424,7 @@ LLM guardrails span five layers - SecBASH primarily operates at the **applicatio
 
 #### Guardrail Approaches
 
-| Approach | Speed | Flexibility | SecBASH Use |
+| Approach | Speed | Flexibility | aegish Use |
 |----------|-------|-------------|-------------|
 | **Rule-based** | Fast (μs) | Limited | Known patterns (rm -rf /) |
 | **Neural** | Medium (ms) | High | Novel threats |
@@ -450,7 +450,7 @@ _Source: [Secure-by-Design Middleware 2025](https://blog.devsecopsguides.com/p/s
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                         SecBASH Shell                           │
+│                         aegish Shell                           │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────┐ │
 │  │   Command   │  │  Validation │  │      LLM Service        │ │

@@ -10,7 +10,7 @@ So that **I can perform complex shell operations**.
 
 ## Epic Context
 
-**Epic 1: Working Shell Foundation** - User can launch SecBASH and execute commands exactly like bash. This story validates that complex shell operations work correctly through SecBASH.
+**Epic 1: Working Shell Foundation** - User can launch aegish and execute commands exactly like bash. This story validates that complex shell operations work correctly through aegish.
 
 **FRs Addressed:** FR3 (pipes, redirects, chaining)
 
@@ -19,59 +19,59 @@ So that **I can perform complex shell operations**.
 ## Acceptance Criteria
 
 ### AC1: Pipe Operations
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I enter a piped command like `ls -la | grep txt`
 **Then** the full pipeline executes correctly
 **And** output from the final command in the pipeline is displayed
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I chain multiple pipes like `cat file | sort | uniq | head`
 **Then** all stages of the pipeline execute in order
 
 ### AC2: Output Redirection
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I use output redirection like `echo "test" > file.txt`
 **Then** the file is created with the content
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I use append redirection like `echo "more" >> file.txt`
 **Then** content is appended to the existing file
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I redirect stderr like `ls nonexistent 2> errors.txt`
 **Then** stderr is captured to the specified file
 
 ### AC3: Input Redirection
-**Given** SecBASH is running and a file `input.txt` exists
+**Given** aegish is running and a file `input.txt` exists
 **When** I use input redirection like `sort < input.txt`
 **Then** the command reads from the specified file
 
 ### AC4: Command Chaining with &&
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I chain commands with `true && echo "success"`
 **Then** the second command runs because the first succeeded
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I chain commands with `false && echo "success"`
 **Then** the second command does NOT run (short-circuit)
 
 ### AC5: Command Chaining with ||
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I chain commands with `false || echo "fallback"`
 **Then** the second command runs because the first failed
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I chain commands with `true || echo "fallback"`
 **Then** the second command does NOT run
 
 ### AC6: Sequential Execution with ;
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I run `echo a; echo b; echo c`
 **Then** all three commands execute in sequence
 **And** each outputs on its own line
 
 ### AC7: Combined Operations
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I combine operations like `ls | grep txt && echo "found" || echo "none"`
 **Then** the compound command executes with correct short-circuit logic
 

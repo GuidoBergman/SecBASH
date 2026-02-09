@@ -1,6 +1,6 @@
 # Related Work: Threat Databases, Detection Frameworks, and Benchmarks
 
-This document surveys tools, projects, and academic work related to GTFOBins, LOLBAS, and detection frameworks relevant to SecBASH's benchmark methodology.
+This document surveys tools, projects, and academic work related to GTFOBins, LOLBAS, and detection frameworks relevant to aegish's benchmark methodology.
 
 ---
 
@@ -9,11 +9,11 @@ This document surveys tools, projects, and academic work related to GTFOBins, LO
 ### What It Is
 GTFOBins ("Get The F*** Out Binaries") is a curated, community-maintained list of Unix/Linux binaries that can be exploited to bypass local security restrictions in misconfigured systems. Each entry documents how a legitimate binary can be abused for: shell spawning, reverse shells, bind shells, file read/write, SUID/sudo exploitation, and capability abuse.
 
-### Relevance to SecBASH
-GTFOBins is the primary source for SecBASH's malicious command benchmark dataset. SecBASH extracts 676 commands across 389 binaries from GTFOBins categories (shell, reverse-shell, bind-shell, file-read, file-write, upload, download, command). The benchmark measures whether the LLM correctly classifies these as BLOCK.
+### Relevance to aegish
+GTFOBins is the primary source for aegish's malicious command benchmark dataset. aegish extracts 676 commands across 389 binaries from GTFOBins categories (shell, reverse-shell, bind-shell, file-read, file-write, upload, download, command). The benchmark measures whether the LLM correctly classifies these as BLOCK.
 
-### How SecBASH Uses GTFOBins Differently
-Most tools reference GTFOBins as a static threat intelligence source -- writing Sigma rules or Falco rules to detect specific patterns. SecBASH's approach is fundamentally different: rather than encoding GTFOBins patterns as rules, SecBASH tests whether the LLM can *generalize* from its training data to recognize these attack patterns without explicit programming. This tests semantic understanding rather than pattern matching.
+### How aegish Uses GTFOBins Differently
+Most tools reference GTFOBins as a static threat intelligence source -- writing Sigma rules or Falco rules to detect specific patterns. aegish's approach is fundamentally different: rather than encoding GTFOBins patterns as rules, aegish tests whether the LLM can *generalize* from its training data to recognize these attack patterns without explicit programming. This tests semantic understanding rather than pattern matching.
 
 - **Source**: https://gtfobins.github.io/, https://github.com/GTFOBins/GTFOBins.github.io
 
@@ -24,11 +24,11 @@ Most tools reference GTFOBins as a static threat intelligence source -- writing 
 ### What It Is
 The Windows equivalent of GTFOBins. Catalogs Windows binaries, scripts, and libraries that can be used for malicious purposes: execution, lateral movement, persistence, credential theft. Maintained by the community at lolbas-project.github.io.
 
-### Relevance to SecBASH
-LOLBAS validates the generality of the "Living off the Land" threat model that SecBASH addresses. If SecBASH were extended to Windows (PowerShell), LOLBAS would serve the same role as GTFOBins in the benchmark. The existence of both GTFOBins and LOLBAS demonstrates that dual-use binary abuse is a cross-platform problem requiring semantic understanding.
+### Relevance to aegish
+LOLBAS validates the generality of the "Living off the Land" threat model that aegish addresses. If aegish were extended to Windows (PowerShell), LOLBAS would serve the same role as GTFOBins in the benchmark. The existence of both GTFOBins and LOLBAS demonstrates that dual-use binary abuse is a cross-platform problem requiring semantic understanding.
 
-### How SecBASH Differs
-LOLBAS is a reference database; SecBASH is an enforcement mechanism. Tools that consume LOLBAS (e.g., Sigma rules, EDR detections) encode known patterns. SecBASH aims to detect the *class* of attack (binary abuse for unintended purposes) through semantic understanding.
+### How aegish Differs
+LOLBAS is a reference database; aegish is an enforcement mechanism. Tools that consume LOLBAS (e.g., Sigma rules, EDR detections) encode known patterns. aegish aims to detect the *class* of attack (binary abuse for unintended purposes) through semantic understanding.
 
 - **Source**: https://lolbas-project.github.io/
 
@@ -39,8 +39,8 @@ LOLBAS is a reference database; SecBASH is an enforcement mechanism. Tools that 
 ### What It Is
 Catalog of Windows drivers that can be exploited for kernel-level attacks. Documents signed drivers with known vulnerabilities that attackers use for privilege escalation and defense evasion.
 
-### Relevance to SecBASH
-Demonstrates the breadth of "Living off the Land" attacks beyond user-space binaries. While SecBASH currently focuses on shell commands, the driver abuse pattern shows that semantic analysis could extend to other system configuration commands (e.g., `insmod`, `modprobe` on Linux).
+### Relevance to aegish
+Demonstrates the breadth of "Living off the Land" attacks beyond user-space binaries. While aegish currently focuses on shell commands, the driver abuse pattern shows that semantic analysis could extend to other system configuration commands (e.g., `insmod`, `modprobe` on Linux).
 
 - **Source**: https://www.loldrivers.io/
 
@@ -51,9 +51,9 @@ Demonstrates the breadth of "Living off the Land" attacks beyond user-space bina
 ### What It Is
 A globally-accessible knowledge base of adversary tactics, techniques, and procedures (TTPs) based on real-world observations. Organized into 14 tactics (Reconnaissance through Impact) with hundreds of techniques. Version 18 (October 2025) is current as of early 2026.
 
-### Relevance to SecBASH
-SecBASH's threat model maps directly to multiple ATT&CK techniques:
-- **T1059** (Command and Scripting Interpreter) -- SecBASH's primary detection target
+### Relevance to aegish
+aegish's threat model maps directly to multiple ATT&CK techniques:
+- **T1059** (Command and Scripting Interpreter) -- aegish's primary detection target
 - **T1059.004** (Unix Shell) -- Bash-specific command abuse
 - **T1048** (Exfiltration Over Alternative Protocol) -- Data exfiltration via curl, wget
 - **T1071** (Application Layer Protocol) -- Reverse shells over HTTP/HTTPS
@@ -61,8 +61,8 @@ SecBASH's threat model maps directly to multiple ATT&CK techniques:
 - **T1548** (Abuse Elevation Control Mechanism) -- sudo/SUID abuse
 - **T1222** (File and Directory Permissions Modification) -- chmod attacks
 
-### How SecBASH Differs from ATT&CK-Based Detection
-ATT&CK-based detection (Sigma rules, EDR detections) encodes specific technique patterns. SecBASH's LLM can potentially recognize ATT&CK techniques it was trained on without explicit encoding, and may generalize to new sub-techniques. ATT&CK provides the taxonomy; SecBASH provides the detection mechanism.
+### How aegish Differs from ATT&CK-Based Detection
+ATT&CK-based detection (Sigma rules, EDR detections) encodes specific technique patterns. aegish's LLM can potentially recognize ATT&CK techniques it was trained on without explicit encoding, and may generalize to new sub-techniques. ATT&CK provides the taxonomy; aegish provides the detection mechanism.
 
 - **Source**: https://attack.mitre.org/
 
@@ -73,11 +73,11 @@ ATT&CK-based detection (Sigma rules, EDR detections) encodes specific technique 
 ### What It Is
 A library of simple, focused tests mapped to MITRE ATT&CK techniques. Each "atomic test" is a small script or command that exercises a specific technique. Used for detection validation and red team testing.
 
-### Relevance to SecBASH
-Atomic Red Team tests could serve as an additional benchmark dataset for SecBASH beyond GTFOBins. The Linux atomics for T1059.004 (Unix Shell), T1548.003 (SUID/SGID abuse), T1222.002 (Linux file permissions), etc., provide real-world attack command samples that could validate SecBASH's detection coverage.
+### Relevance to aegish
+Atomic Red Team tests could serve as an additional benchmark dataset for aegish beyond GTFOBins. The Linux atomics for T1059.004 (Unix Shell), T1548.003 (SUID/SGID abuse), T1222.002 (Linux file permissions), etc., provide real-world attack command samples that could validate aegish's detection coverage.
 
-### How SecBASH Differs
-Atomic Red Team is a testing framework for validating detection capabilities. SecBASH is a prevention mechanism. Atomic Red Team executes attacks to test if they're detected; SecBASH would prevent those attacks from executing in the first place. Using Atomic Red Team commands as a benchmark would test SecBASH in a detection-before-execution scenario.
+### How aegish Differs
+Atomic Red Team is a testing framework for validating detection capabilities. aegish is a prevention mechanism. Atomic Red Team executes attacks to test if they're detected; aegish would prevent those attacks from executing in the first place. Using Atomic Red Team commands as a benchmark would test aegish in a detection-before-execution scenario.
 
 - **Source**: https://github.com/redcanaryco/atomic-red-team
 
@@ -88,15 +88,15 @@ Atomic Red Team is a testing framework for validating detection capabilities. Se
 ### What It Is
 A generic, open signature format for writing detection rules for SIEM systems. Over 3,000 rules covering Windows, Linux, and cloud environments. Rules can be converted to Splunk, Elastic, QRadar, and other SIEM query languages.
 
-### Relevance to SecBASH
-Sigma rules for Linux process creation (e.g., `proc_creation_lnx_reverse_shell.yml`, `proc_creation_lnx_susp_command.yml`) detect many of the same threats SecBASH targets. They represent the state-of-the-art in rule-based command detection.
+### Relevance to aegish
+Sigma rules for Linux process creation (e.g., `proc_creation_lnx_reverse_shell.yml`, `proc_creation_lnx_susp_command.yml`) detect many of the same threats aegish targets. They represent the state-of-the-art in rule-based command detection.
 
-### How SecBASH Differs
-- **Timing**: Sigma rules detect commands *after* they execute (from process creation logs). SecBASH blocks *before* execution.
-- **Approach**: Sigma uses regex/string patterns; SecBASH uses LLM semantic analysis.
-- **Maintenance**: Sigma requires manual rule updates for new techniques; SecBASH's LLM may generalize to novel attacks.
-- **False positives**: Sigma rules are tuned for specific environments; SecBASH's LLM makes context-dependent judgments.
-- **Complementary**: Sigma rules can validate SecBASH's coverage -- commands matching Sigma Linux rules should also be caught by SecBASH.
+### How aegish Differs
+- **Timing**: Sigma rules detect commands *after* they execute (from process creation logs). aegish blocks *before* execution.
+- **Approach**: Sigma uses regex/string patterns; aegish uses LLM semantic analysis.
+- **Maintenance**: Sigma requires manual rule updates for new techniques; aegish's LLM may generalize to novel attacks.
+- **False positives**: Sigma rules are tuned for specific environments; aegish's LLM makes context-dependent judgments.
+- **Complementary**: Sigma rules can validate aegish's coverage -- commands matching Sigma Linux rules should also be caught by aegish.
 
 - **Source**: https://github.com/SigmaHQ/sigma
 
@@ -107,8 +107,8 @@ Sigma rules for Linux process creation (e.g., `proc_creation_lnx_reverse_shell.y
 ### What It Is
 Pattern-matching tool for malware identification. YARA rules define byte patterns, strings, and conditions for classifying files as malicious.
 
-### Relevance to SecBASH
-YARA operates on file content (binary patterns, strings); SecBASH operates on command text. YARA could potentially be applied to command strings but would require manual rule creation for each pattern. The comparison highlights SecBASH's advantage: LLMs understand command semantics without requiring explicit pattern rules.
+### Relevance to aegish
+YARA operates on file content (binary patterns, strings); aegish operates on command text. YARA could potentially be applied to command strings but would require manual rule creation for each pattern. The comparison highlights aegish's advantage: LLMs understand command semantics without requiring explicit pattern rules.
 
 - **Source**: https://virustotal.github.io/yara/
 
@@ -119,15 +119,15 @@ YARA operates on file content (binary patterns, strings); SecBASH operates on co
 ### What It Is
 CNCF graduated project for cloud-native runtime security. Uses eBPF or kernel modules to intercept system calls and apply detection rules. Default rules include: shell spawning in containers, reverse shell detection, unexpected process execution, sensitive file access.
 
-### Relevance to SecBASH
-Falco detects many of the same threats as SecBASH: reverse shells, shell escapes, suspicious commands. Falco has specific rules for GTFOBins detection patterns.
+### Relevance to aegish
+Falco detects many of the same threats as aegish: reverse shells, shell escapes, suspicious commands. Falco has specific rules for GTFOBins detection patterns.
 
-### How SecBASH Differs
-- **Timing**: Falco detects *during/after* execution (monitors system calls); SecBASH blocks *before* execution.
-- **Layer**: Falco operates at kernel level (system call interception); SecBASH operates at shell level (command string analysis).
-- **Approach**: Falco uses rule-based pattern matching on system call parameters; SecBASH uses LLM semantic analysis on command text.
-- **Environment**: Falco is designed for containerized/cloud-native environments; SecBASH works on any system with shell access.
-- **Complementary**: SecBASH prevents commands before they generate system calls for Falco to analyze.
+### How aegish Differs
+- **Timing**: Falco detects *during/after* execution (monitors system calls); aegish blocks *before* execution.
+- **Layer**: Falco operates at kernel level (system call interception); aegish operates at shell level (command string analysis).
+- **Approach**: Falco uses rule-based pattern matching on system call parameters; aegish uses LLM semantic analysis on command text.
+- **Environment**: Falco is designed for containerized/cloud-native environments; aegish works on any system with shell access.
+- **Complementary**: aegish prevents commands before they generate system calls for Falco to analyze.
 
 - **Source**: https://falco.org/, https://github.com/falcosecurity/falco
 
@@ -138,13 +138,13 @@ Falco detects many of the same threats as SecBASH: reverse shells, shell escapes
 ### What It Is
 SQL-powered framework (originally from Meta/Facebook) for OS instrumentation and analytics. Exposes the OS as a relational database, allowing SQL queries to explore running processes, installed packages, logged-in users, and security events.
 
-### Relevance to SecBASH
+### Relevance to aegish
 osquery can monitor process creation events including command-line arguments. Query like `SELECT * FROM process_events WHERE cmdline LIKE '%/dev/tcp%'` detects reverse shell patterns.
 
-### How SecBASH Differs
-- **Timing**: osquery queries historical/current state (post-execution); SecBASH evaluates commands pre-execution.
-- **Approach**: osquery uses SQL pattern matching on OS state; SecBASH uses LLM semantic analysis.
-- **Mode**: osquery is monitoring/analytics; SecBASH is prevention.
+### How aegish Differs
+- **Timing**: osquery queries historical/current state (post-execution); aegish evaluates commands pre-execution.
+- **Approach**: osquery uses SQL pattern matching on OS state; aegish uses LLM semantic analysis.
+- **Mode**: osquery is monitoring/analytics; aegish is prevention.
 
 - **Source**: https://github.com/osquery/osquery
 
@@ -163,12 +163,12 @@ osquery can monitor process creation events including command-line arguments. Qu
 
 ### 10.3 NL2Bash Corpus
 - Approximately 10,000 bash one-liner / natural language pairs from Lin et al. (2018, LREC; arXiv:1802.08979).
-- **Relevance**: Demonstrates NLP understanding of bash commands. Could inform SecBASH's approach to command comprehension. Different task (NL-to-bash translation vs. safety classification).
+- **Relevance**: Demonstrates NLP understanding of bash commands. Could inform aegish's approach to command comprehension. Different task (NL-to-bash translation vs. safety classification).
 - **Source**: https://github.com/TellinaTool/nl2bash
 
 ### 10.4 OTRF / Mordor Security Datasets
 - Pre-recorded security events from attack simulations mapped to ATT&CK techniques.
-- **Relevance**: Includes command-line data from simulated attacks. Could provide additional benchmark commands for SecBASH.
+- **Relevance**: Includes command-line data from simulated attacks. Could provide additional benchmark commands for aegish.
 - **Source**: https://github.com/OTRF/Security-Datasets
 
 ### 10.5 LANL Unified Host and Network Dataset
@@ -176,18 +176,18 @@ osquery can monitor process creation events including command-line arguments. Qu
 - **Relevance**: Large-scale real-world command-line data for security research.
 
 ### 10.6 HuggingFace Bash Commands Dataset
-- Source for SecBASH's harmless command benchmark (aelhalili/bash-commands-dataset). 840 original commands filtered to 290 safe commands, then extended with 206 LLM-generated commands covering additional developer workflows for a total of 496 harmless benchmark commands.
-- **Relevance**: Direct component of SecBASH's evaluation methodology.
+- Source for aegish's harmless command benchmark (aelhalili/bash-commands-dataset). 840 original commands filtered to 290 safe commands, then extended with 206 LLM-generated commands covering additional developer workflows for a total of 496 harmless benchmark commands.
+- **Relevance**: Direct component of aegish's evaluation methodology.
 
 ---
 
 ## 11. Key Observations
 
-### SecBASH's Benchmark Contribution
-SecBASH's benchmark methodology is itself a contribution: combining GTFOBins (malicious ground truth) with filtered harmless commands to create a balanced evaluation for command safety classifiers. This paired benchmark (malicious + benign) is not available elsewhere for shell command security evaluation.
+### aegish's Benchmark Contribution
+aegish's benchmark methodology is itself a contribution: combining GTFOBins (malicious ground truth) with filtered harmless commands to create a balanced evaluation for command safety classifiers. This paired benchmark (malicious + benign) is not available elsewhere for shell command security evaluation.
 
 ### Gap in Existing Detection
-Existing detection frameworks (Sigma, Falco, YARA, osquery) all operate *after* commands execute. They analyze logs, system calls, or process creation events. SecBASH fills a gap by operating *before* execution -- the only tool in this survey that prevents rather than detects.
+Existing detection frameworks (Sigma, Falco, YARA, osquery) all operate *after* commands execute. They analyze logs, system calls, or process creation events. aegish fills a gap by operating *before* execution -- the only tool in this survey that prevents rather than detects.
 
 ### Semantic vs. Syntactic Detection
-The fundamental distinction: GTFOBins documents hundreds of ways to abuse legitimate binaries. Encoding each as a detection rule (Sigma/Falco approach) creates a maintenance burden and misses novel variations. SecBASH's LLM approach aims to detect the *class* of abuse (shell escape, reverse shell, data exfiltration) regardless of the specific binary or syntax used.
+The fundamental distinction: GTFOBins documents hundreds of ways to abuse legitimate binaries. Encoding each as a detection rule (Sigma/Falco approach) creates a maintenance burden and misses novel variations. aegish's LLM approach aims to detect the *class* of abuse (shell escape, reverse shell, data exfiltration) regardless of the specific binary or syntax used.

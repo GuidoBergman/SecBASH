@@ -4,7 +4,7 @@ Validates commands using the LLM client and returns
 security decisions (allow, warn, or block).
 """
 
-from secbash.llm_client import query_llm
+from aegish.llm_client import query_llm
 
 
 def validate_command(command: str) -> dict:

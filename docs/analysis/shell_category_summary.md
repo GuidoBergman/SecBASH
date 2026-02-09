@@ -8,7 +8,7 @@
 
 ## Recommendation
 
-**EXCLUDE** the 'shell' category from the SecBASH benchmark.
+**EXCLUDE** the 'shell' category from the aegish benchmark.
 
 ### Reasons:
 

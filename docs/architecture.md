@@ -2,14 +2,14 @@
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8]
 inputDocuments:
   - docs/prd.md
-  - docs/analysis/research/technical-secbash-llm-command-validation-2026-01-23.md
+  - docs/analysis/research/technical-aegish-llm-command-validation-2026-01-23.md
 workflowType: 'architecture'
 lastStep: 8
 status: 'complete'
 completedAt: '2026-01-28'
 lastRevised: '2026-02-08'
 revisionNote: 'Removed LlamaGuard/OpenRouter from fallback chain, added shell spawner guidance'
-project_name: 'SecBASH'
+project_name: 'aegish'
 user_name: 'guido'
 date: '2026-01-28'
 ---
@@ -81,7 +81,7 @@ CLI tool - Python-based shell security wrapper
 **Project Initialization:**
 
 ```bash
-mkdir secbash && cd secbash
+mkdir aegish && cd aegish
 uv init
 uv add typer litellm
 ```
@@ -98,10 +98,10 @@ uv add typer litellm
 ### Basic Project Structure
 
 ```
-secbash/
+aegish/
 ├── pyproject.toml
 ├── src/
-│   └── secbash/
+│   └── aegish/
 │       ├── __init__.py
 │       ├── main.py          # Typer CLI entry
 │       ├── validator.py     # LLM validation logic
@@ -125,7 +125,7 @@ secbash/
 
 ```
 ┌─────────────────────────────────────────┐
-│  SecBASH                                │
+│  aegish                                │
 │  ┌─────────────────────────────────┐    │
 │  │  readline/prompt_toolkit loop   │    │
 │  │  (history, tab completion)      │    │
@@ -233,14 +233,14 @@ Standard Python `logging` module with default configuration.
 ### Complete Project Directory Structure
 
 ```
-secbash/
+aegish/
 ├── pyproject.toml              # uv/pip config, dependencies
 ├── README.md
 ├── .env.example                # Template for API keys
 ├── .gitignore
 │
 ├── src/
-│   └── secbash/
+│   └── aegish/
 │       ├── __init__.py         # Version, package info
 │       ├── main.py             # Typer CLI entry point
 │       ├── shell.py            # readline loop, user interaction
@@ -282,7 +282,7 @@ secbash/
 
 | Module | Responsibility |
 |--------|----------------|
-| `main.py` | Typer CLI, `secbash` command entry |
+| `main.py` | Typer CLI, `aegish` command entry |
 | `shell.py` | readline loop, prompt, history |
 | `validator.py` | Parse LLM response, decide action |
 | `llm_client.py` | LiteLLM wrapper with fallback config and caching |
@@ -453,7 +453,7 @@ This could potentially trick the LLM into returning an "allow" response for dang
 ### First Implementation Priority
 
 ```bash
-mkdir secbash && cd secbash
+mkdir aegish && cd aegish
 uv init
 uv add typer litellm
 ```

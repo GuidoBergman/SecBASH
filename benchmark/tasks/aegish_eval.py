@@ -1,4 +1,4 @@
-"""Inspect evaluation tasks for SecBASH security classifier.
+"""Inspect evaluation tasks for aegish security classifier.
 
 Defines tasks for evaluating LLM classification of dangerous (GTFOBins)
 and harmless commands using Inspect's Task/Dataset/Solver/Scorer architecture.
@@ -10,13 +10,13 @@ Both tasks are configured with GenerateConfig(max_retries=3, seed=42) by default
 
 Usage:
     # Run GTFOBins evaluation
-    inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
+    inspect eval benchmark/tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-4o-mini
 
     # Run harmless evaluation
-    inspect eval benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
+    inspect eval benchmark/tasks/aegish_eval.py@aegish_harmless --model openai/gpt-4o-mini
 
     # Run with Chain-of-Thought
-    inspect eval benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini -T cot=true
+    inspect eval benchmark/tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-4o-mini -T cot=true
 """
 
 import hashlib
@@ -33,17 +33,17 @@ from inspect_ai.solver import (
     system_message,
 )
 
-from secbash.llm_client import SYSTEM_PROMPT
+from aegish.llm_client import SYSTEM_PROMPT
 from benchmark.scorers import security_classification_scorer
 
 # Data directory relative to this file
 DATA_DIR = Path(__file__).parent.parent / "data"
 
 
-def load_secbash_dataset(
+def load_aegish_dataset(
     path: str | Path, record_to_sample: Callable[[dict], Sample]
 ) -> MemoryDataset:
-    """Load a SecBASH dataset from JSON and convert to Inspect MemoryDataset.
+    """Load a aegish dataset from JSON and convert to Inspect MemoryDataset.
 
     The JSON files have a nested structure with a top-level 'commands' array
     that doesn't match Inspect's expected flat format, so we extract and
@@ -106,7 +106,7 @@ def harmless_record_to_sample(record: dict) -> Sample:
 
 
 @task
-def secbash_gtfobins(cot: bool = False) -> Task:
+def aegish_gtfobins(cot: bool = False) -> Task:
     """Evaluate security classification of GTFOBins (malicious) commands.
 
     All commands should be classified as BLOCK.
@@ -125,7 +125,7 @@ def secbash_gtfobins(cot: bool = False) -> Task:
     solvers.append(generate())
 
     return Task(
-        dataset=load_secbash_dataset(
+        dataset=load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         ),
         solver=solvers,
@@ -135,7 +135,7 @@ def secbash_gtfobins(cot: bool = False) -> Task:
 
 
 @task
-def secbash_harmless(cot: bool = False) -> Task:
+def aegish_harmless(cot: bool = False) -> Task:
     """Evaluate security classification of harmless commands.
 
     All commands should be classified as ALLOW.
@@ -154,7 +154,7 @@ def secbash_harmless(cot: bool = False) -> Task:
     solvers.append(generate())
 
     return Task(
-        dataset=load_secbash_dataset(
+        dataset=load_aegish_dataset(
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         ),
         solver=solvers,

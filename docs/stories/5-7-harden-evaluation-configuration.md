@@ -10,7 +10,7 @@ so that **results are resilient to transient API failures and reproducible acros
 
 ## Acceptance Criteria
 
-1. **AC1: Task-level max_retries** - `GenerateConfig(max_retries=3)` is set in both `secbash_gtfobins()` and `secbash_harmless()` task definitions via the `Task(config=...)` parameter, so transient API failures (timeouts, rate limits) are retried up to 3 times automatically without the user needing to remember.
+1. **AC1: Task-level max_retries** - `GenerateConfig(max_retries=3)` is set in both `aegish_gtfobins()` and `aegish_harmless()` task definitions via the `Task(config=...)` parameter, so transient API failures (timeouts, rate limits) are retried up to 3 times automatically without the user needing to remember.
 
 2. **AC2: Task-level seed** - `GenerateConfig(seed=42)` is set in both task definitions via the `Task(config=...)` parameter, so evaluations produce consistent results across identical runs (for providers that support seeded generation: OpenAI, Google, Mistral, Groq, HuggingFace, vLLM).
 
@@ -25,15 +25,15 @@ so that **results are resilient to transient API failures and reproducible acros
 ## Tasks / Subtasks
 
 - [x] Task 1: Add GenerateConfig to task definitions (AC: #1, #2)
-  - [x] 1.1: Import `GenerateConfig` from `inspect_ai.model` in `secbash_eval.py`
-  - [x] 1.2: Add `config=GenerateConfig(max_retries=3, seed=42)` to `secbash_gtfobins()` Task constructor
-  - [x] 1.3: Add `config=GenerateConfig(max_retries=3, seed=42)` to `secbash_harmless()` Task constructor
+  - [x] 1.1: Import `GenerateConfig` from `inspect_ai.model` in `aegish_eval.py`
+  - [x] 1.2: Add `config=GenerateConfig(max_retries=3, seed=42)` to `aegish_gtfobins()` Task constructor
+  - [x] 1.3: Add `config=GenerateConfig(max_retries=3, seed=42)` to `aegish_harmless()` Task constructor
 - [x] Task 2: Update compare.py to pass seed (AC: #3, #4)
   - [x] 2.1: Verify `inspect_eval()` call supports seed kwarg or GenerateConfig passthrough
   - [x] 2.2: If seed not already passed, add it to the `inspect_eval()` call
   - [x] 2.3: Keep existing `retry_on_error=5` (sample-level) alongside task-level `max_retries=3` (API-level)
 - [x] Task 3: Update task docstrings (AC: documentation)
-  - [x] 3.1: Add note in `secbash_eval.py` docstrings about default retry/seed configuration
+  - [x] 3.1: Add note in `aegish_eval.py` docstrings about default retry/seed configuration
   - [x] 3.2: Add note in module docstring about reproducibility via seed=42
 - [x] Task 4: Run tests and verify (AC: #5, #6)
   - [x] 4.1: Run `uv run pytest tests/` to confirm no regressions
@@ -73,7 +73,7 @@ This call does NOT currently pass `seed`. The task-level `GenerateConfig` will p
 
 | File | Change |
 |------|--------|
-| `benchmark/tasks/secbash_eval.py` | Add `GenerateConfig` import, add `config=GenerateConfig(max_retries=3, seed=42)` to both Task constructors |
+| `benchmark/tasks/aegish_eval.py` | Add `GenerateConfig` import, add `config=GenerateConfig(max_retries=3, seed=42)` to both Task constructors |
 | `benchmark/compare.py` | Add `seed=42` to `inspect_eval()` call |
 
 ### What NOT to Change
@@ -82,16 +82,16 @@ This call does NOT currently pass `seed`. The task-level `GenerateConfig` will p
 - Do NOT modify `benchmark/report.py` or `benchmark/plots.py` - reporting is separate
 - Do NOT change `retry_on_error=5` in compare.py - it serves a different purpose
 - Do NOT change `fail_on_error=0.5` in compare.py
-- Do NOT modify production code in `src/secbash/`
+- Do NOT modify production code in `src/aegish/`
 - Do NOT modify any test files
 
 ### Project Structure Notes
 
 - Benchmark code lives in top-level `benchmark/` directory (moved in Story 5.2)
-- Task definitions in `benchmark/tasks/secbash_eval.py` (2 tasks: `secbash_gtfobins`, `secbash_harmless`)
+- Task definitions in `benchmark/tasks/aegish_eval.py` (2 tasks: `aegish_gtfobins`, `aegish_harmless`)
 - Comparison framework in `benchmark/compare.py` (725 lines)
 - Import convention: `from inspect_ai.model import GenerateConfig`
-- Existing import block in secbash_eval.py imports from `inspect_ai`, `inspect_ai.dataset`, `inspect_ai.solver`
+- Existing import block in aegish_eval.py imports from `inspect_ai`, `inspect_ai.dataset`, `inspect_ai.solver`
 
 ### Previous Story Intelligence
 
@@ -107,15 +107,15 @@ This call does NOT currently pass `seed`. The task-level `GenerateConfig` will p
 
 ### Exact Code Changes
 
-**`benchmark/tasks/secbash_eval.py` - Add import (after line 22):**
+**`benchmark/tasks/aegish_eval.py` - Add import (after line 22):**
 ```python
 from inspect_ai.model import GenerateConfig
 ```
 
-**`benchmark/tasks/secbash_eval.py` - Update secbash_gtfobins Task (line 120-126):**
+**`benchmark/tasks/aegish_eval.py` - Update aegish_gtfobins Task (line 120-126):**
 ```python
     return Task(
-        dataset=load_secbash_dataset(
+        dataset=load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         ),
         solver=solvers,
@@ -124,10 +124,10 @@ from inspect_ai.model import GenerateConfig
     )
 ```
 
-**`benchmark/tasks/secbash_eval.py` - Update secbash_harmless Task (line 147-153):**
+**`benchmark/tasks/aegish_eval.py` - Update aegish_harmless Task (line 147-153):**
 ```python
     return Task(
-        dataset=load_secbash_dataset(
+        dataset=load_aegish_dataset(
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         ),
         solver=solvers,
@@ -153,7 +153,7 @@ logs = inspect_eval(
 - [Source: docs/analysis/benchmark-improvements.md#Section 1.4] - max_retries=3 rationale
 - [Source: docs/analysis/benchmark-improvements.md#Section 1.5] - seed=42 rationale
 - [Source: docs/epics.md#Story 5.7] - Story requirements (FR23, FR24)
-- [Source: benchmark/tasks/secbash_eval.py] - Current task definitions (no config)
+- [Source: benchmark/tasks/aegish_eval.py] - Current task definitions (no config)
 - [Source: benchmark/compare.py#L569-575] - Current inspect_eval() call
 - [Inspect AI docs: GenerateConfig](https://inspect.aisi.org.uk/reference/inspect_ai.model.html) - API reference
 
@@ -171,7 +171,7 @@ Claude Opus 4.6
 
 ### Completion Notes List
 
-- Added `GenerateConfig(max_retries=3, seed=42)` to both `secbash_gtfobins()` and `secbash_harmless()` Task constructors in `secbash_eval.py`
+- Added `GenerateConfig(max_retries=3, seed=42)` to both `aegish_gtfobins()` and `aegish_harmless()` Task constructors in `aegish_eval.py`
 - Added `seed=42` kwarg to `inspect_eval()` call in `compare.py` for comparison run reproducibility
 - Kept existing `retry_on_error=5` (sample-level) and `fail_on_error=0.5` unchanged in `compare.py`
 - Updated module docstring and both task docstrings with retry/seed documentation
@@ -184,7 +184,7 @@ Claude Opus 4.6
 
 ### File List
 
-- `benchmark/tasks/secbash_eval.py` (modified) — Added GenerateConfig import and config param to both Task constructors, updated docstrings
+- `benchmark/tasks/aegish_eval.py` (modified) — Added GenerateConfig import and config param to both Task constructors, updated docstrings
 - `benchmark/compare.py` (modified) — Added seed=42 to inspect_eval() call
 - `docs/stories/sprint-status.yaml` (modified) — Status updated to in-progress → review
 - `docs/stories/5-7-harden-evaluation-configuration.md` (modified) — Story file updated with completion details

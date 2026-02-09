@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from secbash.config import (
+from aegish.config import (
     get_api_key,
     get_available_providers,
     get_fallback_models,
@@ -203,7 +203,7 @@ class TestGetPrimaryModel:
         """AC1: Custom primary model via env var."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_PRIMARY_MODEL": "anthropic/claude-3-haiku-20240307"},
+            {"AEGISH_PRIMARY_MODEL": "anthropic/claude-3-haiku-20240307"},
             clear=True
         )
 
@@ -215,7 +215,7 @@ class TestGetPrimaryModel:
         """AC3: Empty env var uses default."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_PRIMARY_MODEL": ""},
+            {"AEGISH_PRIMARY_MODEL": ""},
             clear=True
         )
 
@@ -227,7 +227,7 @@ class TestGetPrimaryModel:
         """AC3: Whitespace-only env var uses default."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_PRIMARY_MODEL": "   "},
+            {"AEGISH_PRIMARY_MODEL": "   "},
             clear=True
         )
 
@@ -251,7 +251,7 @@ class TestGetFallbackModels:
         """AC2: Custom fallback models via env var."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": "openai/gpt-4-turbo,anthropic/claude-3-opus-20240229"},
+            {"AEGISH_FALLBACK_MODELS": "openai/gpt-4-turbo,anthropic/claude-3-opus-20240229"},
             clear=True
         )
 
@@ -263,7 +263,7 @@ class TestGetFallbackModels:
         """AC5: Empty env var means no fallbacks (single provider mode)."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": ""},
+            {"AEGISH_FALLBACK_MODELS": ""},
             clear=True
         )
 
@@ -275,7 +275,7 @@ class TestGetFallbackModels:
         """Whitespace-only env var means no fallbacks."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": "   "},
+            {"AEGISH_FALLBACK_MODELS": "   "},
             clear=True
         )
 
@@ -287,7 +287,7 @@ class TestGetFallbackModels:
         """Single fallback model works correctly."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": "openai/gpt-4"},
+            {"AEGISH_FALLBACK_MODELS": "openai/gpt-4"},
             clear=True
         )
 
@@ -299,7 +299,7 @@ class TestGetFallbackModels:
         """Whitespace around model names is trimmed."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": " openai/gpt-4 , anthropic/claude-3-haiku-20240307 "},
+            {"AEGISH_FALLBACK_MODELS": " openai/gpt-4 , anthropic/claude-3-haiku-20240307 "},
             clear=True
         )
 
@@ -327,8 +327,8 @@ class TestGetModelChain:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "anthropic/claude-3-opus-20240229",
-                "SECBASH_FALLBACK_MODELS": "openai/gpt-4-turbo",
+                "AEGISH_PRIMARY_MODEL": "anthropic/claude-3-opus-20240229",
+                "AEGISH_FALLBACK_MODELS": "openai/gpt-4-turbo",
             },
             clear=True
         )
@@ -345,8 +345,8 @@ class TestGetModelChain:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "anthropic/claude-3-haiku-20240307",
-                "SECBASH_FALLBACK_MODELS": "",
+                "AEGISH_PRIMARY_MODEL": "anthropic/claude-3-haiku-20240307",
+                "AEGISH_FALLBACK_MODELS": "",
             },
             clear=True
         )
@@ -360,8 +360,8 @@ class TestGetModelChain:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "openai/gpt-4",
-                "SECBASH_FALLBACK_MODELS": "openai/gpt-4,anthropic/claude-3-haiku-20240307",
+                "AEGISH_PRIMARY_MODEL": "openai/gpt-4",
+                "AEGISH_FALLBACK_MODELS": "openai/gpt-4,anthropic/claude-3-haiku-20240307",
             },
             clear=True
         )
@@ -375,7 +375,7 @@ class TestGetModelChain:
         """Trailing comma in fallback models should not create empty entries."""
         mocker.patch.dict(
             os.environ,
-            {"SECBASH_FALLBACK_MODELS": "openai/gpt-4,anthropic/claude-3-haiku-20240307,"},
+            {"AEGISH_FALLBACK_MODELS": "openai/gpt-4,anthropic/claude-3-haiku-20240307,"},
             clear=True
         )
 

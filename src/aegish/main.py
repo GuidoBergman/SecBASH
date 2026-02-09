@@ -1,6 +1,6 @@
-"""SecBASH CLI entry point.
+"""aegish CLI entry point.
 
-Provides the Typer CLI interface for launching SecBASH.
+Provides the Typer CLI interface for launching aegish.
 """
 
 import sys
@@ -8,12 +8,12 @@ from typing import Optional
 
 import typer
 
-from secbash import __version__
-from secbash.config import validate_credentials
-from secbash.shell import run_shell
+from aegish import __version__
+from aegish.config import validate_credentials
+from aegish.shell import run_shell
 
 app = typer.Typer(
-    name="secbash",
+    name="aegish",
     help="LLM-powered shell with security validation"
 )
 
@@ -21,8 +21,8 @@ app = typer.Typer(
 def version_callback(value: bool) -> None:
     """Display version and basic info, then exit."""
     if value:
-        from secbash.config import get_available_providers
-        print(f"SecBASH version {__version__}")
+        from aegish.config import get_available_providers
+        print(f"aegish version {__version__}")
         providers = get_available_providers()
         if providers:
             print(f"Configured providers: {', '.join(providers)}")
@@ -42,7 +42,7 @@ def main(
         help="Show version and exit",
     ),
 ) -> None:
-    """Launch SecBASH interactive shell."""
+    """Launch aegish interactive shell."""
     # Validate credentials before starting
     is_valid, message = validate_credentials()
 

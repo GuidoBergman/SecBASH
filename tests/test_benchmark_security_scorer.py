@@ -1,9 +1,9 @@
-"""Tests for SecBASH custom Inspect scorer and metrics.
+"""Tests for aegish custom Inspect scorer and metrics.
 
 Tests cover:
 - Scorer JSON parsing (valid, malformed, empty responses)
 - Asymmetric scoring logic (GTFOBins BLOCK only correct, harmless ALLOW+WARN correct)
-- Custom metrics calculation (detection_rate, pass_rate, secbash_score)
+- Custom metrics calculation (detection_rate, pass_rate, aegish_score)
 - Per-category detection rates with micro/macro averages
 - TIMEOUT_ERROR vs FORMAT_ERROR classification
 - Edge cases (all correct, all wrong, empty score lists)
@@ -25,7 +25,7 @@ from benchmark.metrics.security_metrics import (
     format_error_rate,
     pass_rate,
     per_category_detection_rates,
-    secbash_score,
+    aegish_score,
     timeout_error_rate,
 )
 from benchmark.report import (
@@ -394,14 +394,14 @@ class TestPassRateMetric:
 
 
 class TestSecbashScoreMetric:
-    """Tests for secbash_score composite metric (balanced accuracy)."""
+    """Tests for aegish_score composite metric (balanced accuracy)."""
 
     def test_perfect_scores(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = secbash_score()
+        calc = aegish_score()
         assert calc(scores) == 1.0
 
     def test_zero_detection(self):
@@ -409,7 +409,7 @@ class TestSecbashScoreMetric:
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = secbash_score()
+        calc = aegish_score()
         # (0.0 + 1.0) / 2 = 0.5
         assert calc(scores) == 0.5
 
@@ -418,12 +418,12 @@ class TestSecbashScoreMetric:
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
-        calc = secbash_score()
+        calc = aegish_score()
         # (1.0 + 0.0) / 2 = 0.5
         assert calc(scores) == 0.5
 
     def test_empty(self):
-        calc = secbash_score()
+        calc = aegish_score()
         assert calc([]) == 0.0
 
     def test_partial_both(self):
@@ -433,8 +433,8 @@ class TestSecbashScoreMetric:
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
-        calc = secbash_score()
-        # detection_rate = 0.5, pass_rate = 0.5, secbash = (0.5 + 0.5) / 2 = 0.5
+        calc = aegish_score()
+        # detection_rate = 0.5, pass_rate = 0.5, aegish = (0.5 + 0.5) / 2 = 0.5
         assert calc(scores) == 0.5
 
 
@@ -560,7 +560,7 @@ class TestFormatErrorRate:
 
 def _make_mock_log(
     model: str = "openai/gpt-4o-mini",
-    task_name: str = "secbash_gtfobins",
+    task_name: str = "aegish_gtfobins",
     samples: list | None = None,
 ) -> MagicMock:
     """Create a mock EvalLog for report testing."""
@@ -609,7 +609,7 @@ def _make_mock_log(
         "accuracy": MagicMock(value=1.0),
         "detection_rate": MagicMock(value=0.97),
         "pass_rate": MagicMock(value=0.0),
-        "secbash_score": MagicMock(value=0.0),
+        "aegish_score": MagicMock(value=0.0),
         "timeout_error_rate": MagicMock(value=0.0),
         "format_error_rate": MagicMock(value=0.0),
         "detection_rate_macro": MagicMock(value=0.0),
@@ -793,7 +793,7 @@ class TestJsonExport:
             assert "detection_rate" in data["metrics"]
             assert "detection_rate_macro" in data["metrics"]
             assert "pass_rate" in data["metrics"]
-            assert "secbash_score" in data["metrics"]
+            assert "aegish_score" in data["metrics"]
             assert "timeout_error_rate" in data["metrics"]
             assert "format_error_rate" in data["metrics"]
 
@@ -812,10 +812,10 @@ class TestConsoleSummary:
     """Tests for console summary output."""
 
     def test_gtfobins_summary(self, capsys):
-        log = _make_mock_log(task_name="secbash_gtfobins")
+        log = _make_mock_log(task_name="aegish_gtfobins")
         print_console_summary(log)
         captured = capsys.readouterr()
-        assert "SecBASH Benchmark Results" in captured.out
+        assert "aegish Benchmark Results" in captured.out
         assert "openai/gpt-4o-mini" in captured.out
         assert "DETECTION (GTFOBins)" in captured.out
         assert "Detection Rate" in captured.out
@@ -824,7 +824,7 @@ class TestConsoleSummary:
         assert "Balanced Accuracy" in captured.out
 
     def test_harmless_summary(self, capsys):
-        log = _make_mock_log(task_name="secbash_harmless")
+        log = _make_mock_log(task_name="aegish_harmless")
         # Set pass_rate metric
         log.results.scores[0].metrics["pass_rate"] = MagicMock(value=0.92)
         print_console_summary(log)

@@ -24,7 +24,7 @@ So that **I can systematically benchmark different models using industry-standar
 **Given** a test dataset (GTFOBins or harmless)
 **When** the Inspect task runs
 **Then** each command is classified using Inspect's native model providers
-**And** the same system prompt from production (`src/secbash/llm_client.py`) is used
+**And** the same system prompt from production (`src/aegish/llm_client.py`) is used
 
 ### AC4: Command Safety
 **Given** commands are being evaluated
@@ -83,7 +83,7 @@ So that **I can systematically benchmark different models using industry-standar
 - [x] Task 3: Create custom solver (AC: #2, #3, #4, #9)
   - [x] 3.1 Create `tests/benchmark/solvers/__init__.py`
   - [x] 3.2 Create `tests/benchmark/solvers/classifier_solver.py`
-  - [x] 3.3 Implement `secbash_classifier()` solver using `@solver` decorator
+  - [x] 3.3 Implement `aegish_classifier()` solver using `@solver` decorator
   - [x] 3.4 Solver must format user message as `Validate this command: {command}` (matching production)
   - [x] 3.5 Solver must call `generate(state)` and NOT execute any commands
   - [x] 3.6 Implement CoT variant that prepends "Think step by step before classifying"
@@ -98,14 +98,14 @@ So that **I can systematically benchmark different models using industry-standar
 
 - [x] Task 5: Create task definitions (AC: #2, #3, #8)
   - [x] 5.1 Create `tests/benchmark/tasks/__init__.py`
-  - [x] 5.2 Create `tests/benchmark/tasks/secbash_eval.py`
-  - [x] 5.3 Implement `secbash_gtfobins()` task with `@task` decorator
-  - [x] 5.4 Implement `secbash_harmless()` task with `@task` decorator
+  - [x] 5.2 Create `tests/benchmark/tasks/aegish_eval.py`
+  - [x] 5.3 Implement `aegish_gtfobins()` task with `@task` decorator
+  - [x] 5.4 Implement `aegish_harmless()` task with `@task` decorator
   - [x] 5.5 Use `record_to_sample` to map dataset fields to Inspect `Sample` format
   - [x] 5.6 Import SYSTEM_PROMPT from production code
 
 - [x] Task 6: Write tests (AC: all)
-  - [x] 6.1 Create `tests/benchmark/test_secbash_eval.py`
+  - [x] 6.1 Create `tests/benchmark/test_aegish_eval.py`
   - [x] 6.2 Test task loads correctly
   - [x] 6.3 Test `record_to_sample` mapping for both datasets
   - [x] 6.4 Test scorer correctly parses JSON responses
@@ -113,7 +113,7 @@ So that **I can systematically benchmark different models using industry-standar
   - [x] 6.6 Test ground truth matching logic
 
 - [x] Task 7: Verify end-to-end (AC: #5, #7, #8)
-  - [x] 7.1 Run evaluation with a model: `inspect eval tests/benchmark/tasks/secbash_eval.py --model openai/gpt-4o-mini`
+  - [x] 7.1 Run evaluation with a model: `inspect eval tests/benchmark/tasks/aegish_eval.py --model openai/gpt-4o-mini`
   - [x] 7.2 Verify results appear in `inspect view`
   - [x] 7.3 Verify JSON export works
 
@@ -185,7 +185,7 @@ def harmless_record_to_sample(record):
 from inspect_ai.dataset import MemoryDataset, Sample
 import json
 
-def load_secbash_dataset(path: str, record_to_sample) -> MemoryDataset:
+def load_aegish_dataset(path: str, record_to_sample) -> MemoryDataset:
     with open(path) as f:
         data = json.load(f)
     samples = [record_to_sample(record) for record in data["commands"]]
@@ -232,7 +232,7 @@ def extract_action(completion: str) -> str | None:
 
 Import the SYSTEM_PROMPT directly from production code. Do NOT duplicate it.
 
-**Current SYSTEM_PROMPT location:** `src/secbash/llm_client.py:28-175`
+**Current SYSTEM_PROMPT location:** `src/aegish/llm_client.py:28-175`
 - Contains 13-rule decision tree
 - Contains examples for all categories
 - Contains obfuscation handling and special cases
@@ -243,7 +243,7 @@ uv pip install -e .
 ```
 Then import directly:
 ```python
-from secbash.llm_client import SYSTEM_PROMPT
+from aegish.llm_client import SYSTEM_PROMPT
 ```
 
 If editable install is problematic, use path manipulation (less preferred):
@@ -251,7 +251,7 @@ If editable install is problematic, use path manipulation (less preferred):
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
-from secbash.llm_client import SYSTEM_PROMPT
+from aegish.llm_client import SYSTEM_PROMPT
 ```
 
 ### LlamaGuard Special Handling
@@ -270,7 +270,7 @@ OpenRouter/LlamaGuard (`openrouter/meta-llama/llama-guard-3-8b`) does NOT use th
 from inspect_ai.solver import solver, Solver, TaskState, Generate
 
 @solver
-def secbash_classifier() -> Solver:
+def aegish_classifier() -> Solver:
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         # The system_message() solver already set the system prompt
         # Format user message with the command to validate
@@ -328,14 +328,14 @@ AC8 requires CoT on/off toggle. Implement as separate tasks or task parameter:
 from inspect_ai.solver import chain_of_thought
 
 @task
-def secbash_gtfobins_cot():
+def aegish_gtfobins_cot():
     """Evaluate with Chain-of-Thought reasoning."""
     return Task(
-        dataset=load_secbash_dataset("tests/benchmark/data/gtfobins_commands.json", gtfobins_record_to_sample),
+        dataset=load_aegish_dataset("tests/benchmark/data/gtfobins_commands.json", gtfobins_record_to_sample),
         solver=[
             system_message(SYSTEM_PROMPT),
             chain_of_thought(),  # Adds "Think step by step" instruction
-            secbash_classifier()
+            aegish_classifier()
         ],
         scorer=security_classification_scorer()
     )
@@ -344,30 +344,30 @@ def secbash_gtfobins_cot():
 Or expose a task parameter (RECOMMENDED - Inspect makes `@task` function parameters CLI-configurable via `-T`):
 ```python
 @task
-def secbash_gtfobins(cot: bool = False):
+def aegish_gtfobins(cot: bool = False):
     solvers = [system_message(SYSTEM_PROMPT)]
     if cot:
         solvers.append(chain_of_thought())
-    solvers.append(secbash_classifier())
+    solvers.append(aegish_classifier())
     return Task(
-        dataset=load_secbash_dataset(...),
+        dataset=load_aegish_dataset(...),
         solver=solvers,
         scorer=security_classification_scorer()
     )
 ```
-Then invoke via CLI: `inspect eval tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-5 -T cot=true`
+Then invoke via CLI: `inspect eval tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-5 -T cot=true`
 
 ### Running Evaluations (CLI)
 
 ```bash
 # Run GTFOBins evaluation with specific model
-inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini
+inspect eval tests/benchmark/tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-4o-mini
 
 # Run harmless evaluation
-inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_harmless --model openai/gpt-4o-mini
+inspect eval tests/benchmark/tasks/aegish_eval.py@aegish_harmless --model openai/gpt-4o-mini
 
 # Run with CoT
-inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-5 -T cot=true
+inspect eval tests/benchmark/tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-5 -T cot=true
 
 # View results in web UI
 inspect view
@@ -382,14 +382,14 @@ tests/benchmark/
 ├── extract_harmless.py            # EXISTS (Story 4.3)
 ├── test_extract_gtfobins.py       # EXISTS (Story 4.2)
 ├── test_extract_harmless.py       # EXISTS (Story 4.3)
-├── test_secbash_eval.py           # NEW - tests for evaluation harness
+├── test_aegish_eval.py           # NEW - tests for evaluation harness
 ├── data/
 │   ├── .gitkeep                   # EXISTS
 │   ├── gtfobins_commands.json     # EXISTS (431 commands)
 │   └── harmless_commands.json     # EXISTS (310 commands)
 ├── tasks/
 │   ├── __init__.py                # NEW
-│   └── secbash_eval.py            # NEW - @task definitions
+│   └── aegish_eval.py            # NEW - @task definitions
 ├── solvers/
 │   ├── __init__.py                # NEW
 │   └── classifier_solver.py       # NEW - custom solver
@@ -403,7 +403,7 @@ tests/benchmark/
 ### Project Structure Notes
 
 - All benchmark code stays in `tests/benchmark/` (per Epic 4 architecture decision)
-- Production code in `src/secbash/` is NOT modified by this story
+- Production code in `src/aegish/` is NOT modified by this story
 - `inspect-ai` is a runtime dependency (not dev-only) since it's needed to run benchmarks
 - Follow PEP 8: `snake_case` functions, `PascalCase` classes, `UPPER_SNAKE_CASE` constants
 - Python 3.10+ type hints required
@@ -411,10 +411,10 @@ tests/benchmark/
 
 ### Inspect vs LiteLLM Separation
 
-| Concern | Production (`src/secbash/`) | Benchmark (`tests/benchmark/`) |
+| Concern | Production (`src/aegish/`) | Benchmark (`tests/benchmark/`) |
 |---------|---------------------------|-------------------------------|
 | LLM Provider | LiteLLM | Inspect native |
-| Model Config | SECBASH_PRIMARY_MODEL env var | `--model` CLI flag |
+| Model Config | AEGISH_PRIMARY_MODEL env var | `--model` CLI flag |
 | Prompt | SYSTEM_PROMPT in llm_client.py | Import from llm_client.py |
 | Response Parse | `_parse_response()` in llm_client.py | Custom scorer in security_scorer.py |
 | Rate Limiting | Manual (per-provider) | Inspect automatic |
@@ -492,7 +492,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Debug Log References
 
 - inspect-ai v0.3.170 installed successfully
-- SYSTEM_PROMPT imported directly from secbash.llm_client (6162 chars)
+- SYSTEM_PROMPT imported directly from aegish.llm_client (6162 chars)
 - GTFOBins dataset: 431 samples loaded, target=["BLOCK", "WARN"] (multi-target)
 - Harmless dataset: 310 samples loaded, target=ALLOW
 - CoT implemented via task parameter (`cot: bool = False`), CLI-configurable via `-T cot=true`
@@ -522,14 +522,14 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 New files:
 - tests/benchmark/tasks/__init__.py
-- tests/benchmark/tasks/secbash_eval.py
+- tests/benchmark/tasks/aegish_eval.py
 - tests/benchmark/results/.gitkeep
-- tests/benchmark/test_secbash_eval.py
+- tests/benchmark/test_aegish_eval.py
 
 Modified files:
 - pyproject.toml (added inspect-ai>=0.3.170 to dev dependency group)
 - uv.lock (auto-generated by uv)
 
-Note: src/secbash/llm_client.py and tests/test_dangerous_commands.py also have
+Note: src/aegish/llm_client.py and tests/test_dangerous_commands.py also have
 uncommitted changes from Story 4.1 (Rule 12/13, Special Cases, structural tests).
 These are NOT part of Story 4.4 scope but appear in the same git working tree.

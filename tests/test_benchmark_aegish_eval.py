@@ -1,4 +1,4 @@
-"""Tests for the SecBASH Inspect evaluation harness.
+"""Tests for the aegish Inspect evaluation harness.
 
 Tests cover:
 - Task loading and configuration
@@ -6,13 +6,13 @@ Tests cover:
 - Dataset loading and sample conversion
 """
 
-from benchmark.tasks.secbash_eval import (
+from benchmark.tasks.aegish_eval import (
     DATA_DIR,
     gtfobins_record_to_sample,
     harmless_record_to_sample,
-    load_secbash_dataset,
-    secbash_gtfobins,
-    secbash_harmless,
+    load_aegish_dataset,
+    aegish_gtfobins,
+    aegish_harmless,
 )
 
 
@@ -112,7 +112,7 @@ class TestDatasetLoading:
     """Tests for dataset loading and sample conversion."""
 
     def test_load_gtfobins_dataset(self):
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         )
         assert len(dataset) > 0
@@ -120,7 +120,7 @@ class TestDatasetLoading:
         assert all(s.metadata["dataset"] == "gtfobins" for s in dataset)
 
     def test_load_harmless_dataset(self):
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         )
         assert len(dataset) > 0
@@ -128,7 +128,7 @@ class TestDatasetLoading:
         assert all(s.metadata["dataset"] == "harmless" for s in dataset)
 
     def test_gtfobins_samples_have_binary_metadata(self):
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         )
         for sample in dataset:
@@ -136,7 +136,7 @@ class TestDatasetLoading:
             assert "category" in sample.metadata
 
     def test_harmless_samples_have_prompt_metadata(self):
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         )
         for sample in dataset:
@@ -144,7 +144,7 @@ class TestDatasetLoading:
 
     def test_gtfobins_ids_are_unique(self):
         """All GTFOBins sample IDs must be unique."""
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         )
         ids = [s.id for s in dataset]
@@ -154,7 +154,7 @@ class TestDatasetLoading:
 
     def test_gtfobins_inputs_have_validation_prefix(self):
         """All GTFOBins inputs must start with 'Validate this command: '."""
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         )
         for sample in dataset:
@@ -162,7 +162,7 @@ class TestDatasetLoading:
 
     def test_harmless_inputs_have_validation_prefix(self):
         """All harmless inputs must start with 'Validate this command: '."""
-        dataset = load_secbash_dataset(
+        dataset = load_aegish_dataset(
             DATA_DIR / "harmless_commands.json", harmless_record_to_sample
         )
         for sample in dataset:
@@ -176,46 +176,46 @@ class TestTaskDefinitions:
     """Tests for Inspect task definitions."""
 
     def test_gtfobins_task_loads(self):
-        task = secbash_gtfobins()
+        task = aegish_gtfobins()
         assert task is not None
         assert len(task.dataset) > 0
         # 2 solvers: system_message + generate (extract_classification removed)
         assert len(task.solver) == 2
 
     def test_harmless_task_loads(self):
-        task = secbash_harmless()
+        task = aegish_harmless()
         assert task is not None
         assert len(task.dataset) > 0
         assert len(task.solver) == 2
 
     def test_gtfobins_task_with_cot(self):
-        task = secbash_gtfobins(cot=True)
+        task = aegish_gtfobins(cot=True)
         # 3 solvers: system_message + chain_of_thought + generate
         assert len(task.solver) == 3
 
     def test_harmless_task_with_cot(self):
-        task = secbash_harmless(cot=True)
+        task = aegish_harmless(cot=True)
         assert len(task.solver) == 3
 
     def test_gtfobins_task_has_generate_config(self):
         """Verify GenerateConfig with max_retries and seed is set."""
-        task = secbash_gtfobins()
+        task = aegish_gtfobins()
         assert task.config is not None
         assert task.config.max_retries == 3
         assert task.config.seed == 42
 
     def test_harmless_task_has_generate_config(self):
         """Verify GenerateConfig with max_retries and seed is set."""
-        task = secbash_harmless()
+        task = aegish_harmless()
         assert task.config is not None
         assert task.config.max_retries == 3
         assert task.config.seed == 42
 
     def test_tasks_use_system_prompt(self):
         """Verify tasks use the production SYSTEM_PROMPT."""
-        from secbash.llm_client import SYSTEM_PROMPT
+        from aegish.llm_client import SYSTEM_PROMPT
 
-        task = secbash_gtfobins()
+        task = aegish_gtfobins()
         # First solver should be system_message with SYSTEM_PROMPT
         assert task.solver[0] is not None
         assert SYSTEM_PROMPT is not None

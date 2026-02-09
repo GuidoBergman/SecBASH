@@ -124,7 +124,7 @@ for i, cmd in enumerate(commands):
 
 ### Shell Category Inclusion Rationale
 
-- Shell spawning is the **#1 threat** for SecBASH (system prompt says "most critical threat")
+- Shell spawning is the **#1 threat** for aegish (system prompt says "most critical threat")
 - Adds ~265 commands from the GTFOBins shell category (~128 from new binaries)
 - All shell entries are detectable from command text (binary names like `bash`, `zsh`, `screen`, or shell references in arguments)
 - In the LLM-agent context, there is NO legitimate reason for the agent to generate `bash` or `screen` as commands
@@ -134,7 +134,7 @@ for i, cmd in enumerate(commands):
 
 - **Do NOT modify any other benchmark files** (scorer, tasks, report, plots) - those are covered by Story 5.3, 5.4, 5.7
 - **Do NOT change the scoring logic** - Story 5.3 handles WARN=ALLOW scoring changes
-- **Do NOT modify `src/secbash/llm_client.py`** - Story 5.4 handles system prompt changes
+- **Do NOT modify `src/aegish/llm_client.py`** - Story 5.4 handles system prompt changes
 - **Order of PLACEHOLDERS matters** - longer/more-specific patterns must come before shorter ones (existing pattern maintained)
 - The script clones GTFOBins via `git clone --depth 1` to a temp directory each run, so no local GTFOBins checkout is needed
 - Output file path is auto-resolved: `benchmark/data/gtfobins_commands.json`
@@ -155,7 +155,7 @@ Detection rate decrease is **expected and desirable** - it means the benchmark i
 
 - All changes are in `benchmark/` directory (top-level, moved from `tests/benchmark/` in Story 5.2)
 - No alignment conflicts with project structure
-- No impact on `src/secbash/` production code
+- No impact on `src/aegish/` production code
 - No impact on `tests/` pytest tests (extraction tests in `tests/test_benchmark_extract_gtfobins.py` may need updating if they assert exact command count or content, but that's test maintenance not story scope)
 
 ### References

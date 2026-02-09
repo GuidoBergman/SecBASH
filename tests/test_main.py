@@ -10,7 +10,7 @@ import sys
 import pytest
 from typer.testing import CliRunner
 
-from secbash.main import app
+from aegish.main import app
 
 
 class TestMainCredentialValidation:
@@ -19,7 +19,7 @@ class TestMainCredentialValidation:
     def test_main_exits_on_no_credentials(self, mocker):
         """AC2: No credentials -> exit code 1."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        mocker.patch("secbash.main.run_shell")
+        mocker.patch("aegish.main.run_shell")
 
         runner = CliRunner()
         result = runner.invoke(app)
@@ -41,7 +41,7 @@ class TestMainCredentialValidation:
         # Run from temp dir to avoid .env auto-loading by litellm/dotenv
         with tempfile.TemporaryDirectory() as tmpdir:
             result = subprocess.run(
-                [sys.executable, "-c", "from secbash.main import app; app()"],
+                [sys.executable, "-c", "from aegish.main import app; app()"],
                 capture_output=True,
                 text=True,
                 env=env,
@@ -58,7 +58,7 @@ class TestMainCredentialValidation:
     def test_main_error_message_includes_instructions(self, mocker):
         """AC2: Error message includes setup instructions."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        mocker.patch("secbash.main.run_shell")
+        mocker.patch("aegish.main.run_shell")
 
         runner = CliRunner()
         result = runner.invoke(app)
@@ -75,7 +75,7 @@ class TestMainCredentialValidation:
             {"OPENAI_API_KEY": "test-key"},
             clear=True
         )
-        mock_shell = mocker.patch("secbash.main.run_shell", return_value=0)
+        mock_shell = mocker.patch("aegish.main.run_shell", return_value=0)
 
         runner = CliRunner()
         result = runner.invoke(app)
@@ -90,7 +90,7 @@ class TestMainCredentialValidation:
             {"OPENAI_API_KEY": "test-key"},
             clear=True
         )
-        mocker.patch("secbash.main.run_shell", return_value=42)
+        mocker.patch("aegish.main.run_shell", return_value=42)
 
         runner = CliRunner()
         result = runner.invoke(app)

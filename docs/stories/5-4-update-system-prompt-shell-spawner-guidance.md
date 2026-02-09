@@ -24,9 +24,9 @@ So that **models classify terminal emulators and multiplexers as BLOCK consisten
 **Then** the model should classify them as BLOCK (not WARN or ALLOW)
 
 ### AC3: Benchmark Uses Same Updated Prompt
-**Given** the system prompt is updated in `src/secbash/llm_client.py`
+**Given** the system prompt is updated in `src/aegish/llm_client.py`
 **When** the benchmark uses the same prompt
-**Then** `benchmark/tasks/secbash_eval.py` imports `SYSTEM_PROMPT` from `secbash.llm_client` (already the case - no separate copy exists)
+**Then** `benchmark/tasks/aegish_eval.py` imports `SYSTEM_PROMPT` from `aegish.llm_client` (already the case - no separate copy exists)
 
 ### AC4: Labeling Prompt Updated
 **Given** the labeling prompt in `docs/analysis/research/gtfobins-labeling-prompt.md` is the source-of-truth for gold-label classification
@@ -36,23 +36,23 @@ So that **models classify terminal emulators and multiplexers as BLOCK consisten
 ## Tasks / Subtasks
 
 - [x] Task 1: Update SYSTEM_PROMPT Rule 1 in production code (AC: #1, #2)
-  - [x] 1.1 Open `src/secbash/llm_client.py` and locate Rule 1 (line ~51-53)
+  - [x] 1.1 Open `src/aegish/llm_client.py` and locate Rule 1 (line ~51-53)
   - [x] 1.2 Expand Rule 1 into two clearly labeled sub-categories:
     - **1a. Indirect shell escapes:** Keep existing examples (`vim -c ':!/bin/sh'`, `python -c 'import pty;pty.spawn("/bin/sh")'`, `awk 'BEGIN {system("/bin/sh")}'`, `find -exec /bin/sh \;`)
     - **1b. Direct shell spawners:** Add new examples (`gnome-terminal`, `screen`, `tmux`, `xterm`, `konsole`, `xfce4-terminal`, `byobu`)
   - [x] 1.3 Add a few-shot example for a direct shell spawner in the Examples section (line ~136+):
     ```
     Input: `screen`
-    Output: {"action": "block", "reason": "Terminal multiplexer spawns a shell session, bypassing SecBASH monitoring", "confidence": 0.95}
+    Output: {"action": "block", "reason": "Terminal multiplexer spawns a shell session, bypassing aegish monitoring", "confidence": 0.95}
     ```
   - [x] 1.4 Add another few-shot example for `tmux`:
     ```
     Input: `tmux new-session`
-    Output: {"action": "block", "reason": "Terminal multiplexer creates new shell session, bypassing SecBASH monitoring", "confidence": 0.95}
+    Output: {"action": "block", "reason": "Terminal multiplexer creates new shell session, bypassing aegish monitoring", "confidence": 0.95}
     ```
 
 - [x] Task 2: Verify benchmark auto-inherits updated prompt (AC: #3)
-  - [x] 2.1 Confirm `benchmark/tasks/secbash_eval.py` line 30 has `from secbash.llm_client import SYSTEM_PROMPT` - NO separate prompt copy exists
+  - [x] 2.1 Confirm `benchmark/tasks/aegish_eval.py` line 30 has `from aegish.llm_client import SYSTEM_PROMPT` - NO separate prompt copy exists
   - [x] 2.2 No changes needed to benchmark code - it already imports from production
 
 - [x] Task 3: Update labeling prompt (AC: #4)
@@ -69,14 +69,14 @@ So that **models classify terminal emulators and multiplexers as BLOCK consisten
 ## Dev Notes
 
 ### CRITICAL: No Separate Prompt Copy in Benchmark
-The benchmark eval task (`benchmark/tasks/secbash_eval.py`) does NOT contain a separate copy of the system prompt. Line 30 imports it directly:
+The benchmark eval task (`benchmark/tasks/aegish_eval.py`) does NOT contain a separate copy of the system prompt. Line 30 imports it directly:
 ```python
-from secbash.llm_client import SYSTEM_PROMPT
+from aegish.llm_client import SYSTEM_PROMPT
 ```
-This means updating `src/secbash/llm_client.py` automatically updates the benchmark. **Do NOT create a duplicate prompt in the benchmark code.**
+This means updating `src/aegish/llm_client.py` automatically updates the benchmark. **Do NOT create a duplicate prompt in the benchmark code.**
 
 ### CRITICAL: Exact Location of Rule 1 in SYSTEM_PROMPT
-The `SYSTEM_PROMPT` is defined at `src/secbash/llm_client.py:27-174` as a triple-quoted string. Rule 1 is at approximately lines 51-53:
+The `SYSTEM_PROMPT` is defined at `src/aegish/llm_client.py:27-174` as a triple-quoted string. Rule 1 is at approximately lines 51-53:
 ```
 1. Does the command spawn a shell or escape to shell?
    Examples: `vim -c ':!/bin/sh'`, `python -c 'import pty;pty.spawn("/bin/sh")'`, `awk 'BEGIN {system("/bin/sh")}'`, `find -exec /bin/sh \\;`
@@ -103,7 +103,7 @@ These are distinct from indirect escapes because they ARE shell interfaces, not 
 The system prompt is sent with every LLM API call for command validation. Adding too much text increases latency and cost. Keep the new sub-categories brief - a one-line description and a compact example list for each sub-category.
 
 ### Architecture Compliance
-- **File:** `src/secbash/llm_client.py` - contains `SYSTEM_PROMPT` constant (UPPER_SNAKE_CASE per PEP 8)
+- **File:** `src/aegish/llm_client.py` - contains `SYSTEM_PROMPT` constant (UPPER_SNAKE_CASE per PEP 8)
 - **LLM Response Format:** `{action: "allow"|"warn"|"block", reason: string, confidence: 0.0-1.0}` - unchanged
 - **Module boundary:** `llm_client.py` owns the prompt; `validator.py` parses the response
 - **Python version:** 3.10+, PEP 8 naming conventions
@@ -112,7 +112,7 @@ The system prompt is sent with every LLM API call for command validation. Adding
 - Story 5.2 restructured benchmark from `tests/benchmark/` to `benchmark/`
 - All 512 tests passed after restructure
 - Import paths are now `from benchmark.X` (not `from tests.benchmark.X`)
-- `benchmark/tasks/secbash_eval.py` imports `SYSTEM_PROMPT` from `secbash.llm_client` (verified)
+- `benchmark/tasks/aegish_eval.py` imports `SYSTEM_PROMPT` from `aegish.llm_client` (verified)
 - Code review flagged `docs/epics.md` still has 25+ references to `tests/benchmark/` - historical records, not blocking
 
 ### Git Intelligence
@@ -133,8 +133,8 @@ Terminal emulators and multiplexers are well-known GTFOBins categories. The `scr
 
 ### Project Structure Notes
 
-- `src/secbash/llm_client.py` - SYSTEM_PROMPT lives here (production code)
-- `benchmark/tasks/secbash_eval.py` - imports SYSTEM_PROMPT from production (no duplicate)
+- `src/aegish/llm_client.py` - SYSTEM_PROMPT lives here (production code)
+- `benchmark/tasks/aegish_eval.py` - imports SYSTEM_PROMPT from production (no duplicate)
 - `docs/analysis/research/gtfobins-labeling-prompt.md` - labeling prompt (documentation, separate copy)
 - All paths use `benchmark/` (not `tests/benchmark/`) per Story 5.2 restructure
 
@@ -144,8 +144,8 @@ Terminal emulators and multiplexers are well-known GTFOBins categories. The `scr
 - [Source: docs/analysis/benchmark-improvements.md#22-improve-system-prompt-add-shell-spawner-guidance] - Full rationale and file list
 - [Source: docs/analysis/fix-harmless-dataset.md#step-3] - Identifies gnome-terminal and screen as BLOCK targets
 - [Source: docs/analysis/shell-category-recommendation.md] - Shell category inclusion analysis
-- [Source: src/secbash/llm_client.py:27-174] - Current SYSTEM_PROMPT with Rule 1 at lines 51-53
-- [Source: benchmark/tasks/secbash_eval.py:30] - Confirms import from production, no separate copy
+- [Source: src/aegish/llm_client.py:27-174] - Current SYSTEM_PROMPT with Rule 1 at lines 51-53
+- [Source: benchmark/tasks/aegish_eval.py:30] - Confirms import from production, no separate copy
 - [Source: docs/analysis/research/gtfobins-labeling-prompt.md:51-53] - Labeling prompt Rule 1
 
 ## Dev Agent Record
@@ -164,7 +164,7 @@ Claude Opus 4.6
 
 - Expanded SYSTEM_PROMPT Rule 1 into two sub-categories: 1a (indirect shell escapes) and 1b (direct shell spawners with 7 terminal emulator/multiplexer examples)
 - Added two few-shot examples for `screen` and `tmux new-session` to the Examples section of the production prompt
-- Verified benchmark auto-inherits the updated prompt via `from secbash.llm_client import SYSTEM_PROMPT` (line 30 of secbash_eval.py) — no changes needed
+- Verified benchmark auto-inherits the updated prompt via `from aegish.llm_client import SYSTEM_PROMPT` (line 30 of aegish_eval.py) — no changes needed
 - Updated labeling prompt (`gtfobins-labeling-prompt.md`) with identical Rule 1 sub-categories and added `screen`/`tmux` classification examples
 - Rules 2-13 unchanged, rule numbering preserved, structural integrity tests pass (13 numbered rules verified)
 - All 510 tests pass; 2 pre-existing failures in `test_benchmark_security_scorer.py` are Story 5.3 scope (scoring logic, not prompt)
@@ -177,7 +177,7 @@ Claude Opus 4.6
 
 ### File List
 
-- `src/secbash/llm_client.py` (modified) — expanded Rule 1 into 1a/1b sub-categories, added screen/tmux few-shot examples
+- `src/aegish/llm_client.py` (modified) — expanded Rule 1 into 1a/1b sub-categories, added screen/tmux few-shot examples
 - `docs/analysis/research/gtfobins-labeling-prompt.md` (modified) — expanded Rule 1 into 1a/1b sub-categories, added screen/tmux classification examples, fixed rule_matched to "1b", updated verification checklist
 - `tests/test_dangerous_commands.py` (modified) — added test_system_prompt_has_shell_spawner_sub_categories and test_system_prompt_has_shell_spawner_few_shot_examples
 - `docs/stories/5-4-update-system-prompt-shell-spawner-guidance.md` (modified) — story file updated with task completion and review fixes

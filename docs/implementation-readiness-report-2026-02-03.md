@@ -4,7 +4,7 @@ workflowType: 'implementation-readiness'
 status: 'complete'
 completedAt: '2026-02-03'
 startedAt: '2026-02-03'
-project_name: 'SecBASH'
+project_name: 'aegish'
 user_name: 'guido'
 inputDocuments:
   prd: 'docs/prd.md'
@@ -38,7 +38,7 @@ epic4Changes:
 # Implementation Readiness Assessment Report
 
 **Date:** 2026-02-03
-**Project:** SecBASH
+**Project:** aegish
 
 ## Step 1: Document Discovery
 
@@ -98,7 +98,7 @@ The following changes were requested for Epic 4 before implementation begins:
 | FR14 | User receives plain text explanation when command is blocked/warned | Must-have |
 | FR15 | User can override warnings and proceed (with confirmation) | Must-have |
 | FR16 | User can configure LLM API credentials | Must-have |
-| FR17 | User can set SecBASH as login shell | Must-have |
+| FR17 | User can set aegish as login shell | Must-have |
 | FR18 | System works with minimal configuration (sensible defaults) | Must-have |
 
 **Total FRs: 18** (16 must-have, 2 should-have)
@@ -123,7 +123,7 @@ The following changes were requested for Epic 4 before implementation begins:
 |--------|--------|---------|
 | Detection Rate | ≥95% | GTFOBins commands flagged as WARN or BLOCK |
 | Pass Rate | ≥90% | Harmless commands allowed |
-| SecBASH Score | ≥0.85 | Detection Rate × Pass Rate |
+| aegish Score | ≥0.85 | Detection Rate × Pass Rate |
 
 ### Additional Requirements & Constraints
 
@@ -224,7 +224,7 @@ The following changes were requested for Epic 4 before implementation begins:
 
 ### Assessment
 
-SecBASH is classified as a **CLI Tool** in the PRD. The "user interface" consists of:
+aegish is classified as a **CLI Tool** in the PRD. The "user interface" consists of:
 - Shell prompt (readline-based)
 - Plain text output for security messages (block/warn/allow)
 - Standard terminal interaction patterns
@@ -249,7 +249,7 @@ SecBASH is classified as a **CLI Tool** in the PRD. The "user interface" consist
 
 ### Recommendation
 
-UX documentation is **not required** for SecBASH. The PRD adequately covers CLI interaction patterns:
+UX documentation is **not required** for aegish. The PRD adequately covers CLI interaction patterns:
 - FR14 specifies plain text explanations
 - FR15 specifies confirmation prompts for overrides
 - FR4 specifies command history navigation
@@ -446,7 +446,7 @@ UX documentation is **not required** for SecBASH. The PRD adequately covers CLI 
 
 ### Final Note
 
-This assessment validated alignment between PRD, Architecture, and Epics for SecBASH. **Epics 1-3 are already implemented.** Epic 4 requires the documented changes before implementation can begin.
+This assessment validated alignment between PRD, Architecture, and Epics for aegish. **Epics 1-3 are already implemented.** Epic 4 requires the documented changes before implementation can begin.
 
 The project demonstrates strong requirements traceability (100% FR coverage) and proper epic/story structure. The requested changes to Epic 4 are architectural improvements that will:
 - Leverage industry-standard evaluation infrastructure (Inspect)

@@ -1,4 +1,4 @@
-"""Benchmark visualization plots for SecBASH LLM comparison results.
+"""Benchmark visualization plots for aegish LLM comparison results.
 
 Generates scatter plots, bar charts, and summary tables from comparison
 JSON files produced by ``benchmark.compare``.
@@ -174,7 +174,7 @@ def compute_pareto_frontier(
 
 
 def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
-    """Generate Cost vs SecBASH Score scatter plot.
+    """Generate Cost vs aegish Score scatter plot.
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -192,7 +192,7 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
     for model, data in successful.items():
         composite = data.get("composite", {})
         cost = composite.get("cost_per_1000_combined", 0.0)
-        score = composite.get("secbash_score", 0.0)
+        score = composite.get("aegish_score", 0.0)
         costs.append(cost)
         scores.append(score)
         models.append(model)
@@ -271,8 +271,8 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
         ax.legend(handles=legend_handles, loc="lower right", fontsize=9)
 
     ax.set_xlabel("Cost per 1000 Commands ($)")
-    ax.set_ylabel("SecBASH Score")
-    ax.set_title("Cost vs SecBASH Score")
+    ax.set_ylabel("aegish Score")
+    ax.set_title("Cost vs aegish Score")
 
     save_plot(fig, output_dir / "cost_vs_score")
 
@@ -584,7 +584,7 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
 
         det_rate = gtfo.get("detection_rate", 0.0) if gtfo else 0.0
         pass_rate = harm.get("pass_rate", 0.0) if harm else 0.0
-        score = composite.get("secbash_score", 0.0)
+        score = composite.get("aegish_score", 0.0)
         cost = composite.get("cost_per_1000_combined", 0.0)
         latency = composite.get("avg_latency_ms", 0.0)
 
@@ -642,7 +642,7 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
             cell = table[i + 1, j]
             cell.set_facecolor(row_colors[i])
 
-    ax.set_title("SecBASH Model Ranking", fontsize=14, fontweight="bold", pad=20)
+    ax.set_title("aegish Model Ranking", fontsize=14, fontweight="bold", pad=20)
 
     save_plot(fig, output_dir / "ranking_table")
 
@@ -848,7 +848,7 @@ def generate_all_plots(comparison_file: Path, output_dir: Path) -> list[Path]:
 def main() -> None:
     """CLI entry point for plot generation."""
     parser = argparse.ArgumentParser(
-        description="Generate SecBASH benchmark comparison plots"
+        description="Generate aegish benchmark comparison plots"
     )
     parser.add_argument(
         "comparison_file",

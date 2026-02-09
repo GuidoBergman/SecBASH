@@ -1,10 +1,10 @@
-# SecBASH Implementation Details
+# aegish Implementation Details
 
 Details extracted from source code that are necessary for reproducing the benchmark results. These complement the benchmark results analysis and PRD.
 
 ## 1. System Prompt
 
-The same system prompt is used in both production and benchmarking (`src/secbash/llm_client.py`, imported by `benchmark/tasks/secbash_eval.py`).
+The same system prompt is used in both production and benchmarking (`src/aegish/llm_client.py`, imported by `benchmark/tasks/aegish_eval.py`).
 
 The prompt is 156 lines (13,025 bytes) and defines a 13-rule decision tree applied in order (first match determines action):
 
@@ -133,7 +133,7 @@ When the LLM does not return parseable JSON:
 
 ### Composite Metric
 
-**SecBASH Score** = (Detection Rate + Pass Rate) / 2
+**aegish Score** = (Detection Rate + Pass Rate) / 2
 
 SE(Score) = sqrt(SE_detection^2 + SE_pass^2) / 2
 
@@ -164,8 +164,8 @@ Computed from `sample.total_time` (includes API call, rate-limit queuing, and ne
 - Fallback: `anthropic/claude-3-haiku-20240307`
 
 **Configurable via environment variables:**
-- `SECBASH_PRIMARY_MODEL`: Format `provider/model-name`
-- `SECBASH_FALLBACK_MODELS`: Comma-separated list
+- `AEGISH_PRIMARY_MODEL`: Format `provider/model-name`
+- `AEGISH_FALLBACK_MODELS`: Comma-separated list
 
 **Other production settings:**
 - `MAX_COMMAND_LENGTH = 4096` characters (prevents token limit issues and excessive costs)

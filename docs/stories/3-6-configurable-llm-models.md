@@ -9,7 +9,7 @@
 ## User Story
 
 As a **sysadmin**,
-I want **to configure which LLM models SecBASH uses for validation**,
+I want **to configure which LLM models aegish uses for validation**,
 So that **I can choose models based on my provider access, cost preferences, or performance needs**.
 
 ---
@@ -17,32 +17,32 @@ So that **I can choose models based on my provider access, cost preferences, or 
 ## Acceptance Criteria
 
 ### AC1: Primary Model Configuration via Environment Variable
-**Given** environment variable `SECBASH_PRIMARY_MODEL` is set (e.g., `anthropic/claude-3-haiku-20240307`)
-**When** SecBASH starts
+**Given** environment variable `AEGISH_PRIMARY_MODEL` is set (e.g., `anthropic/claude-3-haiku-20240307`)
+**When** aegish starts
 **Then** the configured model is used as the primary validation model instead of the hardcoded default
 
 ### AC2: Fallback Models Configuration via Environment Variable
-**Given** environment variable `SECBASH_FALLBACK_MODELS` is set (comma-separated, e.g., `openai/gpt-4,anthropic/claude-3-haiku-20240307`)
-**When** SecBASH starts
+**Given** environment variable `AEGISH_FALLBACK_MODELS` is set (comma-separated, e.g., `openai/gpt-4,anthropic/claude-3-haiku-20240307`)
+**When** aegish starts
 **Then** the configured fallback models are used instead of the hardcoded defaults
 
 ### AC3: Sensible Defaults When No Configuration
 **Given** no model configuration environment variables are set
-**When** SecBASH starts
+**When** aegish starts
 **Then** sensible defaults are used:
 - Primary: `openrouter/meta-llama/llama-guard-3-8b`
 - Fallbacks: `openai/gpt-4`, `anthropic/claude-3-haiku-20240307`
 
 ### AC4: Invalid Model Error Handling
 **Given** an invalid model string is configured (e.g., malformed or unsupported by LiteLLM)
-**When** SecBASH attempts to use it for validation
+**When** aegish attempts to use it for validation
 **Then** a clear error message is displayed
 **And** fallback behavior applies (try next model in chain, or warn if all fail)
 
 ### AC5: Single Provider Configuration
-**Given** I configure `SECBASH_PRIMARY_MODEL=anthropic/claude-3-haiku-20240307`
-**And** I leave `SECBASH_FALLBACK_MODELS` empty or unset
-**When** SecBASH validates commands
+**Given** I configure `AEGISH_PRIMARY_MODEL=anthropic/claude-3-haiku-20240307`
+**And** I leave `AEGISH_FALLBACK_MODELS` empty or unset
+**When** aegish validates commands
 **Then** only that single model is used for validation (no automatic fallbacks)
 
 ---
@@ -53,8 +53,8 @@ So that **I can choose models based on my provider access, cost preferences, or 
 
 | Variable | Format | Default | Description |
 |----------|--------|---------|-------------|
-| `SECBASH_PRIMARY_MODEL` | `provider/model-name` | `openrouter/meta-llama/llama-guard-3-8b` | Primary model for command validation |
-| `SECBASH_FALLBACK_MODELS` | `provider/model,provider/model,...` | `openai/gpt-4,anthropic/claude-3-haiku-20240307` | Comma-separated fallback models |
+| `AEGISH_PRIMARY_MODEL` | `provider/model-name` | `openrouter/meta-llama/llama-guard-3-8b` | Primary model for command validation |
+| `AEGISH_FALLBACK_MODELS` | `provider/model,provider/model,...` | `openai/gpt-4,anthropic/claude-3-haiku-20240307` | Comma-separated fallback models |
 
 ### LiteLLM Model String Format
 
@@ -73,9 +73,9 @@ Model strings MUST follow LiteLLM format: `provider/model-name`
 
 ### Files to Modify
 
-1. **`src/secbash/config.py`** - Add model configuration loading
-2. **`src/secbash/llm_client.py`** - Use configured models instead of hardcoded constants
-3. **`src/secbash/shell.py`** - Update startup message to show configured models (optional enhancement)
+1. **`src/aegish/config.py`** - Add model configuration loading
+2. **`src/aegish/llm_client.py`** - Use configured models instead of hardcoded constants
+3. **`src/aegish/shell.py`** - Update startup message to show configured models (optional enhancement)
 4. **`README.md`** - Document new environment variables
 
 ---
@@ -83,8 +83,8 @@ Model strings MUST follow LiteLLM format: `provider/model-name`
 ## Tasks / Subtasks
 
 - [x] Task 1: Add model configuration to config.py (AC: #1, #2, #3)
-  - [x] 1.1 Add `get_primary_model()` function that reads `SECBASH_PRIMARY_MODEL` with default
-  - [x] 1.2 Add `get_fallback_models()` function that reads `SECBASH_FALLBACK_MODELS` with defaults
+  - [x] 1.1 Add `get_primary_model()` function that reads `AEGISH_PRIMARY_MODEL` with default
+  - [x] 1.2 Add `get_fallback_models()` function that reads `AEGISH_FALLBACK_MODELS` with defaults
   - [x] 1.3 Add `get_model_chain()` function that returns ordered list of models to try
   - [x] 1.4 Handle empty/whitespace env var values (treat as "use defaults")
 
@@ -176,8 +176,8 @@ def _get_provider_from_model(model: str) -> str:
 
 ### Edge Cases to Handle
 
-1. **Empty env var:** `SECBASH_PRIMARY_MODEL=""` should use default
-2. **Whitespace:** `SECBASH_PRIMARY_MODEL="  "` should use default
+1. **Empty env var:** `AEGISH_PRIMARY_MODEL=""` should use default
+2. **Whitespace:** `AEGISH_PRIMARY_MODEL="  "` should use default
 3. **Single model, no fallbacks:** Valid use case, should work
 4. **Invalid model format:** Log warning, skip to next model in chain
 5. **No API key for configured model:** Log warning, skip to next model
@@ -189,7 +189,7 @@ def _get_provider_from_model(model: str) -> str:
 ### Files to Modify
 
 ```
-src/secbash/
+src/aegish/
 ├── config.py          # ADD: get_primary_model(), get_fallback_models(), get_model_chain()
 ├── llm_client.py      # MODIFY: use config functions instead of hardcoded constants
 └── shell.py           # OPTIONAL: update startup message
@@ -222,8 +222,8 @@ def get_api_key(provider: str) -> str | None:
 
 - [Source: docs/epics.md#Story 3.6]
 - [Source: docs/architecture.md#LLM Provider Strategy]
-- [Source: src/secbash/llm_client.py:27-36] - Current hardcoded model configuration
-- [Source: src/secbash/config.py:27-46] - Existing env var handling pattern
+- [Source: src/aegish/llm_client.py:27-36] - Current hardcoded model configuration
+- [Source: src/aegish/config.py:27-46] - Existing env var handling pattern
 - [LiteLLM Documentation](https://docs.litellm.ai/docs/providers) - Model string formats
 
 ---
@@ -241,14 +241,14 @@ def get_api_key(provider: str) -> str | None:
 ### From Story 3.1 (API Credential Configuration)
 
 **Relevant patterns:**
-- Environment variable naming: `SECBASH_*` prefix for SecBASH-specific config
+- Environment variable naming: `AEGISH_*` prefix for aegish-specific config
 - API keys use provider-specific names: `OPENROUTER_API_KEY`, etc.
 - Error messaging pattern: Clear instructions on how to configure
 
 ### From Story 3.3 (Sensible Defaults)
 
 **Relevant principles:**
-- SecBASH works with minimal configuration
+- aegish works with minimal configuration
 - Default values should be secure and functional
 - Don't require configuration for basic functionality
 
@@ -353,8 +353,8 @@ None - implementation proceeded smoothly without debugging issues.
 ### Completion Notes List
 
 - **Task 1:** Implemented model configuration functions in `config.py`:
-  - `get_primary_model()` reads `SECBASH_PRIMARY_MODEL` env var with default
-  - `get_fallback_models()` reads `SECBASH_FALLBACK_MODELS` env var with defaults
+  - `get_primary_model()` reads `AEGISH_PRIMARY_MODEL` env var with default
+  - `get_fallback_models()` reads `AEGISH_FALLBACK_MODELS` env var with defaults
   - `get_model_chain()` returns ordered list of models with duplicate removal
   - All functions handle empty/whitespace env vars correctly
 
@@ -383,9 +383,9 @@ None - implementation proceeded smoothly without debugging issues.
 ### File List
 
 **Modified:**
-- `src/secbash/config.py` - Added model configuration functions
-- `src/secbash/llm_client.py` - Updated to use configurable models
-- `src/secbash/shell.py` - Updated startup message to show model chain
+- `src/aegish/config.py` - Added model configuration functions
+- `src/aegish/llm_client.py` - Updated to use configurable models
+- `src/aegish/shell.py` - Updated startup message to show model chain
 - `tests/test_config.py` - Added model configuration tests
 - `tests/test_llm_client.py` - Added configurable model tests, updated mock helper
 - `tests/test_defaults.py` - Updated to test model configuration defaults
@@ -432,9 +432,9 @@ None - implementation proceeded smoothly without debugging issues.
 
 ### Files Modified During Review
 
-- `src/secbash/config.py` - Added `get_provider_from_model()`, `is_valid_model_string()`
-- `src/secbash/llm_client.py` - Updated imports, added model format validation
-- `src/secbash/shell.py` - Removed redundant display, updated imports
+- `src/aegish/config.py` - Added `get_provider_from_model()`, `is_valid_model_string()`
+- `src/aegish/llm_client.py` - Updated imports, added model format validation
+- `src/aegish/shell.py` - Removed redundant display, updated imports
 - `tests/utils.py` - Enhanced `mock_providers()` helper
 - `tests/test_config.py` - Added validation tests
 - `tests/test_llm_client.py` - Added malformed model test, DRY cleanup

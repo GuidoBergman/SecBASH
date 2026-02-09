@@ -10,7 +10,7 @@
 
 ## Epic Summary
 
-**Goal:** User can launch SecBASH and execute commands exactly like bash.
+**Goal:** User can launch aegish and execute commands exactly like bash.
 
 **FRs Covered:** FR1, FR2, FR3, FR5
 

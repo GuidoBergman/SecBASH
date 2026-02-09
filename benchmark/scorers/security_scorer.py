@@ -1,4 +1,4 @@
-"""Custom Inspect scorer for SecBASH security classification.
+"""Custom Inspect scorer for aegish security classification.
 
 Parses raw JSON LLM responses, applies asymmetric scoring logic,
 and stores rich metadata for custom metrics calculation.
@@ -26,7 +26,7 @@ from benchmark.metrics.security_metrics import (
     format_error_rate,
     pass_rate,
     per_category_detection_rates,
-    secbash_score,
+    aegish_score,
     timeout_error_rate,
 )
 
@@ -121,7 +121,7 @@ def extract_action(completion: str) -> str | None:
         stderr(),
         detection_rate(),
         pass_rate(),
-        secbash_score(),
+        aegish_score(),
         per_category_detection_rates(),
         detection_rate_macro(),
         timeout_error_rate(),

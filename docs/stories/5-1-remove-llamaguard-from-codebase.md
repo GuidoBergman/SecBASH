@@ -14,8 +14,8 @@ So that **the project has a clean, maintainable codebase without dead code paths
 **Given** the current production code contains LlamaGuard-specific logic
 **When** all LlamaGuard references are removed
 **Then** the following are cleaned:
-- `src/secbash/llm_client.py`: `LLAMAGUARD_PROMPT` deleted, `_is_llamaguard_model()` deleted, `_parse_llamaguard_response()` deleted, LlamaGuard branching in `_try_model()` and `_get_messages_for_model()` removed
-- `src/secbash/config.py`: `DEFAULT_PRIMARY_MODEL` changed from `openrouter/meta-llama/llama-guard-3-8b` to `openai/gpt-4`, OpenRouter removed from `get_api_key()` env_vars mapping, OpenRouter removed from `get_available_providers()`, OpenRouter references removed from `validate_credentials()` error message and docstring
+- `src/aegish/llm_client.py`: `LLAMAGUARD_PROMPT` deleted, `_is_llamaguard_model()` deleted, `_parse_llamaguard_response()` deleted, LlamaGuard branching in `_try_model()` and `_get_messages_for_model()` removed
+- `src/aegish/config.py`: `DEFAULT_PRIMARY_MODEL` changed from `openrouter/meta-llama/llama-guard-3-8b` to `openai/gpt-4`, OpenRouter removed from `get_api_key()` env_vars mapping, OpenRouter removed from `get_available_providers()`, OpenRouter references removed from `validate_credentials()` error message and docstring
 - `.env.example`: `OPENROUTER_API_KEY` line removed (only used for LlamaGuard), comment about "preferred - uses LlamaGuard" removed
 
 ### AC2: Benchmark Code Cleaned
@@ -24,7 +24,7 @@ So that **the project has a clean, maintainable codebase without dead code paths
 **Then** the following are cleaned:
 - `tests/benchmark/scorers/security_scorer.py`: `extract_llamaguard_action()` deleted, `llamaguard_classification_scorer()` deleted
 - `tests/benchmark/scorers/__init__.py`: LlamaGuard exports removed
-- `tests/benchmark/tasks/secbash_eval.py`: `LLAMAGUARD_PROMPT` import removed, `llamaguard_formatter()` solver deleted, `_is_llamaguard_model()` deleted, `secbash_gtfobins_llamaguard()` task deleted, `secbash_harmless_llamaguard()` task deleted, `llamaguard_classification_scorer` import removed
+- `tests/benchmark/tasks/aegish_eval.py`: `LLAMAGUARD_PROMPT` import removed, `llamaguard_formatter()` solver deleted, `_is_llamaguard_model()` deleted, `aegish_gtfobins_llamaguard()` task deleted, `aegish_harmless_llamaguard()` task deleted, `llamaguard_classification_scorer` import removed
 - `tests/benchmark/tasks/__init__.py`: LlamaGuard exports removed
 - `tests/benchmark/compare.py`: `_is_llamaguard_model` import removed, LlamaGuard task imports removed, `openrouter/meta-llama/llama-guard-3-8b` removed from `DEFAULT_MODELS`, LlamaGuard branching in `_build_tasks()` removed (always `llamaguard=False`), LlamaGuard batch in `run_comparison()` removed
 - `tests/benchmark/report.py`: `openrouter/meta-llama/llama-guard-3-8b` entry removed from `MODEL_PRICING`
@@ -66,14 +66,14 @@ So that **the project has a clean, maintainable codebase without dead code paths
 ## Tasks / Subtasks
 
 - [x] Task 1: Remove LlamaGuard from production code (AC: #1)
-  - [x] 1.1 `src/secbash/llm_client.py`: Deleted `LLAMAGUARD_PROMPT`, `_is_llamaguard_model()`, `_parse_llamaguard_response()`, LlamaGuard branching in `_try_model()` and `_get_messages_for_model()`, updated docstrings
-  - [x] 1.2 `src/secbash/config.py`: Changed `DEFAULT_PRIMARY_MODEL` to `"openai/gpt-4"`, removed OpenRouter from `get_api_key()`, `get_available_providers()`, `validate_credentials()`
+  - [x] 1.1 `src/aegish/llm_client.py`: Deleted `LLAMAGUARD_PROMPT`, `_is_llamaguard_model()`, `_parse_llamaguard_response()`, LlamaGuard branching in `_try_model()` and `_get_messages_for_model()`, updated docstrings
+  - [x] 1.2 `src/aegish/config.py`: Changed `DEFAULT_PRIMARY_MODEL` to `"openai/gpt-4"`, removed OpenRouter from `get_api_key()`, `get_available_providers()`, `validate_credentials()`
   - [x] 1.3 `.env.example`: Restructured - OpenAI primary, Anthropic fallback, OpenRouter moved to benchmarks-only section
 
 - [x] Task 2: Remove LlamaGuard from benchmark code (AC: #2)
   - [x] 2.1 `tests/benchmark/scorers/security_scorer.py`: Deleted `extract_llamaguard_action()` and `llamaguard_classification_scorer()`
   - [x] 2.2 `tests/benchmark/scorers/__init__.py`: Removed LlamaGuard exports
-  - [x] 2.3 `tests/benchmark/tasks/secbash_eval.py`: Removed LlamaGuard imports, solver, task variants, and unused imports
+  - [x] 2.3 `tests/benchmark/tasks/aegish_eval.py`: Removed LlamaGuard imports, solver, task variants, and unused imports
   - [x] 2.4 `tests/benchmark/tasks/__init__.py`: Removed LlamaGuard exports
   - [x] 2.5 `tests/benchmark/compare.py`: Removed LlamaGuard from DEFAULT_MODELS (11→10), simplified `_build_tasks()` and `run_comparison()`
   - [x] 2.6 `tests/benchmark/report.py`: Removed LlamaGuard pricing entry
@@ -87,7 +87,7 @@ So that **the project has a clean, maintainable codebase without dead code paths
   - [x] 3.6 `tests/utils.py`: Removed OpenRouter from default_models and model chain
   - [x] 3.7 `tests/benchmark/test_compare.py`: Removed LlamaGuard test classes, updated `_build_tasks` calls, fixed model count assertions
   - [x] 3.8 `tests/test_main.py`: Removed OPENROUTER_API_KEY assertion from error message test
-  - [x] 3.9 `tests/benchmark/test_secbash_eval.py`: Fixed pre-existing target assertion bugs (string vs list)
+  - [x] 3.9 `tests/benchmark/test_aegish_eval.py`: Fixed pre-existing target assertion bugs (string vs list)
 
 - [x] Task 4: Update documentation (AC: #4)
   - [x] 4.1 `README.md`: Updated Quick Start, API Keys, Model Configuration, Provider Priority sections - all LlamaGuard/OpenRouter references removed from production sections
@@ -109,7 +109,7 @@ OpenRouter is used for TWO purposes in this codebase:
 2. **Phi-4** (`openrouter/microsoft/phi-4`) - staying in benchmark code
 
 Therefore:
-- **Production code** (`src/secbash/`): Remove ALL OpenRouter references. OpenRouter is no longer a production provider.
+- **Production code** (`src/aegish/`): Remove ALL OpenRouter references. OpenRouter is no longer a production provider.
 - **Benchmark code** (`tests/benchmark/`): Remove LlamaGuard model, keep OpenRouter as a provider for phi-4.
 - **`.env.example`**: Move `OPENROUTER_API_KEY` from production section to benchmarks-only section.
 - **`README.md`**: Remove OpenRouter from production config, keep in benchmark API keys.
@@ -167,7 +167,7 @@ These references should STAY because they relate to phi-4, not LlamaGuard:
 
 Production code changes:
 ```
-src/secbash/
+src/aegish/
 ├── llm_client.py     # MODIFIED - remove LLAMAGUARD_PROMPT, _is_llamaguard_model, _parse_llamaguard_response
 ├── config.py         # MODIFIED - new DEFAULT_PRIMARY_MODEL, remove openrouter provider
 ```
@@ -180,7 +180,7 @@ tests/benchmark/
 │   └── security_scorer.py    # MODIFIED - remove LlamaGuard scorer and extract function
 ├── tasks/
 │   ├── __init__.py           # MODIFIED - remove LlamaGuard exports
-│   └── secbash_eval.py       # MODIFIED - remove LlamaGuard tasks, solver, imports
+│   └── aegish_eval.py       # MODIFIED - remove LlamaGuard tasks, solver, imports
 ├── compare.py                # MODIFIED - remove LlamaGuard model, simplify batching
 └── report.py                 # MODIFIED - remove LlamaGuard pricing entry
 ```
@@ -226,9 +226,9 @@ Recent commits:
 - [Source: docs/analysis/benchmark-improvements.md#2.1] - LlamaGuard removal rationale and file list
 - [Source: docs/epics.md#story-51-remove-llamaguard-from-codebase] - Original acceptance criteria
 - [Source: docs/prd.md#FR25] - "All LlamaGuard-related code, config, prompts, and documentation removed from codebase"
-- [Source: src/secbash/llm_client.py] - Production LlamaGuard code (lines 177-434)
-- [Source: src/secbash/config.py] - Production config with OpenRouter defaults
-- [Source: tests/benchmark/tasks/secbash_eval.py] - LlamaGuard task variants
+- [Source: src/aegish/llm_client.py] - Production LlamaGuard code (lines 177-434)
+- [Source: src/aegish/config.py] - Production config with OpenRouter defaults
+- [Source: tests/benchmark/tasks/aegish_eval.py] - LlamaGuard task variants
 - [Source: tests/benchmark/scorers/security_scorer.py] - LlamaGuard scorer
 - [Source: tests/benchmark/compare.py] - LlamaGuard model splitting logic
 - [Source: tests/test_llm_client.py] - LlamaGuard test classes
@@ -256,7 +256,7 @@ N/A
 - Zero LlamaGuard references in src/ and zero in test code (only historical benchmark results/plots)
 - OpenRouter references only in benchmark code (phi-4 model) as expected
 - Fixed 3 pre-existing test bugs discovered during implementation:
-  - `test_secbash_eval.py`: harmless target assertions used string `"ALLOW"` instead of list `["ALLOW"]`
+  - `test_aegish_eval.py`: harmless target assertions used string `"ALLOW"` instead of list `["ALLOW"]`
   - `test_main.py`: `test_main_error_to_stderr` fails when API keys exist in environment (env-dependent)
 - `test_compare.py` required additional cleanup beyond story Task 3 scope (added as Tasks 3.7-3.9)
 
@@ -264,12 +264,12 @@ N/A
 
 | File | Action | Description |
 |------|--------|-------------|
-| `src/secbash/llm_client.py` | Modified | Removed LLAMAGUARD_PROMPT, _is_llamaguard_model(), _parse_llamaguard_response(), LlamaGuard branching |
-| `src/secbash/config.py` | Modified | Changed DEFAULT_PRIMARY_MODEL to openai/gpt-4, removed OpenRouter provider |
+| `src/aegish/llm_client.py` | Modified | Removed LLAMAGUARD_PROMPT, _is_llamaguard_model(), _parse_llamaguard_response(), LlamaGuard branching |
+| `src/aegish/config.py` | Modified | Changed DEFAULT_PRIMARY_MODEL to openai/gpt-4, removed OpenRouter provider |
 | `.env.example` | Modified | Restructured: OpenAI primary, Anthropic fallback, OpenRouter in benchmarks-only |
 | `tests/benchmark/scorers/security_scorer.py` | Modified | Removed LlamaGuard scorer and extract functions |
 | `tests/benchmark/scorers/__init__.py` | Modified | Removed LlamaGuard exports |
-| `tests/benchmark/tasks/secbash_eval.py` | Modified | Removed LlamaGuard tasks, solver, imports |
+| `tests/benchmark/tasks/aegish_eval.py` | Modified | Removed LlamaGuard tasks, solver, imports |
 | `tests/benchmark/tasks/__init__.py` | Modified | Removed LlamaGuard exports |
 | `tests/benchmark/compare.py` | Modified | Removed LlamaGuard from DEFAULT_MODELS, simplified _build_tasks and run_comparison |
 | `tests/benchmark/report.py` | Modified | Removed LlamaGuard pricing entry |
@@ -281,7 +281,7 @@ N/A
 | `tests/utils.py` | Modified | Removed openrouter from defaults |
 | `tests/benchmark/test_compare.py` | Modified | Removed LlamaGuard test classes, updated _build_tasks calls |
 | `tests/test_main.py` | Modified | Removed OPENROUTER_API_KEY assertion |
-| `tests/benchmark/test_secbash_eval.py` | Modified | Fixed pre-existing target assertion bugs |
+| `tests/benchmark/test_aegish_eval.py` | Modified | Fixed pre-existing target assertion bugs |
 | `README.md` | Modified | Removed LlamaGuard/OpenRouter from production sections |
 | `docs/epics.md` | Modified | Updated fallback chain, env vars, defaults, model table |
 | `docs/architecture.md` | Modified | Updated llm_client description and fallback chain |
@@ -307,4 +307,4 @@ N/A
 
 ### File List
 
-src/secbash/llm_client.py, src/secbash/config.py, .env.example, tests/benchmark/scorers/security_scorer.py, tests/benchmark/scorers/__init__.py, tests/benchmark/tasks/secbash_eval.py, tests/benchmark/tasks/__init__.py, tests/benchmark/compare.py, tests/benchmark/report.py, tests/test_llm_client.py, tests/test_config.py, tests/test_defaults.py, tests/test_dangerous_commands.py, tests/conftest.py, tests/utils.py, tests/benchmark/test_compare.py, tests/test_main.py, tests/benchmark/test_secbash_eval.py, README.md, docs/epics.md, docs/architecture.md
+src/aegish/llm_client.py, src/aegish/config.py, .env.example, tests/benchmark/scorers/security_scorer.py, tests/benchmark/scorers/__init__.py, tests/benchmark/tasks/aegish_eval.py, tests/benchmark/tasks/__init__.py, tests/benchmark/compare.py, tests/benchmark/report.py, tests/test_llm_client.py, tests/test_config.py, tests/test_defaults.py, tests/test_dangerous_commands.py, tests/conftest.py, tests/utils.py, tests/benchmark/test_compare.py, tests/test_main.py, tests/benchmark/test_aegish_eval.py, README.md, docs/epics.md, docs/architecture.md

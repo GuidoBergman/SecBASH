@@ -5,12 +5,12 @@
 ## Story
 
 As a **sysadmin**,
-I want **to launch SecBASH and run simple commands interactively**,
+I want **to launch aegish and run simple commands interactively**,
 So that **I can use it as my command-line interface**.
 
 ## Epic Context
 
-**Epic 1: Working Shell Foundation** - User can launch SecBASH and execute commands exactly like bash. This story delivers the core interactive shell experience, building on the project structure from Story 1.1.
+**Epic 1: Working Shell Foundation** - User can launch aegish and execute commands exactly like bash. This story delivers the core interactive shell experience, building on the project structure from Story 1.1.
 
 **FRs Addressed:** FR1 (interactive commands like bash), partially FR3 (basic shell features), FR5 (exit codes)
 
@@ -19,18 +19,18 @@ So that **I can use it as my command-line interface**.
 ## Acceptance Criteria
 
 ### AC1: Shell Launch and Basic Commands
-**Given** SecBASH is installed and launched via `uv run secbash`
+**Given** aegish is installed and launched via `uv run aegish`
 **When** I type a command like `ls` or `pwd`
 **Then** the command executes and output is displayed
 **And** a new prompt appears for the next command
 
 ### AC2: Exit Commands
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I type `exit` or press Ctrl+D (EOF)
 **Then** the shell exits gracefully with exit code 0
 
 ### AC3: Interrupt Handling
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I press Ctrl+C
 **Then** the current input is cancelled without exiting the shell
 **And** a new prompt appears
@@ -45,11 +45,11 @@ So that **I can use it as my command-line interface**.
 **Then** the appropriate non-zero exit code is available
 
 ### AC5: Output Streams
-**Given** SecBASH is running
+**Given** aegish is running
 **When** a command produces stdout output
 **Then** stdout is displayed to the terminal
 
-**Given** SecBASH is running
+**Given** aegish is running
 **When** a command produces stderr output
 **Then** stderr is displayed to the terminal (on stderr)
 
@@ -67,16 +67,16 @@ Handles the readline loop, prompt display, and user interaction.
 
 import readline
 import sys
-from secbash.executor import execute_command
+from aegish.executor import execute_command
 
 
 def get_prompt() -> str:
     """Return the shell prompt string.
 
     Returns:
-        Prompt string, default is "secbash> "
+        Prompt string, default is "aegish> "
     """
-    return "secbash> "
+    return "aegish> "
 
 
 def run_shell() -> int:
@@ -123,8 +123,8 @@ Update `main.py` to call the shell loop:
 ```python
 @app.command()
 def main():
-    """Launch SecBASH interactive shell."""
-    from secbash.shell import run_shell
+    """Launch aegish interactive shell."""
+    from aegish.shell import run_shell
     exit_code = run_shell()
     raise typer.Exit(exit_code)
 ```
@@ -191,7 +191,7 @@ import signal
 ## Test Guidance
 
 ### Manual Verification Steps
-1. Run `uv run secbash` - shell should launch with prompt
+1. Run `uv run aegish` - shell should launch with prompt
 2. Type `pwd` - should show current directory
 3. Type `ls` - should list files
 4. Type `echo hello` - should print "hello"
@@ -210,7 +210,7 @@ Create `tests/test_executor.py`:
 """Tests for command execution."""
 
 import subprocess
-from secbash.executor import execute_command
+from aegish.executor import execute_command
 
 
 def test_execute_simple_command():
@@ -237,13 +237,13 @@ Create `tests/test_shell.py`:
 ```python
 """Tests for shell module."""
 
-from secbash.shell import get_prompt
+from aegish.shell import get_prompt
 
 
 def test_get_prompt():
     """Test default prompt string."""
     prompt = get_prompt()
-    assert "secbash" in prompt.lower()
+    assert "aegish" in prompt.lower()
 ```
 
 ## Story Points
@@ -254,7 +254,7 @@ This story requires implementing two modules with proper signal handling and sub
 
 ## Definition of Done
 
-- [x] `uv run secbash` launches interactive shell with prompt
+- [x] `uv run aegish` launches interactive shell with prompt
 - [x] Simple commands (`ls`, `pwd`, `echo`) execute and display output
 - [x] `exit` command exits the shell
 - [x] Ctrl+D (EOF) exits the shell

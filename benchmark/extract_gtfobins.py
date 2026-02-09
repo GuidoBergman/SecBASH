@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Extract GTFOBins commands for SecBASH benchmark evaluation.
+"""Extract GTFOBins commands for aegish benchmark evaluation.
 
 This script:
 1. Clones GTFOBins repository (shallow)

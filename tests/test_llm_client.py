@@ -8,8 +8,8 @@ import os
 import pytest
 from unittest.mock import patch
 
-from secbash.config import get_provider_from_model
-from secbash.llm_client import (
+from aegish.config import get_provider_from_model
+from aegish.llm_client import (
     query_llm,
     _parse_response,
 )
@@ -23,7 +23,7 @@ class TestQueryLLM:
         """AC5: Response has action, reason, confidence."""
         mock_content = '{"action": "allow", "reason": "Safe command", "confidence": 0.95}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -36,7 +36,7 @@ class TestQueryLLM:
         """Test allow action is parsed correctly."""
         mock_content = '{"action": "allow", "reason": "Safe listing command", "confidence": 0.98}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -48,7 +48,7 @@ class TestQueryLLM:
         """Test warn action is parsed correctly."""
         mock_content = '{"action": "warn", "reason": "Command modifies files", "confidence": 0.75}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("rm file.txt")
 
@@ -60,7 +60,7 @@ class TestQueryLLM:
         """Test block action is parsed correctly."""
         mock_content = '{"action": "block", "reason": "Dangerous recursive delete", "confidence": 0.99}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("rm -rf /")
 
@@ -71,7 +71,7 @@ class TestQueryLLM:
     def test_warns_on_connection_error(self):
         """When all providers fail with ConnectionError, warn user."""
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.side_effect = ConnectionError("All providers failed")
                 result = query_llm("ls -la")
 
@@ -82,7 +82,7 @@ class TestQueryLLM:
     def test_warns_on_timeout_error(self):
         """When request times out, warn user."""
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.side_effect = TimeoutError("Request timed out")
                 result = query_llm("ls -la")
 
@@ -92,7 +92,7 @@ class TestQueryLLM:
     def test_warns_on_generic_exception(self):
         """On unexpected exceptions, warn user."""
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.side_effect = Exception("Unexpected error")
                 result = query_llm("ls -la")
 
@@ -103,7 +103,7 @@ class TestQueryLLM:
         """Test graceful handling of malformed JSON from LLM."""
         mock_content = "This is not valid JSON"
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -115,7 +115,7 @@ class TestQueryLLM:
         """Test handling of response missing required fields."""
         mock_content = '{"action": "allow"}'  # Missing reason and confidence
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -128,7 +128,7 @@ class TestQueryLLM:
         """AC1: Primary provider should be OpenAI when available."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 query_llm("ls -la")
 
@@ -139,7 +139,7 @@ class TestQueryLLM:
     def test_fallback_on_parsing_failure(self):
         """When parsing fails for one provider, try the next."""
         with mock_providers(["openai", "anthropic"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 # First call (openai) returns unparseable, second (anthropic) succeeds
                 mock_completion.side_effect = [
                     MockResponse("garbage response"),
@@ -156,7 +156,7 @@ class TestQueryLLM:
     def test_fallback_on_api_failure(self):
         """When API fails for one provider, try the next."""
         with mock_providers(["openai", "anthropic"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 # First call fails, second succeeds
                 mock_completion.side_effect = [
                     ConnectionError("OpenAI down"),
@@ -173,7 +173,7 @@ class TestQueryLLM:
         """AC4: Caching should be enabled for LiteLLM calls."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 query_llm("ls -la")
 
@@ -185,7 +185,7 @@ class TestQueryLLM:
         """Test that confidence is always a float between 0 and 1."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.85}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -212,7 +212,7 @@ class TestInvalidActionHandling:
     def test_invalid_action_triggers_fallback(self):
         """Invalid action values should trigger fallback to next provider."""
         with mock_providers(["openai", "anthropic"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.side_effect = [
                     MockResponse('{"action": "invalid", "reason": "Test", "confidence": 0.9}'),
                     MockResponse('{"action": "allow", "reason": "Valid", "confidence": 0.8}'),
@@ -227,7 +227,7 @@ class TestInvalidActionHandling:
     def test_invalid_action_all_providers_warns(self):
         """Invalid action from all providers should warn."""
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse('{"action": "invalid", "reason": "Test", "confidence": 0.9}')
                 result = query_llm("ls -la")
 
@@ -242,7 +242,7 @@ class TestConfidenceClamping:
         """Confidence > 1.0 should be clamped to 1.0."""
         mock_content = '{"action": "allow", "reason": "Test", "confidence": 1.5}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -252,7 +252,7 @@ class TestConfidenceClamping:
         """Confidence < 0.0 should be clamped to 0.0."""
         mock_content = '{"action": "allow", "reason": "Test", "confidence": -0.5}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("ls -la")
 
@@ -266,7 +266,7 @@ class TestModelSelection:
         """Should use OpenAI model as primary provider."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 query_llm("ls -la")
 
@@ -277,7 +277,7 @@ class TestModelSelection:
         """Should use Anthropic model when only Anthropic available."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["anthropic"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 query_llm("ls -la")
 
@@ -287,7 +287,7 @@ class TestModelSelection:
     def test_tries_providers_in_priority_order(self):
         """Should try providers in priority order: openai, anthropic."""
         with mock_providers(["anthropic", "openai"]):  # Available in different order
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 # First fails, second succeeds
                 mock_completion.side_effect = [
                     ConnectionError("openai down"),
@@ -309,11 +309,11 @@ class TestCommandLengthValidation:
 
     def test_long_command_warns(self):
         """Commands exceeding MAX_COMMAND_LENGTH should warn user."""
-        from secbash.llm_client import MAX_COMMAND_LENGTH
+        from aegish.llm_client import MAX_COMMAND_LENGTH
 
         long_command = "x" * (MAX_COMMAND_LENGTH + 1)
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 result = query_llm(long_command)
 
                 # Should NOT call the LLM
@@ -326,12 +326,12 @@ class TestCommandLengthValidation:
 
     def test_max_length_command_allowed(self):
         """Commands at exactly MAX_COMMAND_LENGTH should be processed."""
-        from secbash.llm_client import MAX_COMMAND_LENGTH
+        from aegish.llm_client import MAX_COMMAND_LENGTH
 
         max_command = "x" * MAX_COMMAND_LENGTH
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm(max_command)
 
@@ -347,7 +347,7 @@ class TestEdgeCaseCommands:
         """Empty commands are still sent to LLM (shell handles filtering)."""
         mock_content = '{"action": "allow", "reason": "Empty command", "confidence": 1.0}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("")
 
@@ -359,7 +359,7 @@ class TestEdgeCaseCommands:
         """Whitespace-only commands are still sent to LLM."""
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
         with mock_providers(["openai"]):
-            with patch("secbash.llm_client.completion") as mock_completion:
+            with patch("aegish.llm_client.completion") as mock_completion:
                 mock_completion.return_value = MockResponse(mock_content)
                 result = query_llm("   ")
 
@@ -424,14 +424,14 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "anthropic/claude-3-opus-20240229",
-                "SECBASH_FALLBACK_MODELS": "",
+                "AEGISH_PRIMARY_MODEL": "anthropic/claude-3-opus-20240229",
+                "AEGISH_FALLBACK_MODELS": "",
                 "ANTHROPIC_API_KEY": "test-key",
             },
             clear=True
         )
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             mock_completion.return_value = MockResponse(mock_content)
             query_llm("ls -la")
 
@@ -443,14 +443,14 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "openai/gpt-4-turbo",
-                "SECBASH_FALLBACK_MODELS": "anthropic/claude-3-opus-20240229",
+                "AEGISH_PRIMARY_MODEL": "openai/gpt-4-turbo",
+                "AEGISH_FALLBACK_MODELS": "anthropic/claude-3-opus-20240229",
                 "OPENAI_API_KEY": "test-key",
                 "ANTHROPIC_API_KEY": "test-key",
             },
             clear=True
         )
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             # First model fails, second succeeds
             mock_completion.side_effect = [
                 ConnectionError("API error"),
@@ -470,13 +470,13 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "openai/gpt-4",
-                "SECBASH_FALLBACK_MODELS": "",
+                "AEGISH_PRIMARY_MODEL": "openai/gpt-4",
+                "AEGISH_FALLBACK_MODELS": "",
                 "OPENAI_API_KEY": "test-key",
             },
             clear=True
         )
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             mock_completion.side_effect = ConnectionError("API error")
             result = query_llm("ls -la")
 
@@ -490,15 +490,15 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "openai/gpt-4",
-                "SECBASH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
+                "AEGISH_PRIMARY_MODEL": "openai/gpt-4",
+                "AEGISH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
                 # Only ANTHROPIC_API_KEY set, not OPENAI_API_KEY
                 "ANTHROPIC_API_KEY": "test-key",
             },
             clear=True
         )
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             mock_completion.return_value = MockResponse(mock_content)
             result = query_llm("ls -la")
 
@@ -518,7 +518,7 @@ class TestConfigurableModels:
             clear=True
         )
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             mock_completion.return_value = MockResponse(mock_content)
             query_llm("ls -la")
 
@@ -533,14 +533,14 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "openai/invalid-model-name",
-                "SECBASH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
+                "AEGISH_PRIMARY_MODEL": "openai/invalid-model-name",
+                "AEGISH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
                 "OPENAI_API_KEY": "test-key",
                 "ANTHROPIC_API_KEY": "test-key",
             },
             clear=True
         )
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             # First call (invalid model) raises error, second succeeds
             mock_completion.side_effect = [
                 Exception("Unknown model: openai/invalid-model-name"),
@@ -558,14 +558,14 @@ class TestConfigurableModels:
         mocker.patch.dict(
             os.environ,
             {
-                "SECBASH_PRIMARY_MODEL": "gpt-4",  # Invalid: missing provider prefix
-                "SECBASH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
+                "AEGISH_PRIMARY_MODEL": "gpt-4",  # Invalid: missing provider prefix
+                "AEGISH_FALLBACK_MODELS": "anthropic/claude-3-haiku-20240307",
                 "ANTHROPIC_API_KEY": "test-key",
             },
             clear=True
         )
         mock_content = '{"action": "allow", "reason": "Safe", "confidence": 0.9}'
-        with patch("secbash.llm_client.completion") as mock_completion:
+        with patch("aegish.llm_client.completion") as mock_completion:
             mock_completion.return_value = MockResponse(mock_content)
             result = query_llm("ls -la")
 

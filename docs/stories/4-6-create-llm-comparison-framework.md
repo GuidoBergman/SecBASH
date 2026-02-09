@@ -75,7 +75,7 @@ Featherless AI: Billed via HF Inference Providers API credits. ~$1.46/1000 comma
   - [x] 1.2 Define `DEFAULT_MODELS` list with all 11 models in Inspect format
   - [x] 1.3 Define `MODEL_PRICING` dict extending `report.py` pricing for all 11 models
   - [x] 1.4 Implement `run_comparison()` that iterates models sequentially using `inspect_ai.eval()`
-  - [x] 1.5 Each model runs both `secbash_gtfobins` and `secbash_harmless` tasks
+  - [x] 1.5 Each model runs both `aegish_gtfobins` and `aegish_harmless` tasks
   - [x] 1.6 Use `task_args={"cot": True}` when `--cot` is enabled
 
 - [x] Task 2: Handle LlamaGuard special prompt format (AC: #1, #2)
@@ -86,13 +86,13 @@ Featherless AI: Billed via HF Inference Providers API credits. ~$1.46/1000 comma
 
 - [x] Task 3: Results aggregation and comparison output (AC: #1, #5)
   - [x] 3.1 Implement `extract_metrics_from_log()` using existing `report.py` functions
-  - [x] 3.2 Implement `calculate_composite()` combining GTFOBins detection_rate and harmless pass_rate into SecBASH Score
-  - [x] 3.3 Implement `generate_ranking()` sorting models by SecBASH Score descending
+  - [x] 3.2 Implement `calculate_composite()` combining GTFOBins detection_rate and harmless pass_rate into aegish Score
+  - [x] 3.3 Implement `generate_ranking()` sorting models by aegish Score descending
   - [x] 3.4 Save aggregated comparison to `tests/benchmark/results/comparison_<timestamp>.json`
 
 - [x] Task 4: Console comparison table output (AC: #1)
   - [x] 4.1 Implement `print_comparison_table()` with formatted table showing all models
-  - [x] 4.2 Columns: Rank, Model, Detection%, Pass%, SecBASH Score, Cost, Latency
+  - [x] 4.2 Columns: Rank, Model, Detection%, Pass%, aegish Score, Cost, Latency
   - [x] 4.3 Highlight models meeting targets (Detection>=95%, Pass>=90%, Score>=0.85)
   - [x] 4.4 Show actual cost for all models including Featherless (API credits)
 
@@ -133,9 +133,9 @@ Story 4.4 and 4.5 are DONE. The evaluation harness and metrics reporting are ful
 
 | File | Purpose | Status |
 |------|---------|--------|
-| `tests/benchmark/tasks/secbash_eval.py` | Task definitions: `secbash_gtfobins(cot)`, `secbash_harmless(cot)` | EXISTS - use as-is |
+| `tests/benchmark/tasks/aegish_eval.py` | Task definitions: `aegish_gtfobins(cot)`, `aegish_harmless(cot)` | EXISTS - use as-is |
 | `tests/benchmark/scorers/security_scorer.py` | Custom scorer: `security_classification_scorer()`, `extract_action()` | EXISTS - use as-is |
-| `tests/benchmark/metrics/security_metrics.py` | Custom metrics: `detection_rate()`, `pass_rate()`, `secbash_score()` | EXISTS - use as-is |
+| `tests/benchmark/metrics/security_metrics.py` | Custom metrics: `detection_rate()`, `pass_rate()`, `aegish_score()` | EXISTS - use as-is |
 | `tests/benchmark/report.py` | Post-eval reporting: `calculate_latency_metrics()`, `calculate_cost_metrics()`, `export_json_results()` | EXISTS - MODIFY (add pricing) |
 | `tests/benchmark/data/gtfobins_commands.json` | 431 malicious commands | EXISTS - read only |
 | `tests/benchmark/data/harmless_commands.json` | 310 harmless commands | EXISTS - read only |
@@ -177,7 +177,7 @@ log.samples           # Per-sample results with timing
 
 ### CRITICAL: LlamaGuard Handling (Deferred from Story 4.4)
 
-LlamaGuard (`openrouter/meta-llama/llama-guard-3-8b`) uses a fundamentally different prompt format than standard models. In production (`src/secbash/llm_client.py:338-357`):
+LlamaGuard (`openrouter/meta-llama/llama-guard-3-8b`) uses a fundamentally different prompt format than standard models. In production (`src/aegish/llm_client.py:338-357`):
 
 ```python
 # Standard models: system message + user message
@@ -202,7 +202,7 @@ messages = [
 
 ```python
 from inspect_ai.solver import solver, Solver, TaskState, Generate
-from secbash.llm_client import LLAMAGUARD_PROMPT
+from aegish.llm_client import LLAMAGUARD_PROMPT
 
 @solver
 def llamaguard_formatter() -> Solver:
@@ -233,14 +233,14 @@ def extract_llamaguard_action(completion: str) -> str | None:
 
 ```python
 @task
-def secbash_gtfobins_llamaguard(cot: bool = False) -> Task:
+def aegish_gtfobins_llamaguard(cot: bool = False) -> Task:
     solvers = []  # NO system_message for LlamaGuard
     if cot:
         solvers.append(chain_of_thought())
     solvers.append(llamaguard_formatter())
 
     return Task(
-        dataset=load_secbash_dataset(DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample),
+        dataset=load_aegish_dataset(DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample),
         solver=solvers,
         scorer=llamaguard_classification_scorer(),  # Handles safe/unsafe format
     )
@@ -269,11 +269,11 @@ hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai
 
 ### CRITICAL: CoT Scaffolding Implementation
 
-CoT is already implemented in `secbash_eval.py` tasks via the `cot` parameter:
+CoT is already implemented in `aegish_eval.py` tasks via the `cot` parameter:
 
 ```python
 @task
-def secbash_gtfobins(cot: bool = False) -> Task:
+def aegish_gtfobins(cot: bool = False) -> Task:
     solvers = [system_message(SYSTEM_PROMPT)]
     if cot:
         solvers.append(chain_of_thought())  # Inspect's built-in CoT solver
@@ -288,7 +288,7 @@ eval_logs = eval(task, model=model, task_args={"cot": True})
 
 Or call the task factory directly:
 ```python
-task = secbash_gtfobins(cot=True)
+task = aegish_gtfobins(cot=True)
 eval_logs = eval(task, model=model)
 ```
 
@@ -380,7 +380,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
         }
       },
       "composite": {
-        "secbash_score": 0.896,
+        "aegish_score": 0.896,
         "total_cost_usd": 2.34,
         "cost_per_1000_combined": 3.16,
         "avg_latency_ms": 801
@@ -388,7 +388,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     }
   },
   "ranking": [
-    {"rank": 1, "model": "openai/gpt-5.1", "secbash_score": 0.896, "cost_per_1000": 3.16}
+    {"rank": 1, "model": "openai/gpt-5.1", "aegish_score": 0.896, "cost_per_1000": 3.16}
   ]
 }
 ```
@@ -416,10 +416,10 @@ for model in models:
 
 Inspect handles ALL model providers natively. Do NOT import or use LiteLLM in `compare.py`. The separation is:
 
-| Concern | Production (`src/secbash/`) | Benchmark (`tests/benchmark/`) |
+| Concern | Production (`src/aegish/`) | Benchmark (`tests/benchmark/`) |
 |---------|---------------------------|-------------------------------|
 | LLM Provider | LiteLLM | Inspect native |
-| Model Config | SECBASH_PRIMARY_MODEL env var | `--model` CLI flag or DEFAULT_MODELS list |
+| Model Config | AEGISH_PRIMARY_MODEL env var | `--model` CLI flag or DEFAULT_MODELS list |
 | Prompt | SYSTEM_PROMPT + LLAMAGUARD_PROMPT | Import from llm_client.py |
 
 ### Environment Variables Required
@@ -448,14 +448,14 @@ tests/benchmark/
 ├── report.py                      # MODIFIED - extended MODEL_PRICING
 ├── test_extract_gtfobins.py       # EXISTS
 ├── test_extract_harmless.py       # EXISTS
-├── test_secbash_eval.py           # EXISTS (may need LlamaGuard test additions)
+├── test_aegish_eval.py           # EXISTS (may need LlamaGuard test additions)
 ├── test_security_scorer.py        # EXISTS (may need LlamaGuard scorer tests)
 ├── data/
 │   ├── gtfobins_commands.json     # EXISTS (431 commands)
 │   └── harmless_commands.json     # EXISTS (310 commands)
 ├── tasks/
 │   ├── __init__.py                # EXISTS
-│   └── secbash_eval.py            # MODIFIED - add LlamaGuard task variants
+│   └── aegish_eval.py            # MODIFIED - add LlamaGuard task variants
 ├── scorers/
 │   ├── __init__.py                # EXISTS
 │   └── security_scorer.py         # MODIFIED - add LlamaGuard scorer or extend existing
@@ -469,7 +469,7 @@ tests/benchmark/
 ### Project Structure Notes
 
 - All benchmark code stays in `tests/benchmark/` (per Epic 4 architecture decision)
-- Production code in `src/secbash/` is NOT modified by this story (only imports from it)
+- Production code in `src/aegish/` is NOT modified by this story (only imports from it)
 - Follow PEP 8: `snake_case` functions, `PascalCase` classes, `UPPER_SNAKE_CASE` constants
 - Python 3.10+ type hints required
 - Standard `logging` module for any logging
@@ -479,8 +479,8 @@ tests/benchmark/
 
 **From Story 4.5 (Implement Metrics Reporting - DONE):**
 - Custom `security_classification_scorer()` in `scorers/security_scorer.py` with asymmetric scoring
-- Custom `@metric` functions: `detection_rate()`, `pass_rate()`, `secbash_score()` using `SampleScore` API
-- `extract_action()` moved from `tasks/secbash_eval.py` to `scorers/security_scorer.py`
+- Custom `@metric` functions: `detection_rate()`, `pass_rate()`, `aegish_score()` using `SampleScore` API
+- `extract_action()` moved from `tasks/aegish_eval.py` to `scorers/security_scorer.py`
 - `extract_classification()` solver REMOVED - scorer handles JSON parsing directly
 - Solver pipeline is now: `[system_message(SYSTEM_PROMPT), generate()]` (+ chain_of_thought if cot)
 - `report.py` with CLI for console summary + JSON export
@@ -489,7 +489,7 @@ tests/benchmark/
 
 **From Story 4.4 (Build Evaluation Harness - DONE):**
 - inspect-ai v0.3.170 installed as dev dependency
-- SYSTEM_PROMPT imported directly from `secbash.llm_client`
+- SYSTEM_PROMPT imported directly from `aegish.llm_client`
 - GTFOBins: 431 samples, target=["BLOCK", "WARN"] (multi-target)
 - Harmless: 310 samples, target=ALLOW
 - CoT: `-T cot=true` CLI parameter
@@ -520,12 +520,12 @@ Recent commits:
 ### References
 
 - [Source: docs/epics.md#story-46-create-llm-comparison-framework]
-- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, SecBASH Score >=0.85
+- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, aegish Score >=0.85
 - [Source: docs/architecture.md#llm-response-format] - {action, reason, confidence}
-- [Source: src/secbash/llm_client.py#LLAMAGUARD_PROMPT] - LlamaGuard prompt template
-- [Source: src/secbash/llm_client.py#_is_llamaguard_model] - LlamaGuard detection
-- [Source: src/secbash/llm_client.py#_parse_llamaguard_response] - LlamaGuard response parsing
-- [Source: tests/benchmark/tasks/secbash_eval.py] - Existing task definitions
+- [Source: src/aegish/llm_client.py#LLAMAGUARD_PROMPT] - LlamaGuard prompt template
+- [Source: src/aegish/llm_client.py#_is_llamaguard_model] - LlamaGuard detection
+- [Source: src/aegish/llm_client.py#_parse_llamaguard_response] - LlamaGuard response parsing
+- [Source: tests/benchmark/tasks/aegish_eval.py] - Existing task definitions
 - [Source: tests/benchmark/scorers/security_scorer.py] - Custom scorer
 - [Source: tests/benchmark/report.py] - Reporting utilities
 - [Inspect eval() API](https://inspect.aisi.org.uk/eval-logs.html)
@@ -551,8 +551,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - Created `tests/benchmark/compare.py` - full comparison orchestration script with model registry (11 models), run_comparison() with Inspect-native batch evaluation (models passed as list to eval()), results aggregation, ranking, console table, CLI, and resume support
 - Added `llamaguard_classification_scorer()` to `scorers/security_scorer.py` - handles safe/unsafe response format with JSON fallback
 - Added `extract_llamaguard_action()` to `scorers/security_scorer.py` - parses LlamaGuard plain-text responses
-- Added `llamaguard_formatter()` solver and `secbash_gtfobins_llamaguard()`/`secbash_harmless_llamaguard()` task variants to `tasks/secbash_eval.py`
-- Added `_is_llamaguard_model()` utility to `tasks/secbash_eval.py` for model type detection
+- Added `llamaguard_formatter()` solver and `aegish_gtfobins_llamaguard()`/`aegish_harmless_llamaguard()` task variants to `tasks/aegish_eval.py`
+- Added `_is_llamaguard_model()` utility to `tasks/aegish_eval.py` for model type detection
 - Extended `MODEL_PRICING` in `report.py` with all 11 comparison models including Featherless AI per-command pricing via HF API credits
 - Created `tests/benchmark/test_compare.py` with 74 tests covering: model parsing, metrics extraction, ranking, JSON schema, CoT scaffolding, resume support, LlamaGuard detection/scoring, table formatting, dataset selection, composite calculation, LlamaGuard task variants, batch processing helpers, and log dataset detection
 - CoT scaffolding enabled via `cot=True` task parameter passed through `task_args` or direct task factory call
@@ -563,13 +563,13 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 - 2026-02-04: Implemented full LLM comparison framework (Tasks 1-8), 74 new tests, 535 total passing
 - 2026-02-04: run_comparison() uses Inspect-native batch evaluation (model list passed to eval()), Inspect handles parallelization internally
-- 2026-02-04: Code review fixes - removed unused imports (sys, DATA_DIR), fixed f-string without placeholders, ran ruff format on 4 files, added false_positive_rate to extract_metrics_from_log(), exported extract_llamaguard_action from scorers/__init__.py, corrected fabricated Change Log entries (ThreadPoolExecutor/--workers/SECBASH_COMPARE_WORKERS never existed), fixed test counts (74 new, 535 total)
+- 2026-02-04: Code review fixes - removed unused imports (sys, DATA_DIR), fixed f-string without placeholders, ran ruff format on 4 files, added false_positive_rate to extract_metrics_from_log(), exported extract_llamaguard_action from scorers/__init__.py, corrected fabricated Change Log entries (ThreadPoolExecutor/--workers/AEGISH_COMPARE_WORKERS never existed), fixed test counts (74 new, 535 total)
 
 ### File List
 
 - tests/benchmark/compare.py (NEW)
 - tests/benchmark/test_compare.py (NEW)
-- tests/benchmark/tasks/secbash_eval.py (MODIFIED - added LlamaGuard solver, task variants, _is_llamaguard_model)
+- tests/benchmark/tasks/aegish_eval.py (MODIFIED - added LlamaGuard solver, task variants, _is_llamaguard_model)
 - tests/benchmark/tasks/__init__.py (MODIFIED - added exports for new functions)
 - tests/benchmark/scorers/security_scorer.py (MODIFIED - added llamaguard_classification_scorer, extract_llamaguard_action)
 - tests/benchmark/scorers/__init__.py (MODIFIED - added llamaguard_classification_scorer, extract_llamaguard_action exports)

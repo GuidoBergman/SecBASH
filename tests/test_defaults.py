@@ -1,6 +1,6 @@
 """Tests for sensible defaults behavior.
 
-Verifies that SecBASH works with minimal configuration and
+Verifies that aegish works with minimal configuration and
 applies reasonable defaults.
 """
 
@@ -11,26 +11,26 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from secbash import __version__
-from secbash.config import (
+from aegish import __version__
+from aegish.config import (
     get_available_providers,
     get_model_chain,
     get_primary_model,
     get_fallback_models,
     validate_credentials,
 )
-from secbash.main import app
-from secbash.shell import get_prompt
+from aegish.main import app
+from aegish.shell import get_prompt
 
 
 class TestDefaultPrompt:
     """Tests for default shell prompt."""
 
-    def test_default_prompt_returns_secbash(self):
-        """AC2: Default prompt is 'secbash> '."""
+    def test_default_prompt_returns_aegish(self):
+        """AC2: Default prompt is 'aegish> '."""
         prompt = get_prompt()
 
-        assert prompt == "secbash> "
+        assert prompt == "aegish> "
 
 
 class TestDefaultModelConfiguration:
@@ -120,11 +120,11 @@ class TestWorksWithOneApiKey:
 
         # Mock the validator to avoid real LLM calls
         mocker.patch(
-            "secbash.shell.validate_command",
+            "aegish.shell.validate_command",
             return_value={"action": "allow", "reason": "test", "confidence": 1.0}
         )
 
-        from secbash.shell import run_shell
+        from aegish.shell import run_shell
         exit_code = run_shell()
 
         # Shell should exit cleanly
@@ -145,7 +145,7 @@ class TestStartupShowsModelChain:
         # Mock input to raise EOFError immediately (simulating Ctrl+D)
         mocker.patch("builtins.input", side_effect=EOFError)
 
-        from secbash.shell import run_shell
+        from aegish.shell import run_shell
         run_shell()
 
         # Use pytest's capsys for reliable stdout capture
@@ -169,7 +169,7 @@ class TestStartupShowsModelChain:
 
         mocker.patch("builtins.input", side_effect=EOFError)
 
-        from secbash.shell import run_shell
+        from aegish.shell import run_shell
         run_shell()
 
         captured = capsys.readouterr()
@@ -188,7 +188,7 @@ class TestDefaultShell:
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = mocker.MagicMock(returncode=0)
 
-        from secbash.executor import execute_command
+        from aegish.executor import execute_command
         execute_command("echo hello", 0)
 
         # Verify bash is used
@@ -212,7 +212,7 @@ class TestVersionFlag:
 
         assert result.exit_code == 0
         assert __version__ in result.output
-        assert "SecBASH" in result.output
+        assert "aegish" in result.output
         # Task 2.3: Should show basic info (configured providers)
         assert "Configured providers:" in result.output
 

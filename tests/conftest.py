@@ -1,4 +1,4 @@
-"""Shared pytest fixtures for SecBASH tests.
+"""Shared pytest fixtures for aegish tests.
 
 Provides common fixtures that can be used across test modules.
 For mock utilities (MockChoice, MockResponse, mock_providers),
@@ -13,12 +13,12 @@ import pytest
 @pytest.fixture
 def mock_openai_provider():
     """Fixture that mocks OpenAI as the only available provider."""
-    with patch("secbash.llm_client.get_available_providers", return_value=["openai"]):
+    with patch("aegish.llm_client.get_available_providers", return_value=["openai"]):
         yield
 
 
 @pytest.fixture
 def mock_all_providers():
     """Fixture that mocks all providers as available."""
-    with patch("secbash.llm_client.get_available_providers", return_value=["openai", "anthropic"]):
+    with patch("aegish.llm_client.get_available_providers", return_value=["openai", "anthropic"]):
         yield

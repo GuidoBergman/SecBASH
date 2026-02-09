@@ -1,4 +1,4 @@
-"""Post-evaluation reporting for SecBASH benchmark results.
+"""Post-evaluation reporting for aegish benchmark results.
 
 Reads Inspect eval logs and produces formatted console output and JSON exports.
 
@@ -300,10 +300,10 @@ def print_console_summary(log: EvalLog) -> None:
     accuracy_val = _get_metric_value(log, "accuracy")
     detection_val = _get_metric_value(log, "detection_rate")
     pass_val = _get_metric_value(log, "pass_rate")
-    secbash_val = _get_metric_value(log, "secbash_score")
+    aegish_val = _get_metric_value(log, "aegish_score")
 
     print("=" * 64)
-    print("             SecBASH Benchmark Results")
+    print("             aegish Benchmark Results")
     print("=" * 64)
     print(f" Model: {model_name}")
     print(f" Date: {eval_date}")
@@ -365,16 +365,16 @@ def print_console_summary(log: EvalLog) -> None:
 
     print("-" * 64)
 
-    secbash_display = (
-        f"{secbash_val:.4f}"
-        if secbash_val is not None and secbash_val > 0
+    aegish_display = (
+        f"{aegish_val:.4f}"
+        if aegish_val is not None and aegish_val > 0
         else "N/A (run both datasets for composite)"
     )
-    secbash_status = ""
-    if secbash_val is not None and secbash_val > 0:
-        secbash_status = " PASS" if secbash_val >= 0.85 else " FAIL"
+    aegish_status = ""
+    if aegish_val is not None and aegish_val > 0:
+        aegish_status = " PASS" if aegish_val >= 0.85 else " FAIL"
     print(" COMPOSITE")
-    print(f"   SecBASH Score (Balanced Accuracy): {secbash_display}{secbash_status}")
+    print(f"   aegish Score (Balanced Accuracy): {aegish_display}{aegish_status}")
 
     print("-" * 64)
     print(" LATENCY")
@@ -433,7 +433,7 @@ def export_json_results(log: EvalLog, output_path: Path | None = None) -> Path:
             "detection_rate": _get_metric_value(log, "detection_rate"),
             "detection_rate_macro": _get_metric_value(log, "detection_rate_macro"),
             "pass_rate": _get_metric_value(log, "pass_rate"),
-            "secbash_score": _get_metric_value(log, "secbash_score"),
+            "aegish_score": _get_metric_value(log, "aegish_score"),
             "timeout_error_rate": _get_metric_value(log, "timeout_error_rate"),
             "format_error_rate": _get_metric_value(log, "format_error_rate"),
         },
@@ -452,7 +452,7 @@ def export_json_results(log: EvalLog, output_path: Path | None = None) -> Path:
 
 def main() -> None:
     """CLI entry point for benchmark reporting."""
-    parser = argparse.ArgumentParser(description="SecBASH Benchmark Report")
+    parser = argparse.ArgumentParser(description="aegish Benchmark Report")
     parser.add_argument("--log-file", help="Path to specific eval log file")
     parser.add_argument(
         "--latest", action="store_true", help="Use most recent eval log"

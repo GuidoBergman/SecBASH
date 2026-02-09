@@ -9,7 +9,7 @@
 ## User Story
 
 As a **sysadmin**,
-I want **SecBASH to work with minimal configuration**,
+I want **aegish to work with minimal configuration**,
 So that **I can start using it quickly without complex setup**.
 
 ---
@@ -18,15 +18,15 @@ So that **I can start using it quickly without complex setup**.
 
 ### AC1: Works Without Additional Configuration Files
 **Given** at least one API key is configured (OPENROUTER_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY)
-**When** SecBASH starts
+**When** aegish starts
 **Then** it works without requiring additional configuration files
 
 ### AC2: Reasonable Defaults Applied
 **Given** default settings are in use (no environment overrides)
-**When** I use SecBASH
+**When** I use aegish
 **Then** reasonable defaults are applied:
 - Default shell is bash
-- Standard prompt displays (e.g., "secbash> ")
+- Standard prompt displays (e.g., "aegish> ")
 - Default LLM providers work in priority order
 
 ---
@@ -43,7 +43,7 @@ The codebase already implements most of the "sensible defaults" behavior:
 - `validate_credentials()` ensures at least one provider exists
 
 **shell.py (lines 19-25):**
-- `get_prompt()` returns hardcoded "secbash> " prompt
+- `get_prompt()` returns hardcoded "aegish> " prompt
 - No configurable prompt option exists
 
 **llm_client.py (lines 23-30):**
@@ -81,7 +81,7 @@ This story focuses on **verification, documentation, and minor UX improvements**
   - [x] 1.3 Keep info message concise (1-2 lines)
 
 - [x] Task 2: Add --version flag to CLI (AC: #2)
-  - [x] 2.1 Add `__version__` to src/secbash/__init__.py
+  - [x] 2.1 Add `__version__` to src/aegish/__init__.py
   - [x] 2.2 Use typer's built-in version callback
   - [x] 2.3 Display version and basic info
 
@@ -92,7 +92,7 @@ This story focuses on **verification, documentation, and minor UX improvements**
 
 - [x] Task 4: Write verification tests (AC: #1, #2)
   - [x] 4.1 test_shell_works_with_one_api_key_no_config_files
-  - [x] 4.2 test_default_prompt_is_secbash
+  - [x] 4.2 test_default_prompt_is_aegish
   - [x] 4.3 test_default_shell_is_bash
   - [x] 4.4 test_default_provider_priority
 
@@ -103,10 +103,10 @@ This story focuses on **verification, documentation, and minor UX improvements**
 ### Module Boundaries
 
 **Modify:**
-- `src/secbash/__init__.py` - Add `__version__` string
-- `src/secbash/main.py` - Add version callback to Typer app
-- `src/secbash/shell.py` - Add startup info message showing active providers
-- `src/secbash/config.py` - Enhance module docstring with all env var documentation
+- `src/aegish/__init__.py` - Add `__version__` string
+- `src/aegish/main.py` - Add version callback to Typer app
+- `src/aegish/shell.py` - Add startup info message showing active providers
+- `src/aegish/config.py` - Enhance module docstring with all env var documentation
 
 **Do NOT modify:**
 - `llm_client.py` - Defaults are appropriate, just add comments
@@ -137,7 +137,7 @@ def test_shell_works_with_one_key(mocker):
 
 | Setting | Default Value | Location |
 |---------|--------------|----------|
-| Prompt | "secbash> " | shell.py:25 |
+| Prompt | "aegish> " | shell.py:25 |
 | Shell | bash | executor.py:29 |
 | Primary LLM | openrouter/meta-llama/llama-guard-3-8b | llm_client.py:24 |
 | Fallback 1 | openai/gpt-4 | llm_client.py:25 |
@@ -148,7 +148,7 @@ def test_shell_works_with_one_key(mocker):
 
 **Files to Modify:**
 ```
-src/secbash/
+src/aegish/
 ├── __init__.py    # Add __version__ = "0.1.0"
 ├── config.py      # Enhance docstring with env var docs
 ├── main.py        # Add --version callback
@@ -161,7 +161,7 @@ tests/
 ### Import Requirements
 
 - `main.py` needs: No new imports (Typer callback pattern uses existing imports)
-- `shell.py` needs: `from secbash.config import get_available_providers` (if not already imported)
+- `shell.py` needs: `from aegish.config import get_available_providers` (if not already imported)
 
 ---
 
@@ -201,7 +201,7 @@ Story 3.2 was implemented as part of Story 2.3 (Security Response Actions).
 
 **shell.py startup message pattern (lines 40-41):**
 ```python
-print("SecBASH - LLM-powered shell with security validation")
+print("aegish - LLM-powered shell with security validation")
 print("Type 'exit' or press Ctrl+D to quit.\n")
 ```
 
@@ -212,7 +212,7 @@ import typer
 
 def version_callback(value: bool):
     if value:
-        print("SecBASH version 0.1.0")
+        print("aegish version 0.1.0")
         raise typer.Exit()
 
 @app.command()
@@ -260,7 +260,7 @@ def main(
 
 | Test | Description | AC |
 |------|-------------|-----|
-| test_default_prompt_returns_secbash | get_prompt() returns "secbash> " | #2 |
+| test_default_prompt_returns_aegish | get_prompt() returns "aegish> " | #2 |
 | test_default_provider_priority_order | PROVIDER_PRIORITY is [openrouter, openai, anthropic] | #2 |
 | test_default_shell_is_bash | execute_command uses bash -c | #2 |
 | test_works_with_only_openrouter_key | System starts with just OPENROUTER_API_KEY | #1 |
@@ -273,7 +273,7 @@ def main(
 | Test | Description | AC |
 |------|-------------|-----|
 | test_startup_shows_active_providers | Startup message includes provider info | #2 |
-| test_no_config_file_required | System works without any .secbash or config.yaml file | #1 |
+| test_no_config_file_required | System works without any .aegish or config.yaml file | #1 |
 
 ---
 
@@ -323,11 +323,11 @@ No debug issues encountered.
 
 ### File List
 
-- src/secbash/__init__.py (unchanged - already had `__version__`)
-- src/secbash/main.py (modified - added version callback with provider info)
-- src/secbash/shell.py (modified - startup shows provider priority order, EXIT_CANCELLED=2)
-- src/secbash/config.py (modified - enhanced module docstring)
-- src/secbash/llm_client.py (modified - added comments for model defaults, removed redundant pass)
+- src/aegish/__init__.py (unchanged - already had `__version__`)
+- src/aegish/main.py (modified - added version callback with provider info)
+- src/aegish/shell.py (modified - startup shows provider priority order, EXIT_CANCELLED=2)
+- src/aegish/config.py (modified - enhanced module docstring)
+- src/aegish/llm_client.py (modified - added comments for model defaults, removed redundant pass)
 - tests/test_defaults.py (modified - 13 tests for default behavior)
 - tests/test_shell.py (modified - updated exit code tests for EXIT_CANCELLED=2)
 

@@ -1,4 +1,4 @@
-"""Shared test utilities for SecBASH tests.
+"""Shared test utilities for aegish tests.
 
 Provides common mock classes and helper functions used across test modules.
 """
@@ -55,7 +55,7 @@ def mock_providers(providers: list[str]):
     ]
 
     return patch.multiple(
-        "secbash.llm_client",
+        "aegish.llm_client",
         get_api_key=mock_get_api_key,
         get_model_chain=lambda: model_chain,
     )

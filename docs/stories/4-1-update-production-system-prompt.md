@@ -67,7 +67,7 @@ So that **the classifier follows the same rules it will be evaluated against and
 
 - [x] Task 1: Update SYSTEM_PROMPT with decision tree (AC: #1, #4)
   - [x] 1.1 Add priority-ordered decision tree with all 12 rules
-  - [x] 1.2 Add context section explaining SecBASH monitor-only mode
+  - [x] 1.2 Add context section explaining aegish monitor-only mode
   - [x] 1.3 Add obfuscation handling instructions (base64, hex evaluation)
 
 - [x] Task 2: Add few-shot examples to SYSTEM_PROMPT (AC: #2)
@@ -94,7 +94,7 @@ So that **the classifier follows the same rules it will be evaluated against and
 ## Dev Notes
 
 ### Primary File to Modify
-**`src/secbash/llm_client.py`** - Lines 27-67 contain SYSTEM_PROMPT and LLAMAGUARD_PROMPT
+**`src/aegish/llm_client.py`** - Lines 27-67 contain SYSTEM_PROMPT and LLAMAGUARD_PROMPT
 
 ### Current Prompt Structure (as of analysis)
 The current SYSTEM_PROMPT has:
@@ -107,7 +107,7 @@ The current SYSTEM_PROMPT has:
 - Complete 12-rule decision tree from research
 - Priority ordering instructions ("first match wins")
 - Concrete examples for few-shot learning
-- Context about SecBASH as monitor-only tool
+- Context about aegish as monitor-only tool
 - Obfuscation detection rules
 - Security-critical file paths (SSH keys, database credentials)
 - Library load patterns (LD_PRELOAD)
@@ -124,7 +124,7 @@ The current SYSTEM_PROMPT has:
 2. **`docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md`**
    - Contains category suitability analysis
    - Contains 4-tier labeling system
-   - Contains SecBASH Score formula
+   - Contains aegish Score formula
 
 ### Prompt Design Guidelines
 
@@ -138,7 +138,7 @@ The current SYSTEM_PROMPT has:
 
    Input: `vim -c ':!/bin/sh'`
    Classification: BLOCK
-   Reason: Shell escape from vim editor bypasses SecBASH monitoring
+   Reason: Shell escape from vim editor bypasses aegish monitoring
    ```
 
 3. **JSON Output Format (maintain compatibility)**
@@ -213,14 +213,14 @@ Apply rules in order - first match determines action:
 ## Examples
 
 Input: `vim -c ':!bash'`
-Output: {"action": "block", "reason": "Shell escape bypasses SecBASH", "confidence": 0.95}
+Output: {"action": "block", "reason": "Shell escape bypasses aegish", "confidence": 0.95}
 """
 ```
 
 ### Project Structure Notes
 
 **Files involved:**
-- `src/secbash/llm_client.py` - PRIMARY EDIT TARGET
+- `src/aegish/llm_client.py` - PRIMARY EDIT TARGET
 - `tests/test_dangerous_commands.py` - ADD NEW TESTS
 - `tests/test_llm_client.py` - VERIFY NO REGRESSIONS
 
@@ -289,7 +289,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 ### File List
 **Modified:**
-- `src/secbash/llm_client.py` - SYSTEM_PROMPT and LLAMAGUARD_PROMPT updated with complete 13-rule decision tree, special cases, and examples
+- `src/aegish/llm_client.py` - SYSTEM_PROMPT and LLAMAGUARD_PROMPT updated with complete 13-rule decision tree, special cases, and examples
 - `tests/test_dangerous_commands.py` - Added TestDecisionTreeCategories, TestWarnCategories, TestPromptDecisionTreeContent, TestLlamaGuardDecisionTreeContent, TestPromptStructuralIntegrity (9 new tests from review)
 
 **Reference Documents:**

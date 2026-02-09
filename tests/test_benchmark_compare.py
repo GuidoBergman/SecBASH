@@ -1,4 +1,4 @@
-"""Tests for the SecBASH LLM comparison framework.
+"""Tests for the aegish LLM comparison framework.
 
 Tests cover:
 - Model list parsing (comma-separated string to list)
@@ -71,7 +71,7 @@ class TestParseModels:
 
 def _make_mock_eval_log(
     model: str = "openai/gpt-5.1",
-    task_name: str = "secbash_gtfobins",
+    task_name: str = "aegish_gtfobins",
     detection_rate: float = 0.97,
     pass_rate_val: float = 0.0,
     accuracy: float = 0.97,
@@ -118,7 +118,7 @@ def _make_mock_eval_log(
         "stderr": MagicMock(value=stderr_val),
         "detection_rate": MagicMock(value=detection_rate),
         "pass_rate": MagicMock(value=pass_rate_val),
-        "secbash_score": MagicMock(value=(detection_rate + pass_rate_val) / 2),
+        "aegish_score": MagicMock(value=(detection_rate + pass_rate_val) / 2),
     }
     log.results.scores = [score_log]
 
@@ -167,15 +167,15 @@ class TestGenerateRanking:
         results = {
             "model-a": {
                 "status": "success",
-                "composite": {"secbash_score": 0.8, "cost_per_1000_combined": 3.0},
+                "composite": {"aegish_score": 0.8, "cost_per_1000_combined": 3.0},
             },
             "model-b": {
                 "status": "success",
-                "composite": {"secbash_score": 0.95, "cost_per_1000_combined": 5.0},
+                "composite": {"aegish_score": 0.95, "cost_per_1000_combined": 5.0},
             },
             "model-c": {
                 "status": "success",
-                "composite": {"secbash_score": 0.85, "cost_per_1000_combined": 2.0},
+                "composite": {"aegish_score": 0.85, "cost_per_1000_combined": 2.0},
             },
         }
         ranking = generate_ranking(results)
@@ -189,7 +189,7 @@ class TestGenerateRanking:
         results = {
             "model-a": {
                 "status": "success",
-                "composite": {"secbash_score": 0.9, "cost_per_1000_combined": 3.0},
+                "composite": {"aegish_score": 0.9, "cost_per_1000_combined": 3.0},
             },
             "model-b": {
                 "status": "error",
@@ -216,7 +216,7 @@ class TestGenerateRanking:
         results = {
             "model-a": {
                 "status": "success",
-                "composite": {"secbash_score": 0.9, "cost_per_1000_combined": 3.16},
+                "composite": {"aegish_score": 0.9, "cost_per_1000_combined": 3.16},
             },
         }
         ranking = generate_ranking(results)
@@ -251,7 +251,7 @@ class TestJsonOutputFormat:
                         "harmless": {"pass_rate": 0.92},
                     },
                     "composite": {
-                        "secbash_score": 0.89,
+                        "aegish_score": 0.89,
                         "total_cost_usd": 2.34,
                         "cost_per_1000_combined": 3.16,
                         "avg_latency_ms": 800,
@@ -262,7 +262,7 @@ class TestJsonOutputFormat:
                 {
                     "rank": 1,
                     "model": "openai/gpt-5.1",
-                    "secbash_score": 0.89,
+                    "aegish_score": 0.89,
                     "cost_per_1000": 3.16,
                 }
             ],
@@ -286,13 +286,13 @@ class TestJsonOutputFormat:
         assert result["status"] == "success"
         assert "datasets" in result
         assert "composite" in result
-        assert "secbash_score" in result["composite"]
+        assert "aegish_score" in result["composite"]
 
         # Verify ranking structure
         rank = comparison["ranking"][0]
         assert "rank" in rank
         assert "model" in rank
-        assert "secbash_score" in rank
+        assert "aegish_score" in rank
 
     def test_json_serializable(self):
         """Ensure comparison results can be serialized to JSON."""
@@ -301,10 +301,10 @@ class TestJsonOutputFormat:
             "results": {
                 "test/model": {
                     "status": "success",
-                    "composite": {"secbash_score": 0.9},
+                    "composite": {"aegish_score": 0.9},
                 }
             },
-            "ranking": [{"rank": 1, "model": "test/model", "secbash_score": 0.9}],
+            "ranking": [{"rank": 1, "model": "test/model", "aegish_score": 0.9}],
         }
         serialized = json.dumps(comparison)
         deserialized = json.loads(serialized)
@@ -318,15 +318,15 @@ class TestCoTScaffolding:
     """Tests for Chain-of-Thought scaffolding flag handling."""
 
     def test_standard_task_has_2_solvers(self):
-        from benchmark.tasks.secbash_eval import secbash_gtfobins
+        from benchmark.tasks.aegish_eval import aegish_gtfobins
 
-        task = secbash_gtfobins(cot=False)
+        task = aegish_gtfobins(cot=False)
         assert len(task.solver) == 2  # system_message + generate
 
     def test_cot_task_has_3_solvers(self):
-        from benchmark.tasks.secbash_eval import secbash_gtfobins
+        from benchmark.tasks.aegish_eval import aegish_gtfobins
 
-        task = secbash_gtfobins(cot=True)
+        task = aegish_gtfobins(cot=True)
         assert len(task.solver) == 3  # system_message + chain_of_thought + generate
 
 
@@ -351,7 +351,7 @@ class TestPartialRunDetection:
                 "results": {
                     "openai/gpt-5.1": {
                         "status": "success",
-                        "composite": {"secbash_score": 0.9},
+                        "composite": {"aegish_score": 0.9},
                     },
                     "openai/gpt-5-mini": {
                         "status": "error",
@@ -402,7 +402,7 @@ class TestComparisonTableFormatting:
                     "harmless": {"pass_rate": 0.92},
                 },
                 "composite": {
-                    "secbash_score": 0.893,
+                    "aegish_score": 0.893,
                     "total_cost_usd": 2.34,
                     "cost_per_1000_combined": 3.16,
                     "avg_latency_ms": 800,
@@ -413,7 +413,7 @@ class TestComparisonTableFormatting:
             {
                 "rank": 1,
                 "model": "openai/gpt-5.1",
-                "secbash_score": 0.893,
+                "aegish_score": 0.893,
                 "cost_per_1000": 3.16,
             }
         ]
@@ -421,7 +421,7 @@ class TestComparisonTableFormatting:
         print_comparison_table(results, ranking)
         captured = capsys.readouterr()
 
-        assert "SecBASH LLM Comparison Results" in captured.out
+        assert "aegish LLM Comparison Results" in captured.out
         assert "openai/gpt-5.1" in captured.out
         assert "97.0%" in captured.out  # Detection rate
         assert "92.0%" in captured.out  # Pass rate
@@ -437,7 +437,7 @@ class TestComparisonTableFormatting:
                     "harmless": {"pass_rate": 0.5},
                 },
                 "composite": {
-                    "secbash_score": 0.25,
+                    "aegish_score": 0.25,
                     "total_cost_usd": 0.0,
                     "cost_per_1000_combined": 0.0,
                     "avg_latency_ms": 500,
@@ -448,7 +448,7 @@ class TestComparisonTableFormatting:
             {
                 "rank": 1,
                 "model": "test/free-model",
-                "secbash_score": 0.25,
+                "aegish_score": 0.25,
                 "cost_per_1000": 0.0,
             }
         ]
@@ -466,7 +466,7 @@ class TestComparisonTableFormatting:
                     "harmless": {"pass_rate": 0.9},
                 },
                 "composite": {
-                    "secbash_score": 0.81,
+                    "aegish_score": 0.81,
                     "total_cost_usd": 1.0,
                     "cost_per_1000_combined": 2.0,
                     "avg_latency_ms": 600,
@@ -481,7 +481,7 @@ class TestComparisonTableFormatting:
             {
                 "rank": 1,
                 "model": "model-ok",
-                "secbash_score": 0.81,
+                "aegish_score": 0.81,
                 "cost_per_1000": 2.0,
             }
         ]
@@ -500,7 +500,7 @@ class TestComparisonTableFormatting:
                     "harmless": {"pass_rate": 0.91},
                 },
                 "composite": {
-                    "secbash_score": 0.874,
+                    "aegish_score": 0.874,
                     "total_cost_usd": 1.0,
                     "cost_per_1000_combined": 2.0,
                     "avg_latency_ms": 600,
@@ -511,7 +511,7 @@ class TestComparisonTableFormatting:
             {
                 "rank": 1,
                 "model": "model-a",
-                "secbash_score": 0.874,
+                "aegish_score": 0.874,
                 "cost_per_1000": 2.0,
             }
         ]
@@ -559,7 +559,7 @@ class TestCalculateComposite:
             "latency": {"mean": 700},
         }
         result = calculate_composite(gtfo, harm)
-        assert result["secbash_score"] == (0.95 + 0.90) / 2
+        assert result["aegish_score"] == (0.95 + 0.90) / 2
         assert result["total_cost_usd"] == 2.5
         assert result["avg_latency_ms"] == 750.0
 
@@ -571,7 +571,7 @@ class TestCalculateComposite:
             "latency": {"mean": 800},
         }
         result = calculate_composite(gtfo, None)
-        assert result["secbash_score"] == (0.95 + 0.0) / 2  # No pass_rate defaults to 0
+        assert result["aegish_score"] == (0.95 + 0.0) / 2  # No pass_rate defaults to 0
         assert result["total_cost_usd"] == 1.5
 
     def test_harmless_only(self):
@@ -583,13 +583,13 @@ class TestCalculateComposite:
         }
         result = calculate_composite(None, harm)
         assert (
-            result["secbash_score"] == (0.0 + 0.90) / 2
+            result["aegish_score"] == (0.0 + 0.90) / 2
         )  # No detection_rate defaults to 0
         assert result["total_cost_usd"] == 1.0
 
     def test_both_none(self):
         result = calculate_composite(None, None)
-        assert result["secbash_score"] == 0.0
+        assert result["aegish_score"] == 0.0
         assert result["total_cost_usd"] == 0.0
         assert result["avg_latency_ms"] == 0.0
 
@@ -627,10 +627,10 @@ class TestCalculateComposite:
             "latency": {"mean": 700},
         }
         result = calculate_composite(gtfo, harm)
-        assert result["secbash_score_se"] is not None
+        assert result["aegish_score_se"] is not None
         # SE((DR + PR) / 2) = sqrt(SE_dr^2 + SE_pr^2) / 2
         expected_se = ((0.01**2 + 0.02**2) ** 0.5) / 2
-        assert abs(result["secbash_score_se"] - expected_se) < 1e-10
+        assert abs(result["aegish_score_se"] - expected_se) < 1e-10
 
     def test_composite_se_none_when_missing(self):
         gtfo = {
@@ -646,7 +646,7 @@ class TestCalculateComposite:
             "latency": {"mean": 700},
         }
         result = calculate_composite(gtfo, harm)
-        assert result["secbash_score_se"] is None
+        assert result["aegish_score_se"] is None
 
 
 # --- Batch helpers tests ---
@@ -678,12 +678,12 @@ class TestDetectLogDataset:
 
     def test_gtfobins(self):
         log = MagicMock()
-        log.eval.task = "secbash_gtfobins"
+        log.eval.task = "aegish_gtfobins"
         assert _detect_log_dataset(log) == "gtfobins"
 
     def test_harmless(self):
         log = MagicMock()
-        log.eval.task = "secbash_harmless"
+        log.eval.task = "aegish_harmless"
         assert _detect_log_dataset(log) == "harmless"
 
     def test_unknown(self):
@@ -696,7 +696,7 @@ class TestProcessLogs:
     """Tests for _process_logs() populating results dict."""
 
     def test_success_populates_results(self):
-        log = _make_mock_eval_log(model="openai/gpt-5.1", task_name="secbash_gtfobins")
+        log = _make_mock_eval_log(model="openai/gpt-5.1", task_name="aegish_gtfobins")
         log.status = "success"
         results: dict = {}
         _process_logs(
@@ -714,7 +714,7 @@ class TestProcessLogs:
         assert results["openai/gpt-5.1"]["status"] == "error"
 
     def test_partial_when_one_dataset_missing(self):
-        log = _make_mock_eval_log(model="openai/gpt-5.1", task_name="secbash_gtfobins")
+        log = _make_mock_eval_log(model="openai/gpt-5.1", task_name="aegish_gtfobins")
         log.status = "success"
         results: dict = {}
         _process_logs(
@@ -756,9 +756,9 @@ class TestFindModelsWithTimeouts:
     def test_no_timeouts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_abc123.eval",
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_aegish-gtfobins_abc123.eval",
                 model="openai/gpt-5.1",
-                task="secbash_gtfobins",
+                task="aegish_gtfobins",
                 samples=[{"id": "s1", "scores": {}}],
             )
             result = find_models_with_timeouts(Path(tmpdir))
@@ -767,9 +767,9 @@ class TestFindModelsWithTimeouts:
     def test_detects_timeouts(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_abc123.eval",
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_aegish-gtfobins_abc123.eval",
                 model="google/gemini-3-pro-preview",
-                task="secbash_gtfobins",
+                task="aegish_gtfobins",
                 samples=[
                     {"id": "s1", "limit": {"type": "time", "limit": 60.0}},
                     {"id": "s2", "scores": {}},
@@ -782,15 +782,15 @@ class TestFindModelsWithTimeouts:
     def test_aggregates_across_tasks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_abc.eval",
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_aegish-gtfobins_abc.eval",
                 model="anthropic/claude-opus-4-6",
-                task="secbash_gtfobins",
+                task="aegish_gtfobins",
                 samples=[{"id": "s1", "limit": {"type": "time", "limit": 60.0}}],
             )
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-harmless_def.eval",
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_aegish-harmless_def.eval",
                 model="anthropic/claude-opus-4-6",
-                task="secbash_harmless",
+                task="aegish_harmless",
                 samples=[
                     {"id": "s1", "limit": {"type": "time", "limit": 60.0}},
                     {"id": "s2", "limit": {"type": "time", "limit": 60.0}},
@@ -803,16 +803,16 @@ class TestFindModelsWithTimeouts:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Older eval with timeouts
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-04T10-00-00+00-00_secbash-gtfobins_old.eval",
+                Path(tmpdir) / "2026-02-04T10-00-00+00-00_aegish-gtfobins_old.eval",
                 model="openai/gpt-5.1",
-                task="secbash_gtfobins",
+                task="aegish_gtfobins",
                 samples=[{"id": "s1", "limit": {"type": "time", "limit": 60.0}}],
             )
             # Newer eval without timeouts
             _create_eval_zip(
-                Path(tmpdir) / "2026-02-05T10-00-00+00-00_secbash-gtfobins_new.eval",
+                Path(tmpdir) / "2026-02-05T10-00-00+00-00_aegish-gtfobins_new.eval",
                 model="openai/gpt-5.1",
-                task="secbash_gtfobins",
+                task="aegish_gtfobins",
                 samples=[{"id": "s1", "scores": {}}],
             )
             result = find_models_with_timeouts(Path(tmpdir))
@@ -821,7 +821,7 @@ class TestFindModelsWithTimeouts:
     def test_ignores_bad_zip(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             bad_path = (
-                Path(tmpdir) / "2026-02-05T14-56-35+00-00_secbash-gtfobins_bad.eval"
+                Path(tmpdir) / "2026-02-05T14-56-35+00-00_aegish-gtfobins_bad.eval"
             )
             bad_path.write_text("not a zip file")
             result = find_models_with_timeouts(Path(tmpdir))

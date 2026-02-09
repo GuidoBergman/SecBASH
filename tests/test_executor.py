@@ -1,6 +1,6 @@
 """Tests for command execution."""
 
-from secbash.executor import execute_command, run_bash_command
+from aegish.executor import execute_command, run_bash_command
 
 
 def test_execute_command_exit_code_success():

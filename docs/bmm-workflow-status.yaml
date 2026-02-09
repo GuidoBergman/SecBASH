@@ -1,4 +1,4 @@
-# BMM Workflow Status - SecBASH
+# BMM Workflow Status - aegish
 # This tracks progress through BMM methodology Analysis, Planning, and Solutioning phases.
 # Implementation phase is tracked separately in sprint-status.yaml
 
@@ -15,7 +15,7 @@
 #   - skipped: Optional/conditional workflow that was skipped
 
 generated: "2026-01-23"
-project: "SecBASH"
+project: "aegish"
 project_type: "software"
 selected_track: "method"
 field_type: "greenfield"
@@ -24,7 +24,7 @@ workflow_path: "method-greenfield.yaml"
 workflow_status:
   # Phase 0: Discovery (Optional)
   brainstorm-project: skipped
-  research: docs/analysis/research/technical-secbash-llm-command-validation-2026-01-23.md
+  research: docs/analysis/research/technical-aegish-llm-command-validation-2026-01-23.md
   product-brief: skipped
 
   # Phase 1: Planning

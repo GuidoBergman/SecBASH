@@ -34,7 +34,7 @@ This document describes a set of changes to the benchmark evaluation system and 
 | `docs/analysis/fix-harmless-dataset.md` | Already documents this; mark as implemented once done |
 | `docs/analysis/fix-gtfobins-placeholders.md` | Already documents this; mark as implemented once done |
 
-### 1.2 Weighted Main Metric (Balanced SecBASH Score)
+### 1.2 Weighted Main Metric (Balanced aegish Score)
 
 **Rationale:** The harmless and harmful datasets have different numbers of samples. A simple `Detection Rate x Pass Rate` product doesn't account for this imbalance and can be misleading (e.g., a tiny harmless dataset inflates or deflates the composite score).
 
@@ -42,7 +42,7 @@ This document describes a set of changes to the benchmark evaluation system and 
 
 - **Balanced Accuracy** = (Detection Rate + Pass Rate) / 2
   - This gives equal weight to both datasets regardless of sample count.
-- **SecBASH Score** = Balanced Accuracy (replacing the current multiplicative formula)
+- **aegish Score** = Balanced Accuracy (replacing the current multiplicative formula)
 
 Alternatively, if the multiplicative formula is preferred, document explicitly why the product was chosen and confirm it is acceptable given the dataset size difference. The key requirement is that the formula is **deliberately chosen** with awareness of sample count asymmetry, not accidentally ignoring it.
 
@@ -50,10 +50,10 @@ Alternatively, if the multiplicative formula is preferred, document explicitly w
 
 | File | Change |
 |------|--------|
-| `tests/benchmark/scorers/security_scorer.py` | Update SecBASH Score formula |
+| `tests/benchmark/scorers/security_scorer.py` | Update aegish Score formula |
 | `tests/benchmark/report.py` | Update report generation to use new formula |
-| `tests/benchmark/plots.py` | Update any Y-axis labels or plot logic referencing SecBASH Score |
-| `docs/prd.md` | Update Success Criteria: redefine SecBASH Score formula and target threshold |
+| `tests/benchmark/plots.py` | Update any Y-axis labels or plot logic referencing aegish Score |
+| `docs/prd.md` | Update Success Criteria: redefine aegish Score formula and target threshold |
 | `docs/epics.md` | Update Story 4.5 composite metric definition |
 | `docs/stories/4-5-implement-metrics-reporting-inspect.md` | Update formula and target |
 
@@ -88,7 +88,7 @@ Alternatively, if the multiplicative formula is preferred, document explicitly w
 
 | File | Change |
 |------|--------|
-| `tests/benchmark/tasks/secbash_eval.py` | Add `max_retries=3` to task config or model config |
+| `tests/benchmark/tasks/aegish_eval.py` | Add `max_retries=3` to task config or model config |
 | `tests/benchmark/compare.py` | Ensure comparison runs also use `max_retries=3` |
 | `docs/epics.md` | Update Story 4.4 or 4.6 to mention retry configuration |
 
@@ -102,7 +102,7 @@ Alternatively, if the multiplicative formula is preferred, document explicitly w
 
 | File | Change |
 |------|--------|
-| `tests/benchmark/tasks/secbash_eval.py` | Add `seed=42` to generate config |
+| `tests/benchmark/tasks/aegish_eval.py` | Add `seed=42` to generate config |
 | `tests/benchmark/compare.py` | Ensure seed is passed through for all model runs |
 | `docs/epics.md` | Update Story 4.4 to mention reproducibility via seed |
 
@@ -145,11 +145,11 @@ This replaces the current single `parse_error` metric.
 
 | File | Change |
 |------|--------|
-| `src/secbash/llm_client.py` | Remove `LLAMAGUARD_PROMPT`, LlamaGuard-specific logic, LlamaGuard from fallback chain |
-| `src/secbash/config.py` | Remove LlamaGuard model configuration |
+| `src/aegish/llm_client.py` | Remove `LLAMAGUARD_PROMPT`, LlamaGuard-specific logic, LlamaGuard from fallback chain |
+| `src/aegish/config.py` | Remove LlamaGuard model configuration |
 | `tests/benchmark/scorers/security_scorer.py` | Remove `llamaguard_classification_scorer()` |
 | `tests/benchmark/scorers/__init__.py` | Remove LlamaGuard scorer exports |
-| `tests/benchmark/tasks/secbash_eval.py` | Remove LlamaGuard task variants |
+| `tests/benchmark/tasks/aegish_eval.py` | Remove LlamaGuard task variants |
 | `tests/benchmark/tasks/__init__.py` | Remove LlamaGuard task exports |
 | `tests/benchmark/compare.py` | Remove LlamaGuard from model list and comparison logic |
 | `tests/benchmark/report.py` | Remove LlamaGuard-specific reporting |
@@ -193,8 +193,8 @@ Add examples for both sub-categories to the prompt.
 
 | File | Change |
 |------|--------|
-| `src/secbash/llm_client.py` | Update `SYSTEM_PROMPT` Rule 1 to add direct shell spawner examples |
-| `tests/benchmark/tasks/secbash_eval.py` | If the system prompt is copied here, update it too |
+| `src/aegish/llm_client.py` | Update `SYSTEM_PROMPT` Rule 1 to add direct shell spawner examples |
+| `tests/benchmark/tasks/aegish_eval.py` | If the system prompt is copied here, update it too |
 | `docs/analysis/research/gtfobins-labeling-prompt.md` | Update labeling prompt Rule 1 if used as source of truth |
 | `docs/epics.md` | Update Story 4.1 acceptance criteria table to include direct shell spawner example |
 | `docs/stories/4-1-update-production-system-prompt.md` | Update acceptance criteria to include shell spawner guidance |

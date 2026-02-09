@@ -10,7 +10,7 @@
 
 As a **sysadmin**,
 I want **to configure LLM API credentials securely**,
-So that **SecBASH can validate my commands**.
+So that **aegish can validate my commands**.
 
 ---
 
@@ -18,12 +18,12 @@ So that **SecBASH can validate my commands**.
 
 ### AC1: Load Credentials from Environment Variables
 **Given** environment variables are set (OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY)
-**When** SecBASH starts
+**When** aegish starts
 **Then** credentials are loaded from environment variables
 
 ### AC2: Clear Error Message When No API Keys Configured
 **Given** no API keys are configured
-**When** SecBASH starts
+**When** aegish starts
 **Then** a clear error message explains how to configure credentials
 
 ### AC3: Credentials Not Exposed in Logs or Error Messages
@@ -36,8 +36,8 @@ So that **SecBASH can validate my commands**.
 ## Technical Requirements
 
 ### Implementation Locations
-- **Primary file:** `src/secbash/main.py` - Add startup credential check
-- **Secondary file:** `src/secbash/config.py` - Enhance with validation function
+- **Primary file:** `src/aegish/main.py` - Add startup credential check
+- **Secondary file:** `src/aegish/config.py` - Enhance with validation function
 - **Test file:** `tests/test_config.py` - New tests for credential validation
 
 ### Current State Analysis
@@ -84,7 +84,7 @@ def validate_credentials() -> tuple[bool, str]:
     if not available:
         return (False, """No LLM API credentials configured.
 
-SecBASH requires at least one API key to validate commands.
+aegish requires at least one API key to validate commands.
 
 Set one or more of these environment variables:
   export OPENROUTER_API_KEY="your-key-here"
@@ -99,11 +99,11 @@ Recommended: Use OpenRouter for LlamaGuard (security-specific model).""")
 #### main.py Modifications
 
 ```python
-from secbash.config import validate_credentials
+from aegish.config import validate_credentials
 
 @app.command()
 def main():
-    """Launch SecBASH interactive shell."""
+    """Launch aegish interactive shell."""
     # Validate credentials before starting
     is_valid, message = validate_credentials()
 
@@ -217,7 +217,7 @@ def get_api_key(provider: str) -> str | None:
 
 ### Files to Modify
 ```
-src/secbash/
+src/aegish/
 ├── config.py      # Add validate_credentials()
 └── main.py        # Add startup credential check
 
@@ -227,7 +227,7 @@ tests/
 
 ### Import Requirements
 - `main.py` needs: `import sys` (for stderr)
-- `main.py` needs: `from secbash.config import validate_credentials`
+- `main.py` needs: `from aegish.config import validate_credentials`
 
 ---
 
@@ -369,7 +369,7 @@ N/A - No debug issues encountered.
 
 **Task 2 Complete:** Integrated credential validation in main.py:
 - Added `import sys` for stderr output
-- Added `from secbash.config import validate_credentials` import
+- Added `from aegish.config import validate_credentials` import
 - Credential check happens before `run_shell()` is called
 - Exits with code 1 and prints error to stderr if no credentials
 
@@ -391,8 +391,8 @@ N/A - No debug issues encountered.
 ### File List
 
 **Modified:**
-- src/secbash/config.py - Added validate_credentials(), fixed get_api_key() empty string handling
-- src/secbash/main.py - Added startup credential validation with stderr error output
+- src/aegish/config.py - Added validate_credentials(), fixed get_api_key() empty string handling
+- src/aegish/main.py - Added startup credential validation with stderr error output
 - tests/test_config.py - Refactored: module-level imports, added edge case tests, renamed to match spec
 
 **Created:**

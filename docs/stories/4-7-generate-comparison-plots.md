@@ -10,12 +10,12 @@ So that **I can identify optimal cost/performance trade-offs**.
 
 ## Acceptance Criteria
 
-### AC1: Cost vs SecBASH Score (Scatter Plot)
+### AC1: Cost vs aegish Score (Scatter Plot)
 **Given** comparison results from multiple model evaluations
 **When** the cost vs score plot is generated
 **Then** it displays:
 - X-axis: Cost per 1000 commands ($)
-- Y-axis: SecBASH Score
+- Y-axis: aegish Score
 - Points labeled by model name
 - Pareto frontier highlighted
 
@@ -48,7 +48,7 @@ So that **I can identify optimal cost/performance trade-offs**.
 **When** the summary table is generated
 **Then** it displays:
 - Columns: Model, Detection Rate, Pass Rate, Score, Cost, Latency
-- Sorted by SecBASH Score
+- Sorted by aegish Score
 - Targets indicated with checkmarks
 
 ### AC6: Output Formats
@@ -76,9 +76,9 @@ So that **I can identify optimal cost/performance trade-offs**.
   - [x] 2.5 Implement `save_plot(fig, filepath: Path)` saving PNG (dpi=150) + SVG, then `plt.close(fig)`
   - [x] 2.6 Set matplotlib style: `seaborn-v0_8-whitegrid`, font size 11, title 14, label 12
 
-- [x] Task 3: Implement Cost vs SecBASH Score scatter plot (AC: #1)
+- [x] Task 3: Implement Cost vs aegish Score scatter plot (AC: #1)
   - [x] 3.1 Implement `plot_cost_vs_score(results: dict, output_dir: Path)`
-  - [x] 3.2 X-axis: `composite.cost_per_1000_combined`; Y-axis: `composite.secbash_score`
+  - [x] 3.2 X-axis: `composite.cost_per_1000_combined`; Y-axis: `composite.aegish_score`
   - [x] 3.3 Color points by provider using `PROVIDER_COLORS`
   - [x] 3.4 Annotate each point with short model name
   - [x] 3.5 Implement `compute_pareto_frontier(costs, scores)` returning non-dominated points (minimize cost, maximize score)
@@ -110,7 +110,7 @@ So that **I can identify optimal cost/performance trade-offs**.
 - [x] Task 7: Implement Model Ranking Table as figure (AC: #5)
   - [x] 7.1 Implement `plot_ranking_table(results: dict, ranking: list, output_dir: Path)`
   - [x] 7.2 Use matplotlib table rendering with columns: Rank, Model, Detection%, Pass%, Score, Cost, Latency
-  - [x] 7.3 Sort by SecBASH Score descending (use ranking from JSON)
+  - [x] 7.3 Sort by aegish Score descending (use ranking from JSON)
   - [x] 7.4 Add checkmark indicators for targets met
   - [x] 7.5 Color rows by performance tier (green=meets all targets, yellow=partial, red=below)
 
@@ -194,8 +194,8 @@ The input JSON file (`tests/benchmark/results/comparison_*.json`) follows this e
         }
       },
       "composite": {
-        "secbash_score": 0.908,
-        "secbash_score_se": 0.015,
+        "aegish_score": 0.908,
+        "aegish_score_se": 0.015,
         "total_cost_usd": 4.82,
         "cost_per_1000_combined": 6.50,
         "avg_latency_ms": 35569
@@ -203,13 +203,13 @@ The input JSON file (`tests/benchmark/results/comparison_*.json`) follows this e
     }
   },
   "ranking": [
-    {"rank": 1, "model": "anthropic/claude-sonnet-4-5-20250929", "secbash_score": 0.908, "cost_per_1000": 6.50}
+    {"rank": 1, "model": "anthropic/claude-sonnet-4-5-20250929", "aegish_score": 0.908, "cost_per_1000": 6.50}
   ]
 }
 ```
 
 **Key fields for each plot:**
-- **Cost vs Score:** `composite.cost_per_1000_combined` (X), `composite.secbash_score` (Y)
+- **Cost vs Score:** `composite.cost_per_1000_combined` (X), `composite.aegish_score` (Y)
 - **Detection vs Pass:** `datasets.gtfobins.detection_rate` (Y), `datasets.harmless.pass_rate` (X)
 - **Latency:** `composite.avg_latency_ms` and per-dataset `latency.{mean, p50, p90, p99, max}`
 - **Cost bar:** `composite.cost_per_1000_combined`
@@ -221,7 +221,7 @@ These ranges determine axis scaling - DO NOT hardcode narrow ranges:
 
 | Metric | Min | Max | Notes |
 |--------|-----|-----|-------|
-| SecBASH Score | 0.026 (gemini-3-pro) | 0.908 (sonnet-4.5) | Huge range, some models near 0 |
+| aegish Score | 0.026 (gemini-3-pro) | 0.908 (sonnet-4.5) | Huge range, some models near 0 |
 | Detection Rate | 0.369 (llama-guard) | 0.991 (Foundation-Sec) | Most 0.89-0.99 |
 | Pass Rate | 0.055 (gemini-3-pro) | 0.987 (haiku-4.5) | Huge spread |
 | Cost/1000 | $0.00 (Google) | $11.32 (opus-4.6) | Google reports $0 (free tier) |
@@ -334,7 +334,7 @@ tests/benchmark/
 **From Story 4.6 (Create LLM Comparison Framework - DONE):**
 - `compare.py` produces JSON at `tests/benchmark/results/comparison_<timestamp>.json`
 - `DEFAULT_MODELS` list has 11 models with Inspect-format IDs
-- `generate_ranking()` returns sorted list with rank, model, secbash_score, cost_per_1000
+- `generate_ranking()` returns sorted list with rank, model, aegish_score, cost_per_1000
 - `print_comparison_table()` already outputs formatted console table with CIs
 - Google models report $0 cost (free API tier)
 - LlamaGuard (llama-guard-3-8b) scored 0.153 (very poor) - plot it but expect it as outlier
@@ -365,7 +365,7 @@ Recent commits:
 ### References
 
 - [Source: docs/epics.md#story-47-generate-comparison-plots] - Original acceptance criteria
-- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, SecBASH Score >=0.85
+- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, aegish Score >=0.85
 - [Source: tests/benchmark/compare.py] - Comparison framework, JSON output, model list, ranking
 - [Source: tests/benchmark/report.py] - MODEL_PRICING, RESULTS_DIR, metrics extraction
 - [Source: tests/benchmark/results/comparison_20260206_181702.json] - Actual benchmark data (11 models)
@@ -426,8 +426,8 @@ No debug issues encountered.
 
 - `tests/benchmark/plots.py` (NEW) - Plotting module with 5 visualization functions, CLI, helpers
 - `tests/benchmark/test_plots.py` (NEW) - 39 tests for plots module
-- `tests/benchmark/results/plots/cost_vs_score.png` (NEW) - Cost vs SecBASH Score scatter plot
-- `tests/benchmark/results/plots/cost_vs_score.svg` (NEW) - Cost vs SecBASH Score scatter plot (SVG)
+- `tests/benchmark/results/plots/cost_vs_score.png` (NEW) - Cost vs aegish Score scatter plot
+- `tests/benchmark/results/plots/cost_vs_score.svg` (NEW) - Cost vs aegish Score scatter plot (SVG)
 - `tests/benchmark/results/plots/detection_vs_pass.png` (NEW) - Detection vs Pass Rate scatter plot
 - `tests/benchmark/results/plots/detection_vs_pass.svg` (NEW) - Detection vs Pass Rate scatter plot (SVG)
 - `tests/benchmark/results/plots/latency_distribution.png` (NEW) - Latency bar chart

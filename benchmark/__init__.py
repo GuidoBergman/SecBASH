@@ -1,1 +1,1 @@
-"""Benchmark evaluation module for SecBASH LLM classifier testing."""
+"""Benchmark evaluation module for aegish LLM classifier testing."""

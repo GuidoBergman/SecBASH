@@ -385,7 +385,7 @@ After extraction, verify:
 **Story 4.4 (blocked by this):** Evaluation harness requires both datasets to calculate:
 - Detection Rate (from GTFOBins)
 - Pass Rate / False Positive Rate (from this harmless dataset)
-- SecBASH Score = Detection Rate x Pass Rate
+- aegish Score = Detection Rate x Pass Rate
 
 **Metrics from Story 4.5:**
 - Pass Rate = ALLOW / Total (target: >=90%)

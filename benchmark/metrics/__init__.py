@@ -1,4 +1,4 @@
-"""Custom Inspect metrics for SecBASH benchmark evaluation."""
+"""Custom Inspect metrics for aegish benchmark evaluation."""
 
 from benchmark.metrics.security_metrics import (
     detection_rate,
@@ -6,7 +6,7 @@ from benchmark.metrics.security_metrics import (
     format_error_rate,
     pass_rate,
     per_category_detection_rates,
-    secbash_score,
+    aegish_score,
     timeout_error_rate,
 )
 
@@ -16,6 +16,6 @@ __all__ = [
     "format_error_rate",
     "pass_rate",
     "per_category_detection_rates",
-    "secbash_score",
+    "aegish_score",
     "timeout_error_rate",
 ]

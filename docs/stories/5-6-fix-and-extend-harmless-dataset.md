@@ -267,8 +267,8 @@ Files to modify:
 
 Files NOT to modify:
 - `benchmark/scorers/security_scorer.py` — scorer changes are Story 5.3 scope
-- `benchmark/tasks/secbash_eval.py` — target changes are Story 5.3 scope
-- `src/secbash/` — production code untouched
+- `benchmark/tasks/aegish_eval.py` — target changes are Story 5.3 scope
+- `src/aegish/` — production code untouched
 - `benchmark/extract_gtfobins.py` — GTFOBins changes are Story 5.5 scope
 
 ### References

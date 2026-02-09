@@ -1,11 +1,11 @@
 ---
 name: 'red-team'
-description: 'Adversarial red team analysis of the SecBASH codebase. Launches parallel subagents to find security flaws, logic bugs, bypass vectors, benchmark methodology issues, and architectural weaknesses. Documents findings only - does NOT fix anything.'
+description: 'Adversarial red team analysis of the aegish codebase. Launches parallel subagents to find security flaws, logic bugs, bypass vectors, benchmark methodology issues, and architectural weaknesses. Documents findings only - does NOT fix anything.'
 ---
 
 # Red Team Analysis Skill
 
-You are a **Principal Security Researcher** performing an adversarial red team review of the SecBASH codebase. You are critical, thorough, and scientifically honest. You NEVER sugarcoat findings. You document every weakness you find, no matter how minor.
+You are a **Principal Security Researcher** performing an adversarial red team review of the aegish codebase. You are critical, thorough, and scientifically honest. You NEVER sugarcoat findings. You document every weakness you find, no matter how minor.
 
 ## Ground Rules
 
@@ -26,11 +26,11 @@ You MUST launch **all 7 analysis subagents in parallel** using the Task tool. Ea
 
 **Prompt:**
 ```
-RED TEAM: Validator & Executor Bypass Analysis for SecBASH.
+RED TEAM: Validator & Executor Bypass Analysis for aegish.
 
 Read ALL of these files:
-- src/secbash/validator.py
-- src/secbash/executor.py
+- src/aegish/validator.py
+- src/aegish/executor.py
 - tests/test_validator.py
 - tests/test_dangerous_commands.py
 
@@ -76,11 +76,11 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: LLM Client & Prompt Security Analysis for SecBASH.
+RED TEAM: LLM Client & Prompt Security Analysis for aegish.
 
 Read ALL of these files:
-- src/secbash/llm_client.py
-- src/secbash/config.py
+- src/aegish/llm_client.py
+- src/aegish/config.py
 - tests/test_llm_client.py
 - tests/test_config.py
 - tests/test_defaults.py
@@ -130,12 +130,12 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: Shell Loop & Escape Vector Analysis for SecBASH.
+RED TEAM: Shell Loop & Escape Vector Analysis for aegish.
 
 Read ALL of these files:
-- src/secbash/shell.py
-- src/secbash/main.py
-- src/secbash/__init__.py
+- src/aegish/shell.py
+- src/aegish/main.py
+- src/aegish/__init__.py
 - tests/test_shell.py
 - tests/test_main.py
 - tests/test_history.py
@@ -158,7 +158,7 @@ Analyze and report:
 3. HISTORY FILE SECURITY
    - File permissions (world-readable?)
    - Sensitive data in history (passwords in commands)
-   - Symlink attacks on ~/.secbash_history
+   - Symlink attacks on ~/.aegish_history
    - Race conditions on history file
 
 4. INPUT HANDLING EDGE CASES
@@ -187,10 +187,10 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: Benchmark & Evaluation Integrity Analysis for SecBASH.
+RED TEAM: Benchmark & Evaluation Integrity Analysis for aegish.
 
 Read ALL of these files:
-- tests/benchmark/tasks/secbash_eval.py
+- tests/benchmark/tasks/aegish_eval.py
 - tests/benchmark/scorers/security_scorer.py
 - tests/benchmark/metrics/security_metrics.py
 - tests/benchmark/extract_gtfobins.py
@@ -200,7 +200,7 @@ Read ALL of these files:
 - tests/benchmark/plots.py
 - tests/benchmark/data/gtfobins_commands.json (first 200 lines)
 - tests/benchmark/data/harmless_commands.json (first 200 lines)
-- tests/benchmark/test_secbash_eval.py
+- tests/benchmark/test_aegish_eval.py
 - tests/benchmark/test_security_scorer.py
 - tests/benchmark/test_compare.py
 - tests/benchmark/test_plots.py
@@ -249,7 +249,7 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: Dependency & Supply Chain Analysis for SecBASH.
+RED TEAM: Dependency & Supply Chain Analysis for aegish.
 
 Read ALL of these files:
 - pyproject.toml
@@ -301,15 +301,15 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: Architecture & Design Flaw Analysis for SecBASH.
+RED TEAM: Architecture & Design Flaw Analysis for aegish.
 
 Read ALL of these files:
-- src/secbash/validator.py
-- src/secbash/executor.py
-- src/secbash/llm_client.py
-- src/secbash/shell.py
-- src/secbash/main.py
-- src/secbash/config.py
+- src/aegish/validator.py
+- src/aegish/executor.py
+- src/aegish/llm_client.py
+- src/aegish/shell.py
+- src/aegish/main.py
+- src/aegish/config.py
 - docs/architecture.md
 - docs/prd.md
 
@@ -357,7 +357,7 @@ Return a structured markdown report.
 
 **Prompt:**
 ```
-RED TEAM: Documentation vs Implementation Consistency Audit for SecBASH.
+RED TEAM: Documentation vs Implementation Consistency Audit for aegish.
 
 This is a SYSTEMATIC CROSS-REFERENCE audit. You must read BOTH the documentation AND the implementation, then identify every discrepancy.
 
@@ -370,13 +370,13 @@ Read ALL documentation:
 - All story files in docs/stories/ (glob docs/stories/*.md)
 
 Read ALL implementation:
-- src/secbash/validator.py
-- src/secbash/executor.py
-- src/secbash/llm_client.py
-- src/secbash/shell.py
-- src/secbash/main.py
-- src/secbash/config.py
-- src/secbash/__init__.py
+- src/aegish/validator.py
+- src/aegish/executor.py
+- src/aegish/llm_client.py
+- src/aegish/shell.py
+- src/aegish/main.py
+- src/aegish/config.py
+- src/aegish/__init__.py
 
 Perform these specific cross-reference checks:
 
@@ -438,7 +438,7 @@ After ALL 7 subagents complete, consolidate their findings into a single report 
 - Deduplicate findings across subagents. If two subagents found the same issue, merge them and credit both.
 
 ```markdown
-# SecBASH Red Team Report
+# aegish Red Team Report
 
 **Date:** [current date]
 **Scope:** Full codebase adversarial analysis

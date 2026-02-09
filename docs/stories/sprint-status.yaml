@@ -1,6 +1,6 @@
 # generated: 2026-01-28
-# project: SecBASH
-# project_key: secbash
+# project: aegish
+# project_key: aegish
 # tracking_system: file-system
 # story_location: docs/stories
 
@@ -35,8 +35,8 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-01-28
-project: SecBASH
-project_key: secbash
+project: aegish
+project_key: aegish
 tracking_system: file-system
 story_location: docs/stories
 

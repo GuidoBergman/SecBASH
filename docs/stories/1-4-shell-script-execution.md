@@ -5,12 +5,12 @@
 ## Story
 
 As a **sysadmin**,
-I want **to execute shell scripts through SecBASH**,
+I want **to execute shell scripts through aegish**,
 So that **my existing automation and .sh files work transparently**.
 
 ## Epic Context
 
-**Epic 1: Working Shell Foundation** - User can launch SecBASH and execute commands exactly like bash. This story validates that shell scripts work correctly through SecBASH.
+**Epic 1: Working Shell Foundation** - User can launch aegish and execute commands exactly like bash. This story validates that shell scripts work correctly through aegish.
 
 **FRs Addressed:** FR2 (Shell script execution)
 
@@ -20,29 +20,29 @@ So that **my existing automation and .sh files work transparently**.
 
 ### AC1: Direct Script Execution
 **Given** a valid shell script `test.sh` exists with execute permission
-**When** I run `./test.sh` through SecBASH
+**When** I run `./test.sh` through aegish
 **Then** the script executes completely
 **And** output is displayed to the terminal
 
 ### AC2: Bash Explicit Invocation
 **Given** a valid shell script `test.sh` exists
-**When** I run `bash test.sh` through SecBASH
+**When** I run `bash test.sh` through aegish
 **Then** the script executes without requiring execute permission
 
 ### AC3: Script Arguments
 **Given** a script that uses positional parameters `$1`, `$2`, etc.
-**When** I run `./script.sh arg1 arg2` through SecBASH
+**When** I run `./script.sh arg1 arg2` through aegish
 **Then** arguments are passed correctly to the script
 **And** `$@` and `$*` contain the correct values
 
 ### AC4: Script with Shebang Variations
 **Given** scripts with different shebangs (`#!/bin/bash`, `#!/usr/bin/env bash`, `#!/bin/sh`)
-**When** executed through SecBASH
+**When** executed through aegish
 **Then** the correct interpreter is used
 
 ### AC5: Script Exit Codes
 **Given** a script that exits with a specific code (e.g., `exit 5`)
-**When** executed through SecBASH
+**When** executed through aegish
 **Then** the exit code is preserved and available via `$?`
 
 ## Technical Notes
@@ -235,12 +235,12 @@ EOF
 ### Manual Verification Steps
 
 1. Create test script: `echo -e '#!/bin/bash\necho "test"' > /tmp/test.sh && chmod +x /tmp/test.sh`
-2. In SecBASH: `/tmp/test.sh` - should print "test"
-3. In SecBASH: `bash /tmp/test.sh` - should print "test"
+2. In aegish: `/tmp/test.sh` - should print "test"
+3. In aegish: `bash /tmp/test.sh` - should print "test"
 4. Create args script: `echo -e '#!/bin/bash\necho "args: $1 $2"' > /tmp/args.sh && chmod +x /tmp/args.sh`
-5. In SecBASH: `/tmp/args.sh hello world` - should print "args: hello world"
+5. In aegish: `/tmp/args.sh hello world` - should print "args: hello world"
 6. Create exit script: `echo -e '#!/bin/bash\nexit 5' > /tmp/exit5.sh && chmod +x /tmp/exit5.sh`
-7. In SecBASH: `/tmp/exit5.sh; echo $?` - should print "5"
+7. In aegish: `/tmp/exit5.sh; echo $?` - should print "5"
 
 ## Previous Story Intelligence
 

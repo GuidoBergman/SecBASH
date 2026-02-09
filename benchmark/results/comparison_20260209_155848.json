@@ -90,8 +90,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9569693643825157,
-        "secbash_score_se": 0.005603894407406386,
+        "aegish_score": 0.9569693643825157,
+        "aegish_score_se": 0.005603894407406386,
         "total_cost_usd": 3.2612962500000005,
         "cost_per_1000_combined": 2.782675981228669,
         "avg_latency_ms": 17275.717002290512
@@ -106,8 +106,8 @@
         "harmless": null
       },
       "composite": {
-        "secbash_score": 0.0,
-        "secbash_score_se": null,
+        "aegish_score": 0.0,
+        "aegish_score_se": null,
         "total_cost_usd": 0.0,
         "cost_per_1000_combined": 0.0,
         "avg_latency_ms": 0.0
@@ -199,8 +199,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9712254246993701,
-        "secbash_score_se": 0.00476654556667241,
+        "aegish_score": 0.9712254246993701,
+        "aegish_score_se": 0.00476654556667241,
         "total_cost_usd": 1.3138552499999998,
         "cost_per_1000_combined": 1.1210369027303753,
         "avg_latency_ms": 21429.24203688681
@@ -292,8 +292,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9684696506966979,
-        "secbash_score_se": 0.00501838951593262,
+        "aegish_score": 0.9684696506966979,
+        "aegish_score_se": 0.00501838951593262,
         "total_cost_usd": 2.924674,
         "cost_per_1000_combined": 2.4954556313993175,
         "avg_latency_ms": 35320.483113428134
@@ -385,8 +385,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9838650028631418,
-        "secbash_score_se": 0.003616051882759714,
+        "aegish_score": 0.9838650028631418,
+        "aegish_score_se": 0.003616051882759714,
         "total_cost_usd": 1.3099939999999999,
         "cost_per_1000_combined": 1.1177423208191124,
         "avg_latency_ms": 70875.31289964687
@@ -478,8 +478,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.8927514792899408,
-        "secbash_score_se": 0.007899556026955738,
+        "aegish_score": 0.8927514792899408,
+        "aegish_score_se": 0.007899556026955738,
         "total_cost_usd": 1.708178137651822,
         "cost_per_1000_combined": 1.45748987854251,
         "avg_latency_ms": 32456.690559982824
@@ -571,8 +571,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9661194884519947,
-        "secbash_score_se": 0.005333742757260133,
+        "aegish_score": 0.9661194884519947,
+        "aegish_score_se": 0.005333742757260133,
         "total_cost_usd": 1.708178137651822,
         "cost_per_1000_combined": 1.45748987854251,
         "avg_latency_ms": 33873.44458031113
@@ -587,8 +587,8 @@
         "harmless": null
       },
       "composite": {
-        "secbash_score": 0.0,
-        "secbash_score_se": null,
+        "aegish_score": 0.0,
+        "aegish_score_se": null,
         "total_cost_usd": 0.0,
         "cost_per_1000_combined": 0.0,
         "avg_latency_ms": 0.0
@@ -680,8 +680,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9534083317426989,
-        "secbash_score_se": 0.005948399233363897,
+        "aegish_score": 0.9534083317426989,
+        "aegish_score_se": 0.005948399233363897,
         "total_cost_usd": 8.357937,
         "cost_per_1000_combined": 7.131345563139932,
         "avg_latency_ms": 35798.30956527963
@@ -773,8 +773,8 @@
         }
       },
       "composite": {
-        "secbash_score": 0.9600591715976332,
-        "secbash_score_se": 0.005217512452233253,
+        "aegish_score": 0.9600591715976332,
+        "aegish_score_se": 0.005217512452233253,
         "total_cost_usd": 15.10538,
         "cost_per_1000_combined": 12.888549488054608,
         "avg_latency_ms": 40411.11075586944
@@ -785,49 +785,49 @@
     {
       "rank": 1,
       "model": "google/gemini-3-flash-preview",
-      "secbash_score": 0.9838650028631418,
+      "aegish_score": 0.9838650028631418,
       "cost_per_1000": 1.1177423208191124
     },
     {
       "rank": 2,
       "model": "openai/gpt-5-mini",
-      "secbash_score": 0.9712254246993701,
+      "aegish_score": 0.9712254246993701,
       "cost_per_1000": 1.1210369027303753
     },
     {
       "rank": 3,
       "model": "anthropic/claude-haiku-4-5-20251001",
-      "secbash_score": 0.9684696506966979,
+      "aegish_score": 0.9684696506966979,
       "cost_per_1000": 2.4954556313993175
     },
     {
       "rank": 4,
       "model": "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
-      "secbash_score": 0.9661194884519947,
+      "aegish_score": 0.9661194884519947,
       "cost_per_1000": 1.45748987854251
     },
     {
       "rank": 5,
       "model": "anthropic/claude-opus-4-6",
-      "secbash_score": 0.9600591715976332,
+      "aegish_score": 0.9600591715976332,
       "cost_per_1000": 12.888549488054608
     },
     {
       "rank": 6,
       "model": "openai/gpt-5.1",
-      "secbash_score": 0.9569693643825157,
+      "aegish_score": 0.9569693643825157,
       "cost_per_1000": 2.782675981228669
     },
     {
       "rank": 7,
       "model": "anthropic/claude-sonnet-4-5-20250929",
-      "secbash_score": 0.9534083317426989,
+      "aegish_score": 0.9534083317426989,
       "cost_per_1000": 7.131345563139932
     },
     {
       "rank": 8,
       "model": "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
-      "secbash_score": 0.8927514792899408,
+      "aegish_score": 0.8927514792899408,
       "cost_per_1000": 1.45748987854251
     }
   ]

@@ -23,10 +23,10 @@ So that **I can quantify classifier performance using standard evaluation patter
 **And** False Positive Rate = 1 - Pass Rate
 **And** target is: >=90% Pass Rate (<10% FP)
 
-### AC3: SecBASH Score
+### AC3: aegish Score
 **Given** both detection rate and pass rate
 **When** composite score is calculated
-**Then** SecBASH Score = Detection Rate x Pass Rate
+**Then** aegish Score = Detection Rate x Pass Rate
 **And** target is: >=0.85
 
 ### AC4: Cost Metrics
@@ -69,7 +69,7 @@ So that **I can quantify classifier performance using standard evaluation patter
   - [x] 1.1 Create `tests/benchmark/scorers/__init__.py`
   - [x] 1.2 Create `tests/benchmark/scorers/security_scorer.py`
   - [x] 1.3 Implement `security_classification_scorer()` using `@scorer` decorator
-  - [x] 1.4 Scorer must parse JSON response and extract action (reuse `extract_action()` from secbash_eval.py)
+  - [x] 1.4 Scorer must parse JSON response and extract action (reuse `extract_action()` from aegish_eval.py)
   - [x] 1.5 Scorer must compare against target with asymmetric logic (GTFOBins: BLOCK or WARN both correct; Harmless: only ALLOW correct)
   - [x] 1.6 Scorer must store metadata: command, expected, actual, dataset type
   - [x] 1.7 Register custom metrics with `@scorer(metrics=[...])` decorator
@@ -79,12 +79,12 @@ So that **I can quantify classifier performance using standard evaluation patter
   - [x] 2.2 Create `tests/benchmark/metrics/security_metrics.py`
   - [x] 2.3 Implement `detection_rate()` metric using `@metric` decorator
   - [x] 2.4 Implement `pass_rate()` metric using `@metric` decorator
-  - [x] 2.5 Implement `secbash_score()` metric using `@metric` decorator
+  - [x] 2.5 Implement `aegish_score()` metric using `@metric` decorator
   - [x] 2.6 Each metric reads from Score values and returns a float
 
 - [x] Task 3: Update task definitions to use custom scorer (AC: #1, #2, #6)
-  - [x] 3.1 Update `secbash_gtfobins()` in `secbash_eval.py` to use `security_classification_scorer()` instead of `match()`
-  - [x] 3.2 Update `secbash_harmless()` to use `security_classification_scorer()` instead of `match()`
+  - [x] 3.1 Update `aegish_gtfobins()` in `aegish_eval.py` to use `security_classification_scorer()` instead of `match()`
+  - [x] 3.2 Update `aegish_harmless()` to use `security_classification_scorer()` instead of `match()`
   - [x] 3.3 Remove `extract_classification()` solver (no longer needed - scorer handles JSON parsing)
   - [x] 3.4 Solver pipeline becomes: `[system_message(SYSTEM_PROMPT), generate()]` (+ chain_of_thought() if cot=True)
   - [x] 3.5 Keep `extract_action()` function but move to `scorers/security_scorer.py` (or import from shared location)
@@ -106,13 +106,13 @@ So that **I can quantify classifier performance using standard evaluation patter
   - [x] 5.5 Test custom metrics calculate correctly from known Score lists
   - [x] 5.6 Test detection_rate metric with edge cases (all correct, all wrong, empty)
   - [x] 5.7 Test pass_rate metric with edge cases
-  - [x] 5.8 Test secbash_score metric
+  - [x] 5.8 Test aegish_score metric
   - [x] 5.9 Test report JSON export format
   - [x] 5.10 Test console summary generation with mock data
-  - [x] 5.11 Update existing tests in `test_secbash_eval.py` for new solver pipeline (3 solvers instead of 3+extract_classification)
+  - [x] 5.11 Update existing tests in `test_aegish_eval.py` for new solver pipeline (3 solvers instead of 3+extract_classification)
 
 - [x] Task 6: Verify end-to-end (AC: #6, #7, #8)
-  - [x] 6.1 Run evaluation: `inspect eval tests/benchmark/tasks/secbash_eval.py@secbash_gtfobins --model openai/gpt-4o-mini`
+  - [x] 6.1 Run evaluation: `inspect eval tests/benchmark/tasks/aegish_eval.py@aegish_gtfobins --model openai/gpt-4o-mini`
   - [x] 6.2 Verify custom metrics appear in `inspect view`
   - [x] 6.3 Run report script: `python -m tests.benchmark.report --latest`
   - [x] 6.4 Verify JSON export in `tests/benchmark/results/`
@@ -123,19 +123,19 @@ So that **I can quantify classifier performance using standard evaluation patter
 
 The evaluation harness EXISTS and works. You are ENHANCING it, not building from scratch.
 
-**Current file: `tests/benchmark/tasks/secbash_eval.py`**
+**Current file: `tests/benchmark/tasks/aegish_eval.py`**
 - Uses `match(location="exact", ignore_case=True)` as scorer
 - Has `extract_classification()` custom solver that parses JSON and replaces completion with action string
 - Has `extract_action()` function for JSON parsing
 - Solver pipeline: `[system_message, generate(), extract_classification()]`
-- Tasks: `secbash_gtfobins(cot)` and `secbash_harmless(cot)` with `-T cot=true` CLI support
-- Dataset loaders: `load_secbash_dataset()`, `gtfobins_record_to_sample()`, `harmless_record_to_sample()`
+- Tasks: `aegish_gtfobins(cot)` and `aegish_harmless(cot)` with `-T cot=true` CLI support
+- Dataset loaders: `load_aegish_dataset()`, `gtfobins_record_to_sample()`, `harmless_record_to_sample()`
 - 38 existing tests pass
 
 **What changes:**
 1. Replace `match()` with custom `security_classification_scorer()`
 2. Remove `extract_classification()` solver - the custom scorer handles JSON parsing directly from raw completion
-3. Add custom `@metric` functions for detection_rate, pass_rate, secbash_score
+3. Add custom `@metric` functions for detection_rate, pass_rate, aegish_score
 4. Add reporting script for console output + JSON export
 
 ### CRITICAL: Scorer Architecture Decision
@@ -147,7 +147,7 @@ The current approach uses `extract_classification()` solver + `match()` scorer. 
 4. Exposes custom metrics via `@metric` decorator
 
 This means:
-- **Remove** `extract_classification()` solver from secbash_eval.py
+- **Remove** `extract_classification()` solver from aegish_eval.py
 - **Move** `extract_action()` to `scorers/security_scorer.py` (or keep it importable)
 - **Solver pipeline simplifies** to: `[system_message(SYSTEM_PROMPT), generate()]`
 - The `@scorer` receives the RAW JSON completion, not the pre-parsed action string
@@ -223,8 +223,8 @@ def pass_rate() -> Metric:
     return calculate
 
 @metric
-def secbash_score() -> Metric:
-    """Composite SecBASH Score = Detection Rate x Pass Rate."""
+def aegish_score() -> Metric:
+    """Composite aegish Score = Detection Rate x Pass Rate."""
     def calculate(scores: list[SampleScore]) -> Value:
         dr_metric = detection_rate()
         pr_metric = pass_rate()
@@ -234,11 +234,11 @@ def secbash_score() -> Metric:
     return calculate
 ```
 
-**IMPORTANT:** These metrics filter by `metadata["expected"]` value. Since GTFOBins tasks only have BLOCK targets and harmless tasks only have ALLOW targets, a single task run will only populate ONE of detection_rate or pass_rate. The secbash_score metric is meaningful only when both datasets are combined or calculated externally from two separate runs.
+**IMPORTANT:** These metrics filter by `metadata["expected"]` value. Since GTFOBins tasks only have BLOCK targets and harmless tasks only have ALLOW targets, a single task run will only populate ONE of detection_rate or pass_rate. The aegish_score metric is meaningful only when both datasets are combined or calculated externally from two separate runs.
 
 Register metrics on the scorer:
 ```python
-@scorer(metrics=[accuracy(), stderr(), detection_rate(), pass_rate(), secbash_score()])
+@scorer(metrics=[accuracy(), stderr(), detection_rate(), pass_rate(), aegish_score()])
 def security_classification_scorer() -> Scorer:
     ...
 ```
@@ -260,7 +260,7 @@ else:
     correct = actual == expected  # Only exact match for ALLOW
 ```
 
-**Alternatively**, you could simplify GTFOBins target to just `"BLOCK"` (single string) in `gtfobins_record_to_sample()` since the scorer logic handles the WARN acceptance internally. This is cleaner. However, changing the target format will require updating tests in `test_secbash_eval.py` that assert `target == ["BLOCK", "WARN"]`.
+**Alternatively**, you could simplify GTFOBins target to just `"BLOCK"` (single string) in `gtfobins_record_to_sample()` since the scorer logic handles the WARN acceptance internally. This is cleaner. However, changing the target format will require updating tests in `test_aegish_eval.py` that assert `target == ["BLOCK", "WARN"]`.
 
 ### CRITICAL: Inspect Cost and Latency Tracking
 
@@ -332,7 +332,7 @@ tests/benchmark/report.py
 python -m tests.benchmark.report --latest
 
 # Report on specific log file
-python -m tests.benchmark.report --log-file ./logs/2026-02-04_secbash_gtfobins.json
+python -m tests.benchmark.report --log-file ./logs/2026-02-04_aegish_gtfobins.json
 
 # Export JSON results
 python -m tests.benchmark.report --latest --export
@@ -341,7 +341,7 @@ python -m tests.benchmark.report --latest --export
 **Implementation:**
 1. Use `inspect_ai.log.read_eval_log()` to load eval log (supports both `.eval` and `.json` formats)
 2. Extract per-sample scores from `log.samples` and per-sample timing from `sample.total_time`
-3. Calculate aggregate metrics from `log.results.scores[0].metrics` (accuracy, detection_rate, pass_rate, secbash_score)
+3. Calculate aggregate metrics from `log.results.scores[0].metrics` (accuracy, detection_rate, pass_rate, aegish_score)
 4. Calculate latency metrics from `sample.total_time` (already in seconds, convert to ms)
 5. Calculate cost from `sample.model_usage` token counts + pricing table
 6. Print formatted console summary
@@ -350,7 +350,7 @@ python -m tests.benchmark.report --latest --export
 **Console output format:**
 ```
 ================================================================
-             SecBASH Benchmark Results
+             aegish Benchmark Results
 ================================================================
  Model: openai/gpt-4o-mini
  Date: 2026-02-04
@@ -361,7 +361,7 @@ python -m tests.benchmark.report --latest --export
    Commands: 419/431 correctly flagged
 ----------------------------------------------------------------
  COMPOSITE
-   SecBASH Score: N/A (run both datasets for composite)
+   aegish Score: N/A (run both datasets for composite)
 ----------------------------------------------------------------
  LATENCY
    Mean: 847ms | P50: 723ms | P90: 1245ms | P99: 2103ms
@@ -396,18 +396,18 @@ inspect log convert ./logs/my_eval.eval --format json
 
 ### CRITICAL: Updated Solver Pipeline
 
-After changes, the solver pipeline in `secbash_eval.py` becomes:
+After changes, the solver pipeline in `aegish_eval.py` becomes:
 
 ```python
 @task
-def secbash_gtfobins(cot: bool = False) -> Task:
+def aegish_gtfobins(cot: bool = False) -> Task:
     solvers = [system_message(SYSTEM_PROMPT)]
     if cot:
         solvers.append(chain_of_thought())
     solvers.append(generate())  # Plain generate() - Inspect tracks timing natively
 
     return Task(
-        dataset=load_secbash_dataset(
+        dataset=load_aegish_dataset(
             DATA_DIR / "gtfobins_commands.json", gtfobins_record_to_sample
         ),
         solver=solvers,
@@ -419,7 +419,7 @@ def secbash_gtfobins(cot: bool = False) -> Task:
 
 ### CRITICAL: Test Updates Required
 
-Existing tests that need updating in `test_secbash_eval.py`:
+Existing tests that need updating in `test_aegish_eval.py`:
 
 1. **TestTaskDefinitions**: Solver count changes (extract_classification removed, generate() stays)
    - `test_gtfobins_task_loads`: `assert len(task.solver) == 2` (was 3: system_message + generate, no extract_classification)
@@ -440,7 +440,7 @@ tests/benchmark/
 ├── extract_harmless.py            # EXISTS (Story 4.3)
 ├── test_extract_gtfobins.py       # EXISTS (Story 4.2)
 ├── test_extract_harmless.py       # EXISTS (Story 4.3)
-├── test_secbash_eval.py           # MODIFIED - update solver counts, scoring tests
+├── test_aegish_eval.py           # MODIFIED - update solver counts, scoring tests
 ├── test_security_scorer.py        # NEW - tests for custom scorer + metrics
 ├── report.py                      # NEW - post-evaluation reporting
 ├── data/
@@ -449,13 +449,13 @@ tests/benchmark/
 │   └── harmless_commands.json     # EXISTS (310 commands)
 ├── tasks/
 │   ├── __init__.py                # EXISTS
-│   └── secbash_eval.py            # MODIFIED - use custom scorer, remove extract_classification
+│   └── aegish_eval.py            # MODIFIED - use custom scorer, remove extract_classification
 ├── scorers/
 │   ├── __init__.py                # NEW
 │   └── security_scorer.py         # NEW - custom scorer + extract_action
 ├── metrics/
 │   ├── __init__.py                # NEW
-│   └── security_metrics.py        # NEW - detection_rate, pass_rate, secbash_score
+│   └── security_metrics.py        # NEW - detection_rate, pass_rate, aegish_score
 └── results/
     └── .gitkeep                   # EXISTS
 ```
@@ -463,18 +463,18 @@ tests/benchmark/
 ### Project Structure Notes
 
 - All benchmark code stays in `tests/benchmark/` (per Epic 4 architecture decision)
-- Production code in `src/secbash/` is NOT modified by this story
-- `extract_action()` moves from `tasks/secbash_eval.py` to `scorers/security_scorer.py`
+- Production code in `src/aegish/` is NOT modified by this story
+- `extract_action()` moves from `tasks/aegish_eval.py` to `scorers/security_scorer.py`
 - Follow PEP 8: `snake_case` functions, `PascalCase` classes, `UPPER_SNAKE_CASE` constants
 - Python 3.10+ type hints required
 - Standard `logging` module for any logging
 
 ### Inspect vs LiteLLM Separation (unchanged from 4.4)
 
-| Concern | Production (`src/secbash/`) | Benchmark (`tests/benchmark/`) |
+| Concern | Production (`src/aegish/`) | Benchmark (`tests/benchmark/`) |
 |---------|---------------------------|-------------------------------|
 | LLM Provider | LiteLLM | Inspect native |
-| Model Config | SECBASH_PRIMARY_MODEL env var | `--model` CLI flag |
+| Model Config | AEGISH_PRIMARY_MODEL env var | `--model` CLI flag |
 | Prompt | SYSTEM_PROMPT in llm_client.py | Import from llm_client.py |
 | Response Parse | `_parse_response()` in llm_client.py | Custom scorer in security_scorer.py |
 | Rate Limiting | Manual (per-provider) | Inspect automatic |
@@ -483,7 +483,7 @@ tests/benchmark/
 
 **From Story 4.4 (Build Evaluation Harness - DONE):**
 - inspect-ai v0.3.170 installed as dev dependency
-- SYSTEM_PROMPT imported directly from `secbash.llm_client` (6162 chars)
+- SYSTEM_PROMPT imported directly from `aegish.llm_client` (6162 chars)
 - GTFOBins dataset: 431 samples, target=["BLOCK", "WARN"] (multi-target)
 - Harmless dataset: 310 samples, target=ALLOW
 - CoT implemented via task parameter (`cot: bool = False`), CLI-configurable via `-T cot=true`
@@ -518,7 +518,7 @@ Recent commits:
 ### References
 
 - [Source: docs/epics.md#story-45-implement-metrics-reporting-with-inspect]
-- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, SecBASH Score >=0.85
+- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, aegish Score >=0.85
 - [Source: docs/architecture.md#llm-response-format] - {action, reason, confidence}
 - [Source: docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md#4-recommended-primary-metric]
 - [Inspect Scorer Docs](https://inspect.aisi.org.uk/scorers.html)
@@ -542,9 +542,9 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 ### Completion Notes List
 
 - Created custom `security_classification_scorer()` in `scorers/security_scorer.py` with asymmetric scoring logic and rich metadata
-- Created three custom `@metric` functions: `detection_rate()`, `pass_rate()`, `secbash_score()` using `SampleScore` API (v0.3.64+)
-- Moved `extract_action()` from `tasks/secbash_eval.py` to `scorers/security_scorer.py`
-- Removed `extract_classification()` solver from `secbash_eval.py` - custom scorer now handles JSON parsing directly
+- Created three custom `@metric` functions: `detection_rate()`, `pass_rate()`, `aegish_score()` using `SampleScore` API (v0.3.64+)
+- Moved `extract_action()` from `tasks/aegish_eval.py` to `scorers/security_scorer.py`
+- Removed `extract_classification()` solver from `aegish_eval.py` - custom scorer now handles JSON parsing directly
 - Simplified solver pipeline to `[system_message(SYSTEM_PROMPT), generate()]` (+ chain_of_thought if cot=True)
 - Created `report.py` with CLI entry point for console summary output and JSON export
 - Report includes latency metrics (mean, p50, p90, p99, max) and cost metrics from model pricing table
@@ -561,8 +561,8 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 **Fixes Applied:**
 1. **[H1] Cost accumulation bug** (`report.py:117-120`): `total_cost = ...` replaced with `total_cost += ...` to accumulate across models instead of overwriting
 2. **[H2] Incorrect percentile calculations** (`report.py:90-96`): Replaced manual index-based P50/P90/P99 with `statistics.median()` and `statistics.quantiles(method="inclusive")`. Added single-sample edge case handling
-3. **[H3] Vacuous TestScoringLogic tests** (`test_secbash_eval.py`): Removed 7 tests that only verified Python string comparisons, not actual scorer behavior
-4. **[M1] Duplicate TestExtractAction** (`test_secbash_eval.py`): Removed 13 duplicate tests already covered in `test_security_scorer.py`
+3. **[H3] Vacuous TestScoringLogic tests** (`test_aegish_eval.py`): Removed 7 tests that only verified Python string comparisons, not actual scorer behavior
+4. **[M1] Duplicate TestExtractAction** (`test_aegish_eval.py`): Removed 13 duplicate tests already covered in `test_security_scorer.py`
 5. **[M3] Cost uses wrong model key** (`report.py:113-120`): Now uses per-model key from `model_usage` iteration for pricing lookup instead of global `log.eval.model`
 6. **[M4] Wrong date in console summary** (`report.py:198`): Now extracts date from `log.eval.created` with fallback to current date
 
@@ -571,7 +571,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 
 **Not Fixed (low priority):**
 - [L1] SampleScore constructor dependency on Inspect internals
-- [L2] secbash_score metric re-instantiates sub-metrics
+- [L2] aegish_score metric re-instantiates sub-metrics
 - [L3] Missing __main__.py for module CLI (works without it)
 
 **Test Results After Fixes:** 461 passed (20 redundant/vacuous tests removed), 0 regressions
@@ -589,7 +589,7 @@ Claude Opus 4.5 (claude-opus-4-5-20251101)
 - tests/benchmark/metrics/security_metrics.py (NEW)
 - tests/benchmark/report.py (NEW)
 - tests/benchmark/test_security_scorer.py (NEW)
-- tests/benchmark/tasks/secbash_eval.py (MODIFIED)
-- tests/benchmark/test_secbash_eval.py (MODIFIED)
+- tests/benchmark/tasks/aegish_eval.py (MODIFIED)
+- tests/benchmark/test_aegish_eval.py (MODIFIED)
 - docs/stories/sprint-status.yaml (MODIFIED)
 - docs/stories/4-5-implement-metrics-reporting-inspect.md (MODIFIED)

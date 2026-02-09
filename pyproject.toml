@@ -1,5 +1,5 @@
 [project]
-name = "secbash"
+name = "aegish"
 version = "0.1.0"
 description = "LLM-powered shell with security validation"
 requires-python = ">=3.10"
@@ -10,7 +10,7 @@ dependencies = [
 ]
 
 [project.scripts]
-secbash = "secbash.main:app"
+aegish = "aegish.main:app"
 
 [build-system]
 requires = ["hatchling"]

@@ -1,7 +1,7 @@
 """Shell interaction module.
 
 Handles the readline loop, prompt display, and user interaction
-for the SecBASH shell.
+for the aegish shell.
 
 readline is imported for line editing and command history support.
 When imported, readline enables:
@@ -14,12 +14,12 @@ import atexit
 import os
 import readline  # Provides line editing and history support
 
-from secbash.config import get_api_key, get_model_chain, get_provider_from_model
-from secbash.executor import execute_command
-from secbash.validator import validate_command
+from aegish.config import get_api_key, get_model_chain, get_provider_from_model
+from aegish.executor import execute_command
+from aegish.validator import validate_command
 
 # History configuration
-HISTORY_FILE: str = os.path.expanduser("~/.secbash_history")
+HISTORY_FILE: str = os.path.expanduser("~/.aegish_history")
 HISTORY_LENGTH: int = 1000
 _history_initialized: bool = False  # Guard against duplicate atexit registration
 
@@ -38,7 +38,7 @@ def init_history() -> None:
 
     History features enabled:
     - Session navigation with up/down arrows
-    - Persistent history across sessions (stored in ~/.secbash_history)
+    - Persistent history across sessions (stored in ~/.aegish_history)
     - History limited to HISTORY_LENGTH commands (default: 1000)
     """
     global _history_initialized
@@ -60,13 +60,13 @@ def init_history() -> None:
 def get_prompt() -> str:
     """Return the shell prompt string.
 
-    The default prompt "secbash> " clearly identifies the shell
+    The default prompt "aegish> " clearly identifies the shell
     while remaining concise. This is not configurable in the MVP.
 
     Returns:
-        Prompt string, default is "secbash> "
+        Prompt string, default is "aegish> "
     """
-    return "secbash> "
+    return "aegish> "
 
 
 def run_shell() -> int:
@@ -84,7 +84,7 @@ def run_shell() -> int:
     # Track last exit code for $? expansion
     last_exit_code = 0
 
-    print("SecBASH - LLM-powered shell with security validation")
+    print("aegish - LLM-powered shell with security validation")
     # Show model chain with availability status
     model_chain = get_model_chain()
     model_display_parts = []

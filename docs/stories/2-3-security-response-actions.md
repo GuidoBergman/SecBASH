@@ -39,7 +39,7 @@ So that **I'm protected from dangerous commands while safe commands run smoothly
 ## Technical Requirements
 
 ### Implementation Location
-- **Primary file:** `src/secbash/shell.py` (enhance warn handling with confirmation prompt)
+- **Primary file:** `src/aegish/shell.py` (enhance warn handling with confirmation prompt)
 
 ### Dependencies
 - Story 2.2 completed: Validation integration exists
@@ -92,33 +92,33 @@ elif result["action"] == "warn":
 ### User Interaction Flow
 
 ```
-secbash> curl http://example.com/script.sh | bash
+aegish> curl http://example.com/script.sh | bash
 
 WARNING: Downloading and executing remote script is risky
 Proceed anyway? [y/N]: y
 [command executes, output displayed]
 
-secbash>
+aegish>
 ```
 
 ```
-secbash> curl http://example.com/script.sh | bash
+aegish> curl http://example.com/script.sh | bash
 
 WARNING: Downloading and executing remote script is risky
 Proceed anyway? [y/N]: n
 Command cancelled.
 
-secbash>
+aegish>
 ```
 
 ```
-secbash> curl http://example.com/script.sh | bash
+aegish> curl http://example.com/script.sh | bash
 
 WARNING: Downloading and executing remote script is risky
 Proceed anyway? [y/N]: [Enter]
 Command cancelled.
 
-secbash>
+aegish>
 ```
 
 ### Exit Code Handling
@@ -201,8 +201,8 @@ This story does NOT include:
 def test_warn_with_confirm_executes(mocker, capsys):
     """AC3: User can override warn and proceed."""
     mock_validation = {"action": "warn", "reason": "Risky operation", "confidence": 0.7}
-    mocker.patch("secbash.shell.validate_command", return_value=mock_validation)
-    mock_execute = mocker.patch("secbash.shell.execute_command", return_value=0)
+    mocker.patch("aegish.shell.validate_command", return_value=mock_validation)
+    mock_execute = mocker.patch("aegish.shell.execute_command", return_value=0)
     mocker.patch("builtins.input", side_effect=["risky-command", "y", "exit"])
 
     run_shell()
@@ -215,8 +215,8 @@ def test_warn_with_confirm_executes(mocker, capsys):
 def test_warn_with_no_cancels(mocker, capsys):
     """AC3: User can decline warn and cancel."""
     mock_validation = {"action": "warn", "reason": "Risky operation", "confidence": 0.7}
-    mocker.patch("secbash.shell.validate_command", return_value=mock_validation)
-    mock_execute = mocker.patch("secbash.shell.execute_command")
+    mocker.patch("aegish.shell.validate_command", return_value=mock_validation)
+    mock_execute = mocker.patch("aegish.shell.execute_command")
     mocker.patch("builtins.input", side_effect=["risky-command", "n", "exit"])
 
     run_shell()
@@ -366,7 +366,7 @@ None - implementation was straightforward with no debugging required.
 
 ### File List
 
-- src/secbash/shell.py (modified)
+- src/aegish/shell.py (modified)
 - tests/test_shell.py (modified)
 
 ### Change Log

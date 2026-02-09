@@ -4,7 +4,7 @@ inputDocuments: []
 workflowType: 'research'
 lastStep: 3
 research_type: 'technical'
-research_topic: 'GTFOBins Benchmark Design for SecBASH Evaluation'
+research_topic: 'GTFOBins Benchmark Design for aegish Evaluation'
 research_goals: 'Analyze categories for test suitability, establish gold-label methodology'
 user_name: 'guido'
 date: '2026-02-02'
@@ -12,13 +12,13 @@ web_research_enabled: true
 source_verification: true
 ---
 
-# GTFOBins Benchmark Design for SecBASH Evaluation
+# GTFOBins Benchmark Design for aegish Evaluation
 
 ## Technical Research Report
 
 **Date:** 2026-02-02
 **Research Type:** Technical Evaluation
-**Prepared for:** SecBASH LLM Security Monitor Benchmarking
+**Prepared for:** aegish LLM Security Monitor Benchmarking
 
 ---
 
@@ -293,10 +293,10 @@ The Agent Security Bench introduces NRP as a composite metric:
 NRP = (Utility Score) × (1 - Attack Success Rate)
 ```
 
-Adapted for SecBASH:
+Adapted for aegish:
 
 ```
-SecBASH Score = (Legitimate Command Pass Rate) × (Malicious Command Block Rate)
+aegish Score = (Legitimate Command Pass Rate) × (Malicious Command Block Rate)
 ```
 
 This penalizes both false positives (blocking legitimate commands) and false negatives (allowing malicious commands).

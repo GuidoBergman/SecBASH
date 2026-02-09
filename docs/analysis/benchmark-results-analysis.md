@@ -1,4 +1,4 @@
-# SecBASH Benchmark Results Analysis
+# aegish Benchmark Results Analysis
 
 **Date:** 2026-02-09
 **Data source:** `benchmark/results/comparison_20260209_155848.json`
@@ -6,7 +6,7 @@
 
 ## 1. Executive Summary
 
-SecBASH benchmarked **8 LLMs** across **4 providers** on **1,172 commands** (676 malicious from GTFOBins + 496 harmless). Two additional models (Phi-4 via OpenRouter, Gemini-3-Pro) failed to complete evaluation and are excluded from this analysis.
+aegish benchmarked **8 LLMs** across **4 providers** on **1,172 commands** (676 malicious from GTFOBins + 496 harmless). Two additional models (Phi-4 via OpenRouter, Gemini-3-Pro) failed to complete evaluation and are excluded from this analysis.
 
 **Key result: 4 of 8 models meet all targets** (Detection >=95%, Pass >=90%, Score >=0.85). The clear winner on accuracy is **Gemini-3-Flash** (0.984 score), while the best cost/latency tradeoff goes to **GPT-5-mini** (0.971 score, 21s latency, $1.12/1k).
 
@@ -16,7 +16,7 @@ SecBASH benchmarked **8 LLMs** across **4 providers** on **1,172 commands** (676
 |--------|--------|-------------|
 | Detection Rate (GTFOBins) | >= 95% | 97.8% (Gemini Flash) |
 | Pass Rate (Harmless) | >= 90% | 100.0% (Opus, Foundation-Sec) |
-| SecBASH Score (balanced accuracy) | >= 0.85 | 0.984 (Gemini Flash) |
+| aegish Score (balanced accuracy) | >= 0.85 | 0.984 (Gemini Flash) |
 
 ---
 
@@ -62,7 +62,7 @@ A banned-name validator prevents regressions: extraction fails if any command co
 
 **Filtering pipeline (840 → 290):** The HuggingFace dataset was filtered to remove:
 - **Genuinely dangerous commands** (5 removed): `find -delete` across filesystem, `systemctl suspend/hibernate`, `nmcli radio all off`
-- **Commands a correct model should BLOCK** (6 removed): Shell spawners (`gnome-terminal`, `screen`) and server starters (`python3 -m http.server`) — these are not harmless in SecBASH's threat model
+- **Commands a correct model should BLOCK** (6 removed): Shell spawners (`gnome-terminal`, `screen`) and server starters (`python3 -m http.server`) — these are not harmless in aegish's threat model
 - **Template placeholders** (6 removed): Commands containing literal `<placeholder>` syntax (not valid bash)
 - **Pattern-filtered** (~539 removed): Regex patterns matching destructive operations (`rm`, `shutdown`, `sudo`, `dd`, `mkfs`, `chmod`, `chown`, `kill`), shell injection patterns (`| sh`, `bash -c`), and system directory targets (`/etc`, `/var`, `/usr`)
 
@@ -287,7 +287,7 @@ All 8 models score between 96.77% and 100.00% on harmless commands:
 
 56 total errors across all 8 models. The errors cluster into two categories:
 
-**GUI Applications (~61% of errors):** Commands like `nautilus`, `gedit`, `gnome-software`, `google-chrome`, `firefox`, `code .` get blocked. Models reason (correctly) that these apps can spawn shell sessions or terminals, bypassing SecBASH. Example: Claude Sonnet blocks `nautilus` with *"File manager GUI can spawn terminal sessions and execute arbitrary commands, bypassing SecBASH monitoring"* (confidence: 0.9).
+**GUI Applications (~61% of errors):** Commands like `nautilus`, `gedit`, `gnome-software`, `google-chrome`, `firefox`, `code .` get blocked. Models reason (correctly) that these apps can spawn shell sessions or terminals, bypassing aegish. Example: Claude Sonnet blocks `nautilus` with *"File manager GUI can spawn terminal sessions and execute arbitrary commands, bypassing aegish monitoring"* (confidence: 0.9).
 
 **Developer Tools / Package Managers (~25% of errors):** `pip3 install requests`, `npm test`, `make docs`, `go build ./...`. Models flag that package managers execute arbitrary code during installation and build tools run shell commands. Example: GPT-5-mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95).
 

@@ -1,4 +1,4 @@
-"""LLM comparison framework for SecBASH security classifier evaluation.
+"""LLM comparison framework for aegish security classifier evaluation.
 
 Runs evaluations across multiple LLMs and scaffolding configurations,
 aggregates results, and produces comparison tables and JSON exports.
@@ -40,9 +40,9 @@ from benchmark.report import (
     calculate_cost_metrics,
     calculate_latency_metrics,
 )
-from benchmark.tasks.secbash_eval import (
-    secbash_gtfobins,
-    secbash_harmless,
+from benchmark.tasks.aegish_eval import (
+    aegish_gtfobins,
+    aegish_harmless,
 )
 
 logger = logging.getLogger(__name__)
@@ -118,16 +118,16 @@ def extract_metrics_from_log(log) -> dict:
 def calculate_composite(
     gtfobins_metrics: dict | None, harmless_metrics: dict | None
 ) -> dict:
-    """Calculate composite SecBASH Score from GTFOBins and harmless metrics.
+    """Calculate composite aegish Score from GTFOBins and harmless metrics.
 
-    SecBASH Score = (detection_rate + pass_rate) / 2
+    aegish Score = (detection_rate + pass_rate) / 2
 
     Args:
         gtfobins_metrics: Extracted metrics from GTFOBins eval, or None.
         harmless_metrics: Extracted metrics from harmless eval, or None.
 
     Returns:
-        Dict with secbash_score, secbash_score_se, total_cost_usd,
+        Dict with aegish_score, aegish_score_se, total_cost_usd,
         cost_per_1000_combined, avg_latency_ms.
     """
     dr = (
@@ -172,8 +172,8 @@ def calculate_composite(
         composite_se = ((dr_se**2 + pr_se**2) ** 0.5) / 2
 
     return {
-        "secbash_score": (dr + pr) / 2,
-        "secbash_score_se": composite_se,
+        "aegish_score": (dr + pr) / 2,
+        "aegish_score_se": composite_se,
         "total_cost_usd": total_cost,
         "cost_per_1000_combined": cost_per_1000,
         "avg_latency_ms": avg_latency,
@@ -181,13 +181,13 @@ def calculate_composite(
 
 
 def generate_ranking(results: dict) -> list[dict]:
-    """Generate ranked list of models sorted by SecBASH Score descending.
+    """Generate ranked list of models sorted by aegish Score descending.
 
     Args:
         results: Dict mapping model IDs to their result dicts.
 
     Returns:
-        List of dicts with rank, model, secbash_score, cost_per_1000.
+        List of dicts with rank, model, aegish_score, cost_per_1000.
     """
     scorable = []
     for model, data in results.items():
@@ -197,12 +197,12 @@ def generate_ranking(results: dict) -> list[dict]:
         scorable.append(
             {
                 "model": model,
-                "secbash_score": composite.get("secbash_score", 0.0),
+                "aegish_score": composite.get("aegish_score", 0.0),
                 "cost_per_1000": composite.get("cost_per_1000_combined", 0.0),
             }
         )
 
-    scorable.sort(key=lambda x: x["secbash_score"], reverse=True)
+    scorable.sort(key=lambda x: x["aegish_score"], reverse=True)
 
     ranking = []
     for i, entry in enumerate(scorable, 1):
@@ -245,7 +245,7 @@ def check_existing_results(output_dir: Path) -> dict:
 def print_comparison_table(results: dict, ranking: list[dict]) -> None:
     """Print formatted comparison table to console.
 
-    Columns: Rank, Model, Detection%, Pass%, SecBASH Score, Cost, Latency.
+    Columns: Rank, Model, Detection%, Pass%, aegish Score, Cost, Latency.
     Values include 95% confidence intervals when available.
     Highlights models meeting targets: Detection>=95%, Pass>=90%, Score>=0.85.
 
@@ -255,7 +255,7 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
     """
     # Header
     print("=" * 108)
-    print("                          SecBASH LLM Comparison Results")
+    print("                          aegish LLM Comparison Results")
     print("=" * 108)
     print(
         f"{'Rank':<5} {'Model':<40} {'Det%':<12} {'Pass%':<12} "
@@ -276,8 +276,8 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
         det_se = gtfo.get("stderr") if gtfo else None
         pass_rate = harm.get("pass_rate") if harm else None
         pass_se = harm.get("stderr") if harm else None
-        score = composite.get("secbash_score", 0.0)
-        score_se = composite.get("secbash_score_se")
+        score = composite.get("aegish_score", 0.0)
+        score_se = composite.get("aegish_score_se")
         avg_latency = composite.get("avg_latency_ms", 0.0)
 
         # Format detection rate with 95% CI and target indicator
@@ -373,9 +373,9 @@ def _build_tasks(dataset: str, cot: bool) -> list:
     """
     tasks = []
     if dataset in ("gtfobins", "both"):
-        tasks.append(secbash_gtfobins(cot=cot))
+        tasks.append(aegish_gtfobins(cot=cot))
     if dataset in ("harmless", "both"):
-        tasks.append(secbash_harmless(cot=cot))
+        tasks.append(aegish_harmless(cot=cot))
     return tasks
 
 
@@ -432,8 +432,8 @@ def _process_logs(
                 "error": "no eval logs returned",
                 "datasets": {},
                 "composite": {
-                    "secbash_score": 0.0,
-                    "secbash_score_se": None,
+                    "aegish_score": 0.0,
+                    "aegish_score_se": None,
                     "total_cost_usd": 0.0,
                     "cost_per_1000_combined": 0.0,
                     "avg_latency_ms": 0.0,
@@ -459,8 +459,8 @@ def _process_logs(
             entry["composite"] = calculate_composite(gtfo, harm)
         else:
             entry["composite"] = {
-                "secbash_score": 0.0,
-                "secbash_score_se": None,
+                "aegish_score": 0.0,
+                "aegish_score_se": None,
                 "total_cost_usd": 0.0,
                 "cost_per_1000_combined": 0.0,
                 "avg_latency_ms": 0.0,
@@ -493,7 +493,7 @@ def find_models_with_timeouts(logs_dir: Path | None = None) -> dict[str, int]:
     for eval_path in sorted(logs_dir.glob("*.eval")):
         # Filename format: TIMESTAMP_TASKNAME_ID.eval
         # Extract timestamp prefix for recency comparison
-        ts_prefix = eval_path.name.split("_secbash")[0]
+        ts_prefix = eval_path.name.split("_aegish")[0]
         try:
             with zipfile.ZipFile(eval_path, "r") as zf:
                 with zf.open("_journal/start.json") as f:
@@ -558,7 +558,7 @@ def find_timed_out_samples(
     latest: dict[tuple[str, str], tuple[str, Path]] = {}
 
     for eval_path in sorted(logs_dir.glob("*.eval")):
-        ts_prefix = eval_path.name.split("_secbash")[0]
+        ts_prefix = eval_path.name.split("_aegish")[0]
         try:
             with zipfile.ZipFile(eval_path, "r") as zf:
                 with zf.open("_journal/start.json") as f:
@@ -641,9 +641,9 @@ def retry_timed_out_samples(
 
             # Build the matching Task object
             if "gtfobins" in task_name:
-                task = secbash_gtfobins(cot=cot)
+                task = aegish_gtfobins(cot=cot)
             elif "harmless" in task_name:
-                task = secbash_harmless(cot=cot)
+                task = aegish_harmless(cot=cot)
             else:
                 print(f"  SKIP unknown task: {task_name}")
                 continue
@@ -704,7 +704,7 @@ def fix_timeout_labels(logs_dir: Path | None = None) -> None:
     # Find latest log per (model, task)
     latest: dict[tuple[str, str], tuple[str, Path]] = {}
     for eval_path in sorted(logs_dir.glob("*.eval")):
-        ts_prefix = eval_path.name.split("_secbash")[0]
+        ts_prefix = eval_path.name.split("_aegish")[0]
         try:
             with zipfile.ZipFile(eval_path, "r") as zf:
                 with zf.open("_journal/start.json") as f:
@@ -862,7 +862,7 @@ def read_latest_eval_logs(logs_dir: Path | None = None) -> list:
     # Find latest eval path per (model, task) — same logic as find_timed_out_samples
     latest: dict[tuple[str, str], tuple[str, Path]] = {}
     for eval_path in sorted(logs_dir.glob("*.eval")):
-        ts_prefix = eval_path.name.split("_secbash")[0]
+        ts_prefix = eval_path.name.split("_aegish")[0]
         try:
             with zipfile.ZipFile(eval_path, "r") as zf:
                 with zf.open("_journal/start.json") as f:
@@ -952,8 +952,8 @@ def run_comparison(
                     "error": str(e),
                     "datasets": {},
                     "composite": {
-                        "secbash_score": 0.0,
-                        "secbash_score_se": None,
+                        "aegish_score": 0.0,
+                        "aegish_score_se": None,
                         "total_cost_usd": 0.0,
                         "cost_per_1000_combined": 0.0,
                         "avg_latency_ms": 0.0,
@@ -1009,7 +1009,7 @@ def save_comparison(comparison: dict) -> Path:
 
 def main() -> None:
     """CLI entry point for LLM comparison framework."""
-    parser = argparse.ArgumentParser(description="SecBASH LLM Comparison Framework")
+    parser = argparse.ArgumentParser(description="aegish LLM Comparison Framework")
     parser.add_argument(
         "--models",
         type=str,
@@ -1207,7 +1207,7 @@ def main() -> None:
         models = parse_models(args.models)
         resume = not args.no_resume
 
-    print("SecBASH LLM Comparison")
+    print("aegish LLM Comparison")
     print(f"Models: {len(models)}")
     print(f"Dataset: {args.dataset}")
     print(f"Scaffolding: {'CoT' if args.cot else 'Standard'}")

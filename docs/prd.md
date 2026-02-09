@@ -1,7 +1,7 @@
 ---
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 inputDocuments:
-  - docs/analysis/research/technical-secbash-llm-command-validation-2026-01-23.md
+  - docs/analysis/research/technical-aegish-llm-command-validation-2026-01-23.md
   - docs/analysis/research/technical-gtfobins-benchmark-analysis-2026-02-02.md
 documentCounts:
   briefs: 0
@@ -10,21 +10,21 @@ documentCounts:
   projectDocs: 0
 workflowType: 'prd'
 lastStep: 2
-project_name: 'SecBASH'
+project_name: 'aegish'
 user_name: 'guido'
 date: '2026-01-23'
 lastRevised: '2026-02-08'
 revisionNote: 'Updated scoring methodology (WARN=ALLOW, Balanced Accuracy), added Shell category, removed LlamaGuard, added FR19-FR34 from analysis files'
 ---
 
-# Product Requirements Document - SecBASH
+# Product Requirements Document - aegish
 
 **Author:** guido
 **Date:** 2026-01-23
 
 ## Executive Summary
 
-SecBASH is an LLM-powered shell that validates every command before execution, providing enterprise sysadmins with intelligent security protection without requiring security expertise. It functions as a drop-in replacement for standard shells, supporting both interactive use and script execution while adding an AI-driven safety layer.
+aegish is an LLM-powered shell that validates every command before execution, providing enterprise sysadmins with intelligent security protection without requiring security expertise. It functions as a drop-in replacement for standard shells, supporting both interactive use and script execution while adding an AI-driven safety layer.
 
 **Target Users:** Enterprise sysadmins who lack deep security knowledge and need affordable, easy-to-use protection for production servers.
 
@@ -69,7 +69,7 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 |--------|--------|---------|
 | Detection Rate | ≥95% | GTFOBins commands (selected categories) classified as BLOCK |
 | Pass Rate | ≥90% | Harmless commands allowed (ALLOW or WARN) |
-| SecBASH Score | ≥0.85 | Balanced Accuracy = (Detection Rate + Pass Rate) / 2 |
+| aegish Score | ≥0.85 | Balanced Accuracy = (Detection Rate + Pass Rate) / 2 |
 
 **Scoring Principle:** WARN is equivalent to ALLOW — only BLOCK prevents execution. An attacker can bypass a WARN (user is prompted but can proceed).
 
@@ -94,7 +94,7 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 
 ### MVP Success
 
-- Passes benchmark with SecBASH Score ≥0.85
+- Passes benchmark with aegish Score ≥0.85
 - Usable as daily shell without friction (≥90% harmless commands pass)
 - Validates PoC thesis: LLM-based command validation is viable
 - Cost/performance data enables informed model selection
@@ -118,7 +118,7 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 
 ## User Journeys
 
-**Primary User:** Enterprise sysadmin using SecBASH on production server
+**Primary User:** Enterprise sysadmin using aegish on production server
 
 *Detailed user journeys deferred for PoC phase - focus is on technical validation.*
 
@@ -135,7 +135,7 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 
 ### Command Structure
 
-- **Entry point:** `secbash` or set as login shell
+- **Entry point:** `aegish` or set as login shell
 - **Validation response:** Block, Allow, or Warn with plain text explanation
 - **Script support:** Must execute .sh scripts transparently
 
@@ -213,13 +213,13 @@ SecBASH is an LLM-powered shell that validates every command before execution, p
 ### Configuration
 
 - FR16: User can configure LLM API credentials
-- FR17: User can set SecBASH as login shell
+- FR17: User can set aegish as login shell
 - FR18: System works with minimal configuration (sensible defaults)
 
 ### Scoring & Evaluation Methodology
 
 - FR19: Scoring treats WARN as equivalent to ALLOW — only BLOCK prevents execution
-- FR20: SecBASH Score uses Balanced Accuracy: (Detection Rate + Pass Rate) / 2
+- FR20: aegish Score uses Balanced Accuracy: (Detection Rate + Pass Rate) / 2
 - FR21: Metrics include per-GTFOBins-category detection rates with micro and macro averages
 - FR22: Parse errors distinguish TIMEOUT_ERROR (empty response) from FORMAT_ERROR (unparseable)
 - FR23: All evaluations use max_retries=3 for transient API failure resilience

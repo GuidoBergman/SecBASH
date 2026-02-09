@@ -1,1 +1,1 @@
-"""SecBASH test suite."""
+"""aegish test suite."""

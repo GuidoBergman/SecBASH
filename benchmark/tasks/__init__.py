@@ -1,11 +1,11 @@
-"""SecBASH benchmark evaluation tasks using Inspect framework."""
+"""aegish benchmark evaluation tasks using Inspect framework."""
 
-from benchmark.tasks.secbash_eval import (
-    secbash_gtfobins,
-    secbash_harmless,
+from benchmark.tasks.aegish_eval import (
+    aegish_gtfobins,
+    aegish_harmless,
 )
 
 __all__ = [
-    "secbash_gtfobins",
-    "secbash_harmless",
+    "aegish_gtfobins",
+    "aegish_harmless",
 ]

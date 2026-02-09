@@ -5,12 +5,12 @@
 ## Story
 
 As a **developer**,
-I want **the SecBASH project initialized with proper Python structure**,
+I want **the aegish project initialized with proper Python structure**,
 So that **I have a foundation to build the shell functionality**.
 
 ## Epic Context
 
-**Epic 1: Working Shell Foundation** - User can launch SecBASH and execute commands exactly like bash. This story establishes the project foundation that all subsequent stories build upon.
+**Epic 1: Working Shell Foundation** - User can launch aegish and execute commands exactly like bash. This story establishes the project foundation that all subsequent stories build upon.
 
 **FRs Addressed:** Project initialization from Architecture (Python/uv/Typer setup)
 
@@ -21,7 +21,7 @@ So that **I have a foundation to build the shell functionality**.
 **When** the project is initialized
 **Then** the following structure exists:
 - `pyproject.toml` with project metadata
-- `src/secbash/` directory with `__init__.py`
+- `src/aegish/` directory with `__init__.py`
 - Module files: `main.py`, `shell.py`, `validator.py`, `llm_client.py`, `executor.py`, `config.py`
 - `tests/` directory with `__init__.py`
 - `.env.example` with API key placeholders
@@ -35,7 +35,7 @@ So that **I have a foundation to build the shell functionality**.
 
 ### AC3: Entry Point Functional
 **Given** dependencies are installed
-**When** a developer runs `uv run secbash --help`
+**When** a developer runs `uv run aegish --help`
 **Then** the CLI shows help output (even if minimal)
 **And** no import errors occur
 
@@ -53,7 +53,7 @@ So that **I have a foundation to build the shell functionality**.
 ### pyproject.toml Configuration
 ```toml
 [project]
-name = "secbash"
+name = "aegish"
 version = "0.1.0"
 description = "LLM-powered shell with security validation"
 requires-python = ">=3.10"
@@ -64,7 +64,7 @@ dependencies = [
 ]
 
 [project.scripts]
-secbash = "secbash.main:app"
+aegish = "aegish.main:app"
 
 [build-system]
 requires = ["hatchling"]
@@ -80,7 +80,7 @@ Each module should have a minimal stub with:
 **Module Responsibilities (from Architecture):**
 | Module | Responsibility |
 |--------|----------------|
-| `main.py` | Typer CLI, `secbash` command entry |
+| `main.py` | Typer CLI, `aegish` command entry |
 | `shell.py` | readline loop, prompt, history |
 | `validator.py` | Parse LLM response, decide action |
 | `llm_client.py` | API calls with fallback chain |
@@ -89,7 +89,7 @@ Each module should have a minimal stub with:
 
 ### .env.example Template
 ```
-# SecBASH API Configuration
+# aegish API Configuration
 # At least one API key is required
 
 # OpenRouter (preferred - uses LlamaGuard)
@@ -115,26 +115,26 @@ ANTHROPIC_API_KEY=
 ### Developer Workflow
 1. Create project root directory structure
 2. Initialize with `uv init` or create `pyproject.toml` manually
-3. Create `src/secbash/` package structure
+3. Create `src/aegish/` package structure
 4. Add dependencies via `uv add typer openai anthropic`
 5. Create module stubs with docstrings
-6. Verify with `uv sync` and `uv run secbash --help`
+6. Verify with `uv sync` and `uv run aegish --help`
 
 ### main.py Entry Point
 Should contain minimal Typer app setup:
 ```python
-"""SecBASH CLI entry point."""
+"""aegish CLI entry point."""
 import typer
 
 app = typer.Typer(
-    name="secbash",
+    name="aegish",
     help="LLM-powered shell with security validation"
 )
 
 @app.command()
 def main():
-    """Launch SecBASH interactive shell."""
-    typer.echo("SecBASH - Not yet implemented")
+    """Launch aegish interactive shell."""
+    typer.echo("aegish - Not yet implemented")
     raise typer.Exit(0)
 
 if __name__ == "__main__":
@@ -153,9 +153,9 @@ if __name__ == "__main__":
 
 ### Manual Verification Steps
 1. Run `uv sync` - should complete without errors
-2. Run `uv run secbash --help` - should show help
-3. Run `uv run secbash` - should show "Not yet implemented" message
-4. Verify all 6 module files exist in `src/secbash/`
+2. Run `uv run aegish --help` - should show help
+3. Run `uv run aegish` - should show "Not yet implemented" message
+4. Verify all 6 module files exist in `src/aegish/`
 5. Verify `tests/` directory exists with `__init__.py`
 
 ### Automated Tests (Optional for this story)
@@ -175,6 +175,6 @@ This is a scaffolding story with minimal complexity. The primary value is establ
 - [x] `pyproject.toml` properly configured with all dependencies
 - [x] All 6 module files created with appropriate stubs
 - [x] `uv sync` completes successfully
-- [x] `uv run secbash --help` works
+- [x] `uv run aegish --help` works
 - [x] `.env.example` and `.gitignore` in place
 - [x] Code follows PEP 8 naming conventions

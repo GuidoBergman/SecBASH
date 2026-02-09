@@ -17,7 +17,7 @@ So that **I can work efficiently like in a normal shell**.
 ## Acceptance Criteria
 
 ### AC1: Up Arrow Recalls Previous Commands
-**Given** SecBASH is running
+**Given** aegish is running
 **When** I press the up arrow key
 **Then** previous commands from the current session are recalled
 
@@ -27,7 +27,7 @@ So that **I can work efficiently like in a normal shell**.
 **Then** I can browse through my command history
 
 ### AC3: Persistent History (Optional Enhancement)
-**Given** SecBASH is restarted
+**Given** aegish is restarted
 **When** I press the up arrow key
 **Then** history from previous sessions is available
 
@@ -56,7 +56,7 @@ The import provides basic line editing (Ctrl+A, Ctrl+E, backspace) but:
 - If not working, configure readline properly
 
 **AC3 (Persistent History):**
-1. Create history file at `~/.secbash_history`
+1. Create history file at `~/.aegish_history`
 2. Load history on startup with `readline.read_history_file()`
 3. Save history on exit using `atexit.register()`
 4. Set reasonable history length (default: 1000 commands)
@@ -73,7 +73,7 @@ Per Python readline documentation:
 
 | Setting | Default Value | Notes |
 |---------|--------------|-------|
-| History file | `~/.secbash_history` | Standard location in home directory |
+| History file | `~/.aegish_history` | Standard location in home directory |
 | History length | 1000 | Reasonable default, matches bash |
 | History format | Plain text | One command per line (readline default) |
 
@@ -86,7 +86,7 @@ Per Python readline documentation:
   - [x] 1.2 Document current readline behavior
 
 - [x] Task 2: Implement persistent history (AC: #3)
-  - [x] 2.1 Add `HISTORY_FILE` constant pointing to `~/.secbash_history`
+  - [x] 2.1 Add `HISTORY_FILE` constant pointing to `~/.aegish_history`
   - [x] 2.2 Add `HISTORY_LENGTH` constant defaulting to 1000
   - [x] 2.3 Create `init_history()` function to load history file
   - [x] 2.4 Register `atexit` handler to save history on exit
@@ -110,7 +110,7 @@ Per Python readline documentation:
 ### Module Boundaries
 
 **Modify:**
-- `src/secbash/shell.py` - Add history initialization and persistence
+- `src/aegish/shell.py` - Add history initialization and persistence
 
 **Do NOT modify:**
 - `config.py` - History config doesn't need external configuration for MVP
@@ -133,7 +133,7 @@ import os
 import readline
 
 # History configuration
-HISTORY_FILE = os.path.expanduser("~/.secbash_history")
+HISTORY_FILE = os.path.expanduser("~/.aegish_history")
 HISTORY_LENGTH = 1000
 
 
@@ -172,8 +172,8 @@ History testing is challenging due to readline's terminal requirements. Use thes
 ```python
 def test_history_file_created(tmp_path, mocker):
     """AC3: History file is created on first run."""
-    history_file = tmp_path / ".secbash_history"
-    mocker.patch("secbash.shell.HISTORY_FILE", str(history_file))
+    history_file = tmp_path / ".aegish_history"
+    mocker.patch("aegish.shell.HISTORY_FILE", str(history_file))
 
     # Simulate shell exit
     init_history()
@@ -188,7 +188,7 @@ def test_history_file_created(tmp_path, mocker):
 def test_init_history_handles_missing_file(tmp_path, mocker):
     """AC3: Gracefully handles missing history file."""
     history_file = tmp_path / "nonexistent_history"
-    mocker.patch("secbash.shell.HISTORY_FILE", str(history_file))
+    mocker.patch("aegish.shell.HISTORY_FILE", str(history_file))
 
     # Should not raise exception
     init_history()
@@ -198,7 +198,7 @@ def test_init_history_handles_missing_file(tmp_path, mocker):
 
 **Files to modify:**
 ```
-src/secbash/
+src/aegish/
 └── shell.py       # Add init_history() and constants
 
 tests/
@@ -249,7 +249,7 @@ Add to shell.py:
 
 Per shell.py lines 44-53:
 ```python
-print("SecBASH - LLM-powered shell with security validation")
+print("aegish - LLM-powered shell with security validation")
 providers = get_available_providers()
 # Show provider priority order with status (Task 1.2)
 priority_order = ["openrouter", "openai", "anthropic"]
@@ -273,7 +273,7 @@ The `init_history()` call should be placed BEFORE this startup sequence for a cl
 2. **Handle FileNotFoundError gracefully** - First run won't have history file
 3. **Use atexit for cleanup** - Ensures history saved even on unexpected exit
 4. **Set reasonable history length** - 1000 commands matches bash default
-5. **Keep history in standard location** - `~/.secbash_history` is discoverable
+5. **Keep history in standard location** - `~/.aegish_history` is discoverable
 
 ### MUST NOT
 
@@ -299,7 +299,7 @@ The `init_history()` call should be placed BEFORE this startup sequence for a cl
 
 | Test | Description | AC |
 |------|-------------|-----|
-| test_history_file_path_uses_home_dir | HISTORY_FILE expands to ~/.secbash_history | #3 |
+| test_history_file_path_uses_home_dir | HISTORY_FILE expands to ~/.aegish_history | #3 |
 | test_history_length_default | HISTORY_LENGTH is 1000 | #3 |
 | test_init_history_handles_missing_file | No exception when history file doesn't exist | #3 |
 | test_init_history_loads_existing_file | History loaded from existing file | #3 |
@@ -317,7 +317,7 @@ The `init_history()` call should be placed BEFORE this startup sequence for a cl
 ## Definition of Done
 
 - [x] `init_history()` function implemented in shell.py
-- [x] `HISTORY_FILE` constant set to `~/.secbash_history`
+- [x] `HISTORY_FILE` constant set to `~/.aegish_history`
 - [x] `HISTORY_LENGTH` constant set to 1000
 - [x] History loaded on shell startup
 - [x] History saved on shell exit (via atexit)
@@ -395,7 +395,7 @@ None - clean implementation with no blocking issues.
 
 2. **Persistent History (AC3)**: Implemented `init_history()` function that:
    - Sets history length to 1000 commands (matches bash default)
-   - Loads history from `~/.secbash_history` if it exists
+   - Loads history from `~/.aegish_history` if it exists
    - Gracefully handles missing history file (first run)
    - Registers atexit handler to save history on shell exit
 
@@ -411,7 +411,7 @@ None - clean implementation with no blocking issues.
 ### File List
 
 **Modified:**
-- `src/secbash/shell.py` - Added imports (atexit, os), HISTORY_FILE and HISTORY_LENGTH constants, init_history() function, call to init_history() in run_shell()
+- `src/aegish/shell.py` - Added imports (atexit, os), HISTORY_FILE and HISTORY_LENGTH constants, init_history() function, call to init_history() in run_shell()
 
 **Created:**
 - `tests/test_history.py` - 12 tests for history functionality
@@ -419,7 +419,7 @@ None - clean implementation with no blocking issues.
 ### Change Log
 
 - 2026-02-02: Implemented command history feature (Story 3.4)
-  - Added persistent history to ~/.secbash_history
+  - Added persistent history to ~/.aegish_history
   - History limited to 1000 commands
   - Session history (up/down arrows) verified working via readline
   - Added 9 unit/integration tests

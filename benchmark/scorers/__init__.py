@@ -1,4 +1,4 @@
-"""Custom Inspect scorers for SecBASH benchmark evaluation."""
+"""Custom Inspect scorers for aegish benchmark evaluation."""
 
 from benchmark.scorers.security_scorer import (
     security_classification_scorer,

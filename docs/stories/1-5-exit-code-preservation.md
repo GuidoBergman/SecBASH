@@ -5,12 +5,12 @@
 ## Story
 
 As a **sysadmin**,
-I want **SecBASH to preserve bash exit codes**,
+I want **aegish to preserve bash exit codes**,
 So that **my scripts and conditional logic work correctly**.
 
 ## Epic Context
 
-**Epic 1: Working Shell Foundation** - User can launch SecBASH and execute commands exactly like bash. This is the final story in Epic 1, completing bash compatibility for the shell foundation.
+**Epic 1: Working Shell Foundation** - User can launch aegish and execute commands exactly like bash. This is the final story in Epic 1, completing bash compatibility for the shell foundation.
 
 **FRs Addressed:** FR5 (System preserves bash exit codes for script compatibility)
 
@@ -39,7 +39,7 @@ So that **my scripts and conditional logic work correctly**.
 **Then** the previous command's exit code is correctly available
 
 ### AC5: Script Compatibility with set -e
-**Given** SecBASH is used to run a script with `set -e`
+**Given** aegish is used to run a script with `set -e`
 **When** a command in the script fails
 **Then** the script exits as expected (bash-compatible behavior)
 
@@ -237,7 +237,7 @@ echo "after"
 
 ### Manual Verification Steps
 
-1. Launch SecBASH: `uv run secbash`
+1. Launch aegish: `uv run aegish`
 2. Run: `true; echo $?` - should print "0"
 3. Run: `false; echo $?` - should print "1"
 4. Run: `exit 42; echo $?` - should print "42" (in bash context)

@@ -12,16 +12,16 @@ ANTHROPIC_API_KEY : str
     API key for Anthropic.
     Get one at: https://console.anthropic.com/
 
-SECBASH_PRIMARY_MODEL : str
+AEGISH_PRIMARY_MODEL : str
     Primary LLM model for command validation (format: provider/model-name).
     Default: openai/gpt-4
 
-SECBASH_FALLBACK_MODELS : str
+AEGISH_FALLBACK_MODELS : str
     Comma-separated list of fallback models (format: provider/model,provider/model).
     Default: anthropic/claude-3-haiku-20240307
     Set to empty string for single-provider mode (no fallbacks).
 
-At least one API key must be configured for SecBASH to operate.
+At least one API key must be configured for aegish to operate.
 Models are tried in order: primary model first, then fallbacks.
 """
 
@@ -76,7 +76,7 @@ def validate_credentials() -> tuple[bool, str]:
     if not available:
         return (False, """No LLM API credentials configured.
 
-SecBASH requires at least one API key to validate commands.
+aegish requires at least one API key to validate commands.
 
 Set one or more of these environment variables:
   export OPENAI_API_KEY="your-key-here"        # https://platform.openai.com/api-keys
@@ -91,13 +91,13 @@ Tip: Copy .env.example to .env and fill in your keys, then source it:
 def get_primary_model() -> str:
     """Get the primary LLM model for command validation.
 
-    Reads from SECBASH_PRIMARY_MODEL environment variable.
+    Reads from AEGISH_PRIMARY_MODEL environment variable.
     Falls back to default if not set or empty.
 
     Returns:
         The primary model string in provider/model-name format.
     """
-    model = os.environ.get("SECBASH_PRIMARY_MODEL", "")
+    model = os.environ.get("AEGISH_PRIMARY_MODEL", "")
     if model and model.strip():
         return model.strip()
     return DEFAULT_PRIMARY_MODEL
@@ -106,14 +106,14 @@ def get_primary_model() -> str:
 def get_fallback_models() -> list[str]:
     """Get the list of fallback LLM models.
 
-    Reads from SECBASH_FALLBACK_MODELS environment variable.
+    Reads from AEGISH_FALLBACK_MODELS environment variable.
     If not set, returns default fallbacks.
     If set to empty string, returns empty list (single-provider mode).
 
     Returns:
         List of fallback model strings in provider/model-name format.
     """
-    env_value = os.environ.get("SECBASH_FALLBACK_MODELS")
+    env_value = os.environ.get("AEGISH_FALLBACK_MODELS")
 
     # Not set at all - use defaults
     # Use .copy() to prevent external mutation of the default list
