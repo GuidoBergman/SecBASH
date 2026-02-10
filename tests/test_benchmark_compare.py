@@ -43,7 +43,7 @@ class TestParseModels:
     def test_none_returns_all_defaults(self):
         result = parse_models(None)
         assert result == DEFAULT_MODELS
-        assert len(result) == 10
+        assert len(result) == 11
 
     def test_single_model(self):
         result = parse_models("openai/gpt-5.1")
@@ -530,7 +530,7 @@ class TestDatasetSelection:
     """Tests for dataset selection logic."""
 
     def test_default_models_list_has_10(self):
-        assert len(DEFAULT_MODELS) == 10
+        assert len(DEFAULT_MODELS) == 11
 
     def test_hf_models_are_in_defaults(self):
         hf_models = [

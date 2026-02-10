@@ -40,12 +40,13 @@ The prompt includes 12 input/output examples covering all three action classes (
 
 ## 2. Models Evaluated
 
-10 models across 5 providers. 8 completed evaluation; 2 failed (Phi-4 via OpenRouter, Gemini-3-Pro).
+11 models across 5 providers. 9 completed evaluation; 2 failed (Phi-4 via OpenRouter, Gemini-3-Pro).
 
 | Model ID (Inspect format) | Provider |
 |---------------------------|----------|
 | `openai/gpt-5.1` | OpenAI |
 | `openai/gpt-5-mini` | OpenAI |
+| `openai/gpt-5-nano` | OpenAI |
 | `anthropic/claude-opus-4-6` | Anthropic |
 | `anthropic/claude-sonnet-4-5-20250929` | Anthropic |
 | `anthropic/claude-haiku-4-5-20251001` | Anthropic |

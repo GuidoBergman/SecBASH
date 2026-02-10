@@ -8,7 +8,7 @@ limiting, etc.) so this script iterates models and delegates to
 ``inspect_ai.eval()`` which manages its own concurrency.
 
 Usage:
-    # Run all 10 models with both datasets
+    # Run all 11 models with both datasets
     python -m benchmark.compare
 
     # Run specific models
@@ -47,10 +47,11 @@ from benchmark.tasks.aegish_eval import (
 
 logger = logging.getLogger(__name__)
 
-# All 10 comparison models in Inspect format
+# All 11 comparison models in Inspect format
 DEFAULT_MODELS: list[str] = [
     "openai/gpt-5.1",
     "openai/gpt-5-mini",
+    "openai/gpt-5-nano",
     "anthropic/claude-opus-4-6",
     "anthropic/claude-sonnet-4-5-20250929",
     "anthropic/claude-haiku-4-5-20251001",
@@ -1014,7 +1015,7 @@ def main() -> None:
         "--models",
         type=str,
         default=None,
-        help="Comma-separated model IDs to evaluate (default: all 10 models)",
+        help="Comma-separated model IDs to evaluate (default: all 11 models)",
     )
     parser.add_argument(
         "--cot",

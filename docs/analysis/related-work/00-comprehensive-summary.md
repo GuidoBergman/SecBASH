@@ -1,6 +1,6 @@
 # aegish Related Work: Comprehensive Summary
 
-**Date**: 2026-02-09
+**Date**: 2026-02-10 (revised -- added baish, SecureShell, Destructive Command Guard, CRiSIS 2024, SLP)
 
 This document summarizes the complete related work analysis for aegish, an LLM-powered shell that validates every command before execution. The full analysis is spread across four detailed documents; this summary provides an overview, key tables, and the synthesis needed for a Related Work section.
 
@@ -11,12 +11,12 @@ This document summarizes the complete related work analysis for aegish, an LLM-p
 | File | Topic | Tools/Projects Covered |
 |---|---|---|
 | [01-linux-security-mechanisms.md](./01-linux-security-mechanisms.md) | Standard Linux security tools | AppArmor, SELinux, seccomp, namespaces/cgroups, chroot, rbash, sudo, auditd, Firejail, Bubblewrap, grsecurity/PaX, iptables/nftables, Linux capabilities |
-| [02-ai-llm-security-tools.md](./02-ai-llm-security-tools.md) | AI/LLM-powered security tools | Claude Code, Copilot CLI, Amazon Q, Open Interpreter, ShellGPT, Warp, Nushell, E2B, NeMo Guardrails, Security Copilot, Charlotte AI, sudo_pair, ShellCheck |
+| [02-ai-llm-security-tools.md](./02-ai-llm-security-tools.md) | AI/LLM-powered security tools | **baish, SecureShell, Destructive Command Guard**, Claude Code, Copilot CLI, Amazon Q, Open Interpreter, ShellGPT, Warp, Nushell, E2B, NeMo Guardrails, Security Copilot, Charlotte AI, sudo_pair, ShellCheck |
 | [03-threat-databases-and-detection.md](./03-threat-databases-and-detection.md) | Threat databases and detection frameworks | GTFOBins, LOLBAS, LOLDrivers, MITRE ATT&CK, Atomic Red Team, Sigma, YARA, Falco, osquery, Schonlau dataset, NL2Bash, OTRF/Mordor |
 | [04-shell-sandboxing-and-pam.md](./04-shell-sandboxing-and-pam.md) | Shell sandboxing and access management | lshell, GNU Rush, rssh, Teleport, Boundary, StrongDM, PAM, polkit, SSH forced commands, Docker, nsjail, Systrace, Janus, CyberArk, BeyondTrust, Delinea, Lynis, CIS Benchmarks, OpenSnitch |
-| [05-ids-anomaly-detection-academic.md](./05-ids-anomaly-detection-academic.md) | IDS, anomaly detection, academic ML security | OSSEC/Wazuh, Samhain/AIDE/Tripwire, ML-IDS, syscall analysis (Forrest et al.), UEBA, LLMs for cybersecurity, prompt injection, zero-shot classification, XAI for security, EDR (CrowdStrike, SentinelOne) |
+| [05-ids-anomaly-detection-academic.md](./05-ids-anomaly-detection-academic.md) | IDS, anomaly detection, academic ML security | OSSEC/Wazuh, Samhain/AIDE/Tripwire, ML-IDS, **Touch et al. CRiSIS 2024, SLP (CAMLIS 2021)**, syscall analysis (Forrest et al.), UEBA, LLMs for cybersecurity, prompt injection, zero-shot classification, XAI for security, EDR (CrowdStrike, SentinelOne) |
 
-**Total coverage**: 60+ tools, projects, frameworks, and research areas.
+**Total coverage**: 65+ tools, projects, frameworks, and research areas.
 
 ---
 
@@ -24,8 +24,12 @@ This document summarizes the complete related work analysis for aegish, an LLM-p
 
 ### By Relationship to aegish
 
-**Category 1: Directly Comparable** (LLM + command + security)
-- No known open-source project combining LLM analysis with pre-execution shell command blocking has been identified.
+**Category 1: Directly Comparable** (LLM + command/script + pre-execution safety)
+- **baish** (Bash AI Shield): LLM-powered script analysis tool (`curl | baish`). Scores scripts by harm (0-10) and blocks dangerous ones. Batch/pipe-based, not interactive. Early-stage proof-of-concept (8 commits, dormant since Jan 2025). https://github.com/taicodotca/baish
+- **SecureShell**: LLM-based command gatekeeper classifying commands as GREEN/YELLOW/RED. Targets LLM agents (not human users); is a library/middleware, not a shell. https://github.com/divagr18/SecureShell
+- **Touch et al. (CRiSIS 2024)**: Academic paper using fine-tuned RoBERTa for 5-level shell command risk classification. Validates the core concept but is a classifier only, not a tool. https://link.springer.com/chapter/10.1007/978-3-031-89350-6_11
+
+None of these combine all of aegish's properties (interactive shell, zero-shot LLM, tri-state enforcement, NL explanations, systematic benchmarking), but they demonstrate that the problem space is being explored by multiple independent groups.
 
 **Category 2: Same Problem, Different Approach** (command safety without LLM)
 - Restricted shells (rbash, lshell, GNU Rush, rssh)
@@ -33,11 +37,14 @@ This document summarizes the complete related work analysis for aegish, an LLM-p
 - Commercial PAM command filtering (CyberArk, BeyondTrust, Delinea)
 - Static analysis (ShellCheck, Shellharden)
 - Single-purpose wrappers (safe-rm, Molly-Guard, trash-cli)
+- Rule-based agent guards (Destructive Command Guard, Claude Code Safety Net)
+- ML-based command classification: SLP/Shell Language Processing (XGBoost, F1=0.874, CAMLIS 2021)
 
 **Category 3: Same Approach, Different Problem** (LLM for security, not commands)
 - Enterprise AI Security Copilots (MS Security Copilot, Charlotte AI, Purple AI)
 - LLM-powered security tools (SecGPT, PentestGPT, VirusTotal Code Insight)
 - AI coding assistants (Claude Code, Copilot CLI, Amazon Q)
+- LLM agent safety frameworks (AgentSpec ICSE 2026, AGrail ACL 2025, QuadSentinel)
 
 **Category 4: Complementary -- Different Layer** (kernel/system-level enforcement)
 - MAC systems (AppArmor, SELinux)
@@ -75,6 +82,11 @@ This document summarizes the complete related work analysis for aegish, an LLM-p
 | System | Detection Method | Timing | Layer | Requires Training | Explains Decisions |
 |---|---|---|---|---|---|
 | **aegish** | **LLM semantic analysis** | **Pre-execution** | **Shell (user-space)** | **No (zero-shot)** | **Yes (NL)** |
+| **baish** | **LLM script analysis** | **Pre-execution** | **Pipe/batch (user-space)** | **No (zero-shot)** | **Yes (NL + scores)** |
+| **SecureShell** | **LLM command gating** | **Pre-execution** | **Agent middleware** | **No (zero-shot)** | **Yes (risk tiers)** |
+| Touch et al. (CRiSIS 2024) | Fine-tuned RoBERTa (5 risk levels) | Pre-execution (classifier only) | N/A (research) | Yes (fine-tuned) | No |
+| SLP (CAMLIS 2021) | XGBoost on tokenized commands | Post-execution (log analysis) | N/A (library) | Yes (trained) | No |
+| Destructive Cmd Guard | Rule-based (Rust/SIMD) | Pre-execution | Agent hook | N/A (rule-based) | No |
 | AppArmor / SELinux | Path/label-based MAC policy | During execution | Kernel (LSM) | N/A (policy-based) | No |
 | seccomp-bpf | BPF system call filtering | During execution | Kernel (syscall) | N/A (filter-based) | No |
 | rbash / lshell | Syntax restrictions / allowlist | During execution | Shell (user-space) | N/A (config-based) | No |
@@ -126,17 +138,18 @@ No kernel-level mechanism can make these distinctions because the system calls, 
 
 ---
 
-## aegish's Unique Position: The Five-Property Differentiator
+## aegish's Unique Position: The Six-Property Differentiator
 
-No existing system -- academic, open-source, or commercial -- combines all five properties:
+While recent tools like baish (LLM-based script analysis), SecureShell (LLM-based agent command gating), and academic work (Touch et al. CRiSIS 2024) share individual properties with aegish, no existing system combines all six properties in an interactive shell for human users:
 
 | Property | aegish | Next Best Alternative | Gap |
 |---|---|---|---|
-| **1. Pre-execution enforcement** | Yes | SELinux/AppArmor | These have no semantic understanding |
-| **2. Semantic understanding** | Yes (LLM) | EDR behavioral AI | EDR is post-execution |
-| **3. Zero-shot (no training data)** | Yes | None | All ML-IDS require labeled training data |
-| **4. Natural language explanations** | Yes | Security Copilot | Copilot is post-incident, not enforcement |
+| **1. Pre-execution enforcement** | Yes | baish, SecureShell | baish is batch-only; SecureShell is agent-only |
+| **2. Semantic understanding** | Yes (LLM) | baish, SecureShell | Neither is a standalone interactive shell |
+| **3. Zero-shot (no training data)** | Yes | Touch et al. CRiSIS 2024 | Uses fine-tuned RoBERTa (requires training data) |
+| **4. Natural language explanations** | Yes | baish (batch); Security Copilot (post-incident) | baish has no enforcement; Copilot is not real-time |
 | **5. No kernel access required** | Yes | ShellCheck | ShellCheck has no semantic understanding |
+| **6. Systematic benchmarking** | Yes (676 GTFOBins + 496 harmless, 9 models) | None | No comparable tool has rigorous evaluation |
 
 ---
 
@@ -192,10 +205,13 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 
 ## Key References
 
-### Directly Related
+### Directly Related / Comparable
 - GTFOBins: https://gtfobins.github.io/
 - LOLBAS: https://lolbas-project.github.io/
 - MITRE ATT&CK T1059: https://attack.mitre.org/techniques/T1059/
+- baish (Bash AI Shield): https://github.com/taicodotca/baish
+- SecureShell ("Sudo for LLMs"): https://github.com/divagr18/SecureShell
+- Destructive Command Guard: https://github.com/Dicklesworthstone/destructive_command_guard
 
 ### Linux Security
 - AppArmor: https://apparmor.net/
@@ -209,8 +225,10 @@ No existing system -- academic, open-source, or commercial -- combines all five 
 - Schonlau et al. (2001), Masquerade Detection Dataset
 - Lin et al. (2018), "NL2Bash" (arXiv:1802.08979)
 - DeepLog (Du et al., CCS 2017)
+- Trizna (2021), "Shell Language Processing" (CAMLIS 2021, arXiv:2107.02438)
 - Kheddar (2024), "Transformers and Large Language Models for Efficient Intrusion Detection Systems: A Comprehensive Survey" (arXiv:2408.07583)
 - "When LLMs Meet Cybersecurity" (2024, arXiv:2405.03644)
+- Touch, Fink, and Colin (2025), "Automated Risk Assessment of Shell-Based Attacks Using a LLM" (Springer, CRiSIS 2024): https://link.springer.com/chapter/10.1007/978-3-031-89350-6_11
 
 ### LLM Security
 - Greshake et al. (2023), "Indirect Prompt Injection" (arXiv:2302.12173)

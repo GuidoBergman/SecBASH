@@ -101,6 +101,53 @@ class TestExtractAction:
     def test_null_json(self):
         assert extract_action("null") is None
 
+    def test_double_brace_symmetric(self):
+        """Double braces on both sides: {{"action": "block"}}."""
+        response = '{{"action": "block", "reason": "test", "confidence": 0.9}}'
+        assert extract_action(response) == "BLOCK"
+
+    def test_double_brace_asymmetric(self):
+        """Double opening brace, single closing: {{"action": "block"}."""
+        response = '{{"action": "block", "reason": "test", "confidence": 0.9}'
+        assert extract_action(response) == "BLOCK"
+
+    def test_think_block_with_json_inside(self):
+        """JSON trapped inside <think> block (Nano pattern)."""
+        response = '<think>reasoning {{"action": "block", "reason": "bad", "confidence": 0.9}}</think>'
+        assert extract_action(response) == "BLOCK"
+
+    def test_think_block_with_json_outside(self):
+        """JSON after <think> block (normal reasoning pattern)."""
+        response = '<think>let me think about this</think>{"action": "block", "reason": "bad", "confidence": 0.9}'
+        assert extract_action(response) == "BLOCK"
+
+    def test_think_block_empty(self):
+        """Empty <think> block with no JSON anywhere."""
+        assert extract_action("<think></think>") is None
+
+    def test_think_block_prose_only(self):
+        """<think> block with only prose, no JSON or action keyword."""
+        assert extract_action("<think>This is dangerous</think>") is None
+
+    def test_regex_fallback_malformed_json(self):
+        """Prose containing an identifiable action value."""
+        response = 'Based on my analysis, the "action": "block" should be applied because this is dangerous.'
+        assert extract_action(response) == "BLOCK"
+
+    def test_python_tag_prefix(self):
+        """<|python_tag|> prefix followed by JSON."""
+        response = '<|python_tag|>\n{"action": "block", "reason": "test", "confidence": 0.9}'
+        assert extract_action(response) == "BLOCK"
+
+    def test_think_block_with_double_brace_json_outside(self):
+        """<think> block followed by double-brace JSON."""
+        response = '<think>analyzing</think>{{"action": "allow", "reason": "safe", "confidence": 0.95}}'
+        assert extract_action(response) == "ALLOW"
+
+    def test_regex_fallback_does_not_match_random_text(self):
+        """Regex fallback should not match text without action pattern."""
+        assert extract_action("This command is dangerous and should be blocked") is None
+
 
 # --- Scorer tests ---
 

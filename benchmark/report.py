@@ -40,6 +40,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
     # Story 4.6 comparison models
     "openai/gpt-5.1": {"input": 1.25 / 1_000_000, "output": 10.00 / 1_000_000},
     "openai/gpt-5-mini": {"input": 0.25 / 1_000_000, "output": 2.00 / 1_000_000},
+    "openai/gpt-5-nano": {"input": 0.05 / 1_000_000, "output": 0.40 / 1_000_000},
     "anthropic/claude-opus-4-6": {
         "input": 5.00 / 1_000_000,
         "output": 25.00 / 1_000_000,

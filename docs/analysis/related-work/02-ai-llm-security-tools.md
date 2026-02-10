@@ -13,6 +13,45 @@ This document surveys existing tools and projects that use AI/LLM/ML for command
 - **How aegish differs**: aegish performs security classification (safe/warn/block), not just explanation. aegish uses LLM reasoning rather than static man-page parsing, enabling understanding of novel or combined commands.
 - **Source**: https://explainshell.com/
 
+### 1.2 baish -- Bash AI Shield (taico.ca)
+
+- **What it does**: CLI tool that analyzes shell scripts using LLMs before execution. Designed to replace the `curl | bash` antipattern with `curl | baish`, piping downloaded scripts through an LLM for security analysis before running them.
+- **How it works**: Sends scripts to an LLM with a security-analysis prompt via LangChain. Returns a harm score (0-10), complexity score (0-10), root requirement flag, and natural language explanation. In shield mode (`-s`), scripts with harm score >= 6 are blocked. Supports 5 LLM providers (Anthropic, OpenAI, Groq, Cohere, Ollama). Includes YARA pre-filtering for prompt injection detection and map-reduce chunking for large scripts.
+- **How it relates**: **The most directly comparable open-source project to aegish.** Both use LLMs to assess whether shell commands/scripts are dangerous before execution, both support multiple LLM providers, and both provide natural language explanations.
+- **How aegish differs**:
+  - **Interaction model**: baish is batch/pipe-based (analyze a script file, get a report); aegish is an interactive shell (validate each command in real-time).
+  - **Granularity**: baish analyzes entire scripts and returns a single harm score; aegish classifies individual commands, enabling per-command ALLOW/WARN/BLOCK decisions.
+  - **Decision model**: baish uses numeric scores (0-10 harm) with a configurable threshold; aegish uses categorical tri-state classification directly mapping to enforcement actions.
+  - **Benchmarking**: baish has no benchmark framework; aegish has been systematically evaluated against 676 GTFOBins payloads + 496 harmless commands across 9 LLM models.
+  - **Use case**: baish targets the "downloaded script" scenario; aegish targets the "interactive terminal" scenario. They are more complementary than competitive.
+- **Maturity**: Very early stage. 8 commits, 1 contributor, 3 GitHub stars, version 0.3.0-alpha. Dormant since January 2025. Explicitly framed as "a cybersecurity learning project" by the TAICO (Toronto AI and Cybersecurity Organization).
+- **Source**: https://github.com/taicodotca/baish
+- **License**: GPL-3.0
+
+### 1.3 SecureShell -- "Sudo for LLMs" (divagr18)
+
+- **What it does**: A drop-in zero-trust gatekeeper that evaluates every shell command before execution, classifying them into GREEN/YELLOW/RED risk tiers. Designed as a middleware library for LLM agent frameworks.
+- **How it works**: Uses a separate LLM as an independent gatekeeper to evaluate commands proposed by another LLM agent. Integrates with LangChain, LangGraph, and MCP (Model Context Protocol).
+- **How it relates**: Shares aegish's core concept of LLM-based pre-execution command classification with a similar tri-tier risk model (GREEN/YELLOW/RED vs. ALLOW/WARN/BLOCK).
+- **How aegish differs**:
+  - **Target user**: SecureShell guards LLM agents from executing dangerous commands; aegish guards human users in an interactive shell.
+  - **Form factor**: SecureShell is a library/middleware plugged into agent frameworks; aegish is a standalone interactive shell replacement.
+  - **Benchmarking**: SecureShell has no systematic evaluation against real-world attack payloads; aegish is benchmarked against 676 GTFOBins commands.
+  - **Platform awareness**: SecureShell includes OS-awareness (blocking Unix commands on Windows); aegish is Linux/Unix-focused.
+- **Maturity**: Relatively new GitHub project with active development.
+- **Source**: https://github.com/divagr18/SecureShell
+
+### 1.4 Destructive Command Guard (Dicklesworthstone)
+
+- **What it does**: A hook/plugin for AI coding agents (Claude Code, Gemini CLI, OpenCode, Aider, Continue, Codex CLI) that intercepts and blocks destructive git and filesystem commands before execution.
+- **How it works**: Rule-based pattern matching written in Rust with SIMD-accelerated matching for sub-millisecond latency. Uses AST parsing to understand command context. Includes 49+ security packs covering databases, Kubernetes, Docker, AWS/GCP/Azure, and Terraform.
+- **How it relates**: Pre-execution command blocking for dangerous operations -- same timing as aegish.
+- **How aegish differs**:
+  - **Detection method**: Purely rule-based pattern matching vs. LLM semantic analysis. Cannot reason about novel or nuanced dangerous commands, but is extremely fast (<1ms vs. 100ms-2s).
+  - **Scope**: Guards AI coding agents, not human users. Only covers patterns in its rule packs.
+  - **Complementary**: Represents the "fast regex pre-filter" approach that could be combined with aegish's LLM-based analysis in a hybrid architecture.
+- **Source**: https://github.com/Dicklesworthstone/destructive_command_guard
+
 ---
 
 ## 2. AI Coding Assistants with Shell Execution
@@ -169,7 +208,10 @@ This document surveys existing tools and projects that use AI/LLM/ML for command
 
 | Tool / Category | Approach | Scope | Timing | AI/ML | Explains Decisions |
 |---|---|---|---|---|---|
-| **aegish** | LLM semantic analysis | All shell commands | Pre-execution | Yes (LLM) | Yes (NL reasons) |
+| **aegish** | LLM semantic analysis | All shell commands (interactive) | Pre-execution | Yes (LLM) | Yes (NL reasons) |
+| **baish** | LLM script analysis | Shell scripts (batch/pipe) | Pre-execution | Yes (LLM) | Yes (NL + scores) |
+| **SecureShell** | LLM command gating | LLM agent commands | Pre-execution | Yes (LLM) | Yes (risk tiers) |
+| Destructive Cmd Guard | Rule-based (Rust/SIMD) | AI agent commands | Pre-execution | No | No |
 | Claude Code | Permission model | AI-generated commands | Pre-execution | Yes (built-in) | No |
 | Copilot CLI | User confirmation | AI-suggested commands | Pre-execution | No (human decides) | No |
 | Open Interpreter | User confirmation + sandbox | AI-generated code | Pre-execution | No (human decides) | No |

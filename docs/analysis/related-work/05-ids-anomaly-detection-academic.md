@@ -52,8 +52,16 @@ Academic ML-IDS research uses supervised classifiers on labeled datasets:
 - **DeepLog** (Du et al., CCS 2017): Uses LSTM to model system log entries as a natural language sequence, detecting anomalies as unexpected log entry predictions. Relevant as an early application of NLP techniques to system security data.
 - **Transformer-based approaches** (2023-2025): Recent papers apply transformer architectures to system call sequences and command-line logs. These are closer to aegish's approach but still require training on labeled data and operate post-execution.
 
-### 2.4 Key References
+### 2.4 Shell Command Risk Classification (Directly Comparable Research)
+
+- **Touch, Fink, and Colin (CRiSIS 2024 / Springer 2025)**, "Automated Risk Assessment of Shell-Based Attacks Using a LLM": Proposes classifying shell commands into five risk levels (R0 to R4) using a fine-tuned RoBERTa model. The LLM-based classifier outperforms other models tested. This is the **most directly comparable academic work** to aegish's core idea -- it validates that LLMs can effectively assess shell command risk. Key differences: uses a fine-tuned smaller model (RoBERTa) rather than general-purpose LLMs; classifies into 5 risk levels rather than 3; is a classifier only, not an interactive shell; no benchmarking against GTFOBins mentioned. Published: https://link.springer.com/chapter/10.1007/978-3-031-89350-6_11
+
+- **Shell Language Processing / SLP** (Trizna, CAMLIS 2021): Tokenization and encoding library for Unix/Linux shell commands, designed for ML classification of malicious vs. benign commands. Uses bashlex-based tokenization with XGBoost gradient boosting for binary classification, achieving F1 of 0.874 on security classification tasks. Represents an earlier, traditional-ML approach to the same problem aegish addresses with LLMs. Key differences: uses traditional ML (XGBoost) rather than LLMs; binary classification (malicious/benign) rather than three-tier; is a library for preprocessing, not an interactive tool; focuses on auditd/log analysis rather than real-time interception. Source: https://github.com/dtrizna/slp, Paper: https://arxiv.org/abs/2107.02438
+
+### 2.5 Key References
 - Kheddar (2024), "Transformers and Large Language Models for Efficient Intrusion Detection Systems: A Comprehensive Survey" (arXiv:2408.07583)
+- Touch, Fink, and Colin (2025), "Automated Risk Assessment of Shell-Based Attacks Using a LLM" (Springer, CRiSIS 2024)
+- Trizna (2021), "Shell Language Processing" (CAMLIS 2021, arXiv:2107.02438)
 
 ---
 
@@ -242,15 +250,16 @@ aegish is not a replacement for EDR but a complementary layer:
 
 ### The Five-Property Differentiator
 
-No existing system combines all five properties:
+While recent tools like baish (LLM-based script analysis) and SecureShell (LLM-based agent command gating) share individual properties with aegish, and academic work (Touch et al. CRiSIS 2024) validates the core concept, no existing system combines all five properties in an interactive shell for human users:
 
 | Property | aegish | Closest Alternative |
 |---|---|---|
 | **Pre-execution enforcement** | Yes | SELinux/AppArmor (but no semantic understanding) |
-| **Semantic understanding** | Yes (LLM) | EDR behavioral AI (but post-execution) |
-| **Zero-shot classification** | Yes | None (all ML-IDS require training) |
-| **Natural language explanations** | Yes | Security Copilot (but post-incident, not enforcement) |
+| **Semantic understanding** | Yes (LLM) | baish, SecureShell (but batch/agent-only, not interactive shell) |
+| **Zero-shot classification** | Yes | Touch et al. CRiSIS 2024 (but fine-tuned RoBERTa, not zero-shot) |
+| **Natural language explanations** | Yes | baish (but batch, no enforcement); Security Copilot (post-incident) |
 | **No kernel access required** | Yes | ShellCheck (but no semantic understanding) |
+| **Systematic benchmarking** | Yes (676 GTFOBins + 496 harmless, 9 models) | None of the above |
 
 ### Open Research Questions
 
