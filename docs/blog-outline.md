@@ -49,7 +49,7 @@
 ## 5. Results
 
 - Ranking table and tier breakdown (Tier 1/2/3)
-- Three success criteria: Detection >=95%, Pass >=90%, aegish Score >=0.85
+- Three success criteria: Detection >=95%, Pass >=95%, aegish Score >=0.95
 - The surprising finding: smaller models win (GPT-5-mini > GPT-5.1; Haiku > Opus > Sonnet)
 - Root cause 1: content filter activations (Anthropic Sonnet and Opus only, 50 errors arguably correct)
 - Root cause 2: WARN-hedging in larger models

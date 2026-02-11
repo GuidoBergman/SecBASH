@@ -38,6 +38,12 @@ PROVIDER_COLORS: dict[str, str] = {
 # Default fallback color for unknown providers
 _DEFAULT_COLOR = "#888888"
 
+# Gemini Flash rate-limit correction: 76.7% of measured latency was
+# rate-limit queuing in the batch benchmark.  Production latency removes
+# this artifact.  See docs/analysis/benchmark-results-analysis.md §6.
+_RATE_LIMIT_FRACTION = 0.767
+_GEMINI_FLASH_MODEL = "google/gemini-3-flash-preview"
+
 
 def _apply_style() -> None:
     """Apply consistent matplotlib style for all plots."""
@@ -147,6 +153,19 @@ def _get_successful_models(results: dict) -> dict:
     }
 
 
+def _get_latency_ms(model: str, data: dict) -> float:
+    """Return latency in milliseconds, correcting for rate-limit artifacts.
+
+    Gemini Flash measured latency is dominated by rate-limit queuing
+    (76.7%).  This helper strips that component so plots reflect
+    production-representative latency.
+    """
+    raw = data.get("composite", {}).get("avg_latency_ms", 0.0)
+    if model == _GEMINI_FLASH_MODEL:
+        return raw * (1.0 - _RATE_LIMIT_FRACTION)
+    return raw
+
+
 def compute_pareto_frontier(
     costs: list[float], scores: list[float]
 ) -> list[tuple[float, float]]:
@@ -193,13 +212,17 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
         composite = data.get("composite", {})
         cost = composite.get("cost_per_1000_combined", 0.0)
         score = composite.get("aegish_score", 0.0)
+        score_se = composite.get("aegish_score_se", 0.0) or 0.0
         costs.append(cost)
         scores.append(score)
         models.append(model)
 
         color = get_provider_color(model)
-        ax.scatter(
-            cost, score, c=color, s=100, zorder=5, edgecolors="white", linewidth=0.5
+        ax.errorbar(
+            cost, score, yerr=score_se,
+            fmt="o", color=color, markersize=10,
+            markeredgecolor="white", markeredgewidth=0.5, zorder=5,
+            elinewidth=1, capsize=3, ecolor="gray",
         )
         ax.annotate(
             get_short_name(model),
@@ -226,7 +249,7 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
 
     # Target line
     ax.axhline(
-        y=0.85, color="green", linestyle="--", alpha=0.5, label="Target Score (0.85)"
+        y=0.95, color="green", linestyle="--", alpha=0.5, label="Target Score (0.95)"
     )
 
     # Provider legend with Pareto frontier and target line
@@ -251,7 +274,7 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
             color="green",
             linestyle="--",
             alpha=0.5,
-            label="Target Score (0.85)",
+            label="Target Score (0.95)",
         )
     )
     for provider, color in PROVIDER_COLORS.items():
@@ -275,6 +298,309 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
     ax.set_title("Cost vs aegish Score")
 
     save_plot(fig, output_dir / "cost_vs_score")
+
+
+def plot_cost_vs_detection_rate(results: dict, output_dir: Path) -> None:
+    """Generate Cost vs Detection Rate scatter plot with Pareto frontier.
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+    """
+    _apply_style()
+    successful = _get_successful_models(results)
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    costs: list[float] = []
+    scores: list[float] = []
+    models: list[str] = []
+
+    for model, data in successful.items():
+        composite = data.get("composite", {})
+        cost = composite.get("cost_per_1000_combined", 0.0)
+        gtfo = data.get("datasets", {}).get("gtfobins", {})
+        det_rate = gtfo.get("detection_rate", 0.0)
+        det_se = gtfo.get("stderr", 0.0) or 0.0
+        costs.append(cost)
+        scores.append(det_rate)
+        models.append(model)
+
+        color = get_provider_color(model)
+        ax.errorbar(
+            cost, det_rate, yerr=det_se,
+            fmt="o", color=color, markersize=10,
+            markeredgecolor="white", markeredgewidth=0.5, zorder=5,
+            elinewidth=1, capsize=3, ecolor="gray",
+        )
+
+    # Pad x-axis for labels
+    if costs:
+        x_range = max(costs) - min(costs)
+        ax.set_xlim(
+            min(costs) - x_range * 0.05,
+            max(costs) + x_range * 0.20,
+        )
+
+    texts = []
+    for i, model in enumerate(models):
+        texts.append(
+            ax.text(
+                costs[i], scores[i],
+                "  " + get_short_name(model),
+                fontsize=8, ha="left", va="center",
+            )
+        )
+    if texts:
+        adjust_text(
+            texts, x=costs, y=scores, ax=ax,
+            force_text=(0.5, 0.8), force_points=(0.3, 0.5),
+            expand=(1.2, 1.4),
+            arrowprops=dict(arrowstyle="-", color="gray", alpha=0.4, lw=0.5),
+        )
+
+    # Pareto frontier
+    if costs and scores:
+        frontier = compute_pareto_frontier(costs, scores)
+        if len(frontier) >= 2:
+            f_costs, f_scores = zip(*frontier)
+            ax.plot(
+                f_costs, f_scores, "r--", linewidth=1.5, alpha=0.7,
+                label="Pareto Frontier",
+            )
+
+    # Target line
+    ax.axhline(
+        y=0.95, color="green", linestyle="--", alpha=0.5,
+        label="Target Detection (0.95)",
+    )
+
+    # Legend
+    legend_handles = []
+    if costs and scores:
+        frontier = compute_pareto_frontier(costs, scores)
+        if len(frontier) >= 2:
+            legend_handles.append(
+                plt.Line2D(
+                    [0], [0], color="red", linestyle="--", alpha=0.7,
+                    label="Pareto Frontier",
+                )
+            )
+    legend_handles.append(
+        plt.Line2D(
+            [0], [0], color="green", linestyle="--", alpha=0.5,
+            label="Target Detection (0.95)",
+        )
+    )
+    for provider, color in PROVIDER_COLORS.items():
+        if any(get_provider(m) == provider for m in models):
+            legend_handles.append(
+                plt.Line2D(
+                    [0], [0], marker="o", color="w",
+                    markerfacecolor=color, markersize=8, label=provider,
+                )
+            )
+    if legend_handles:
+        ax.legend(handles=legend_handles, loc="lower right", fontsize=9)
+
+    ax.set_xlabel("Cost per 1000 Commands ($)")
+    ax.set_ylabel("Detection Rate")
+    ax.set_title("Cost vs Detection Rate")
+
+    save_plot(fig, output_dir / "cost_vs_detection_rate")
+
+
+def _plot_latency_vs_score_impl(
+    results: dict,
+    output_dir: Path,
+    *,
+    score_key: str,
+    score_label: str,
+    title: str,
+    filename: str,
+) -> None:
+    """Shared implementation for latency-vs-score Pareto frontier plots.
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+        score_key: Either "aegish_score" (composite) or "detection_rate"
+            (gtfobins dataset).
+        score_label: Y-axis label.
+        title: Plot title.
+        filename: Output filename (without extension).
+    """
+    _apply_style()
+    successful = _get_successful_models(results)
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    latencies: list[float] = []
+    scores: list[float] = []
+    models: list[str] = []
+
+    for model, data in successful.items():
+        latency_ms = _get_latency_ms(model, data)
+        if latency_ms <= 0:
+            continue
+        latency_s = latency_ms / 1000.0
+
+        if score_key == "aegish_score":
+            score = data.get("composite", {}).get("aegish_score", 0.0)
+            score_se = data.get("composite", {}).get("aegish_score_se", 0.0) or 0.0
+        else:
+            gtfo = data.get("datasets", {}).get("gtfobins", {})
+            score = gtfo.get("detection_rate", 0.0)
+            score_se = gtfo.get("stderr", 0.0) or 0.0
+
+        latencies.append(latency_s)
+        scores.append(score)
+        models.append(model)
+
+        color = get_provider_color(model)
+        ax.errorbar(
+            latency_s, score, yerr=score_se,
+            fmt="o", color=color, markersize=10,
+            markeredgecolor="white", markeredgewidth=0.5, zorder=5,
+            elinewidth=1, capsize=3, ecolor="gray",
+        )
+
+    # Pad x-axis so rightmost labels are not clipped
+    if latencies:
+        x_range = max(latencies) - min(latencies)
+        ax.set_xlim(
+            min(latencies) - x_range * 0.05,
+            max(latencies) + x_range * 0.20,
+        )
+
+    # Label placement with adjustText to avoid overlaps
+    texts = []
+    for i, model in enumerate(models):
+        texts.append(
+            ax.text(
+                latencies[i],
+                scores[i],
+                "  " + get_short_name(model),
+                fontsize=8,
+                ha="left",
+                va="center",
+            )
+        )
+    if texts:
+        adjust_text(
+            texts,
+            x=latencies,
+            y=scores,
+            ax=ax,
+            force_text=(0.5, 0.8),
+            force_points=(0.3, 0.5),
+            expand=(1.2, 1.4),
+            arrowprops=dict(arrowstyle="-", color="gray", alpha=0.4, lw=0.5),
+        )
+
+    # Pareto frontier (minimize latency, maximize score)
+    if latencies and scores:
+        frontier = compute_pareto_frontier(latencies, scores)
+        if len(frontier) >= 2:
+            f_lat, f_scores = zip(*frontier)
+            ax.plot(
+                f_lat,
+                f_scores,
+                "r--",
+                linewidth=1.5,
+                alpha=0.7,
+                label="Pareto Frontier",
+            )
+
+    # Target line
+    ax.axhline(
+        y=0.95,
+        color="green",
+        linestyle="--",
+        alpha=0.5,
+        label="Target (0.95)",
+    )
+
+    # Legend
+    legend_handles = []
+    if latencies and scores:
+        frontier = compute_pareto_frontier(latencies, scores)
+        if len(frontier) >= 2:
+            legend_handles.append(
+                plt.Line2D(
+                    [0],
+                    [0],
+                    color="red",
+                    linestyle="--",
+                    alpha=0.7,
+                    label="Pareto Frontier",
+                )
+            )
+    legend_handles.append(
+        plt.Line2D(
+            [0],
+            [0],
+            color="green",
+            linestyle="--",
+            alpha=0.5,
+            label="Target (0.95)",
+        )
+    )
+    for provider, color in PROVIDER_COLORS.items():
+        if any(get_provider(m) == provider for m in models):
+            legend_handles.append(
+                plt.Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    markerfacecolor=color,
+                    markersize=8,
+                    label=provider,
+                )
+            )
+    if legend_handles:
+        ax.legend(handles=legend_handles, loc="lower right", fontsize=9)
+
+    ax.set_xlabel("Average Latency (seconds)")
+    ax.set_ylabel(score_label)
+    ax.set_title(title)
+
+    save_plot(fig, output_dir / filename)
+
+
+def plot_latency_vs_score(results: dict, output_dir: Path) -> None:
+    """Generate Latency vs aegish Score Pareto frontier plot.
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+    """
+    _plot_latency_vs_score_impl(
+        results,
+        output_dir,
+        score_key="aegish_score",
+        score_label="aegish Score",
+        title="Latency vs aegish Score",
+        filename="latency_vs_score",
+    )
+
+
+def plot_latency_vs_detection_rate(results: dict, output_dir: Path) -> None:
+    """Generate Latency vs Detection Rate Pareto frontier plot.
+
+    Args:
+        results: The "results" dict from comparison JSON.
+        output_dir: Directory to save output files.
+    """
+    _plot_latency_vs_score_impl(
+        results,
+        output_dir,
+        score_key="detection_rate",
+        score_label="Detection Rate",
+        title="Latency vs Detection Rate",
+        filename="latency_vs_detection_rate",
+    )
 
 
 def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
@@ -301,16 +627,16 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
 
         pass_rate = harm.get("pass_rate", 0.0) * 100
         detection_rate = gtfo.get("detection_rate", 0.0) * 100
+        pass_se = (harm.get("stderr", 0.0) or 0.0) * 100
+        det_se = (gtfo.get("stderr", 0.0) or 0.0) * 100
 
         color = get_provider_color(model)
-        ax.scatter(
-            pass_rate,
-            detection_rate,
-            c=color,
-            s=100,
-            zorder=5,
-            edgecolors="white",
-            linewidth=0.5,
+        ax.errorbar(
+            pass_rate, detection_rate,
+            xerr=pass_se, yerr=det_se,
+            fmt="o", color=color, markersize=10,
+            markeredgecolor="white", markeredgewidth=0.5, zorder=5,
+            elinewidth=1, capsize=3, ecolor="gray",
         )
         texts.append(
             ax.text(
@@ -337,7 +663,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         if gtfo
     ]
     if all_pass and all_det:
-        x_min = min(min(all_pass) - 5, 88)
+        x_min = min(min(all_pass) - 5, 93)
         y_min = max(0, min(all_det) - 5)
         ax.set_xlim(x_min, 101.5)
         ax.set_ylim(y_min, 101.5)
@@ -346,7 +672,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
 
     # Target zone (green shaded rectangle) - clamped to axis bounds
     target_rect = plt.Rectangle(
-        (90, 95), 10, 5, fill=True, alpha=0.08, color="green", label="Target Zone"
+        (95, 95), 5, 5, fill=True, alpha=0.08, color="green", label="Target Zone"
     )
     ax.add_patch(target_rect)
 
@@ -355,7 +681,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         y=95, color="green", linestyle="--", alpha=0.5, label="Detection Target (95%)"
     )
     ax.axvline(
-        x=90, color="green", linestyle="--", alpha=0.5, label="Pass Rate Target (90%)"
+        x=95, color="green", linestyle="--", alpha=0.5, label="Pass Rate Target (95%)"
     )
 
     # Use adjustText to prevent label overlaps
@@ -383,7 +709,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             color="green",
             linestyle="--",
             alpha=0.5,
-            label="Pass Rate \u226590%",
+            label="Pass Rate \u226595%",
         ),
     ]
     for provider, color in PROVIDER_COLORS.items():
@@ -424,12 +750,14 @@ def plot_latency_distribution(results: dict, output_dir: Path) -> None:
     # Collect latency data
     latency_data: list[tuple[str, float, float, float]] = []  # (model, mean, p50, p90)
     for model, data in successful.items():
-        composite = data.get("composite", {})
-        avg_latency = composite.get("avg_latency_ms", 0.0)
+        avg_latency = _get_latency_ms(model, data)
         if avg_latency <= 0:
             continue
 
         # Get per-dataset latency for p50 and p90
+        correction = avg_latency / max(
+            data.get("composite", {}).get("avg_latency_ms", avg_latency), 1.0
+        )
         datasets = data.get("datasets", {})
         p50_values = []
         p90_values = []
@@ -438,8 +766,8 @@ def plot_latency_distribution(results: dict, output_dir: Path) -> None:
                 p50_values.append(ds_data["latency"].get("p50", 0.0))
                 p90_values.append(ds_data["latency"].get("p90", 0.0))
 
-        avg_p50 = sum(p50_values) / len(p50_values) if p50_values else avg_latency
-        avg_p90 = sum(p90_values) / len(p90_values) if p90_values else avg_latency
+        avg_p50 = (sum(p50_values) / len(p50_values) if p50_values else avg_latency) * correction
+        avg_p90 = (sum(p90_values) / len(p90_values) if p90_values else avg_latency) * correction
 
         latency_data.append((model, avg_latency, avg_p50, avg_p90))
 
@@ -554,7 +882,7 @@ def plot_cost_comparison(results: dict, output_dir: Path) -> None:
 
 
 def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> None:
-    """Generate model ranking table as a figure.
+    """Generate model ranking table with 95% confidence intervals.
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -566,8 +894,15 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
     if not ranking:
         return
 
-    # Build table data
-    columns = ["Rank", "Model", "Detection%", "Pass%", "Score", "Cost/1k", "Latency"]
+    columns = [
+        "Rank",
+        "Model",
+        "Detection% (±SE)",
+        "Pass% (±SE)",
+        "Score (±SE)",
+        "Cost/1k",
+        "Latency",
+    ]
     cell_data: list[list[str]] = []
     row_colors: list[str] = []
 
@@ -583,29 +918,35 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
         harm = datasets.get("harmless", {})
 
         det_rate = gtfo.get("detection_rate", 0.0) if gtfo else 0.0
+        det_se = gtfo.get("stderr", 0.0) if gtfo else 0.0
         pass_rate = harm.get("pass_rate", 0.0) if harm else 0.0
+        pass_se = harm.get("stderr", 0.0) if harm else 0.0
         score = composite.get("aegish_score", 0.0)
+        score_se = composite.get("aegish_score_se", 0.0) or 0.0
         cost = composite.get("cost_per_1000_combined", 0.0)
-        latency = composite.get("avg_latency_ms", 0.0)
+        latency = _get_latency_ms(model, data)
 
-        # Check/cross indicators for targets
+        # ±1 SE
+        det_ci = det_se * 100
+        pass_ci = pass_se * 100
+        score_ci = score_se
+
         det_check = " \u2713" if det_rate >= 0.95 else ""
-        pass_check = " \u2713" if pass_rate >= 0.90 else ""
-        score_check = " \u2713" if score >= 0.85 else ""
+        pass_check = " \u2713" if pass_rate >= 0.95 else ""
+        score_check = " \u2713" if score >= 0.95 else ""
 
         row = [
             str(entry["rank"]),
             get_short_name(model),
-            f"{det_rate * 100:.1f}%{det_check}",
-            f"{pass_rate * 100:.1f}%{pass_check}",
-            f"{score:.3f}{score_check}",
+            f"{det_rate * 100:.1f}% ±{det_ci:.1f}{det_check}",
+            f"{pass_rate * 100:.1f}% ±{pass_ci:.1f}{pass_check}",
+            f"{score:.3f} ±{score_ci:.3f}{score_check}",
             f"${cost:.2f}" if cost > 0 else "$0.00",
             f"{latency / 1000:.1f}s",
         ]
         cell_data.append(row)
 
-        # Color by performance tier
-        if det_rate >= 0.95 and pass_rate >= 0.90 and score >= 0.85:
+        if det_rate >= 0.95 and pass_rate >= 0.95 and score >= 0.95:
             row_colors.append("#d4edda")  # green
         elif score >= 0.50:
             row_colors.append("#fff3cd")  # yellow
@@ -615,7 +956,7 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
     if not cell_data:
         return
 
-    fig, ax = plt.subplots(figsize=(14, max(4, len(cell_data) * 0.5 + 2)))
+    fig, ax = plt.subplots(figsize=(16, max(4, len(cell_data) * 0.5 + 2)))
     ax.axis("off")
 
     table = ax.table(
@@ -630,13 +971,11 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
     table.auto_set_column_width(list(range(len(columns))))
     table.scale(1, 1.5)
 
-    # Style header row
     for j in range(len(columns)):
         cell = table[0, j]
         cell.set_facecolor("#343a40")
         cell.set_text_props(color="white", fontweight="bold")
 
-    # Style data rows
     for i in range(len(cell_data)):
         for j in range(len(columns)):
             cell = table[i + 1, j]
@@ -644,7 +983,20 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
 
     ax.set_title("aegish Model Ranking", fontsize=14, fontweight="bold", pad=20)
 
-    save_plot(fig, output_dir / "ranking_table")
+    # Footnotes
+    footnote = (
+        "\u2713 = meets target (Detection ≥95%, Pass ≥95%, Score ≥0.95).  "
+        "Green = meets all targets.  Yellow = misses detection.  "
+        "Red = significantly below.\n"
+        f"* Gemini Flash latency corrected for rate-limiting "
+        f"({_RATE_LIMIT_FRACTION:.0%} rate-limit queuing removed)."
+    )
+    fig.text(
+        0.5, 0.02, footnote, ha="center", fontsize=8, style="italic",
+        wrap=True,
+    )
+
+    save_plot(fig, output_dir / "ranking_table_full")
 
 
 def plot_category_heatmap(results: dict, output_dir: Path) -> None:
@@ -724,8 +1076,9 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
     _apply_style()
     successful = _get_successful_models(results)
 
-    # Collect micro/macro pairs
-    data_points: list[tuple[str, float, float, str]] = []  # (short_name, micro, macro, full_model)
+    # Collect micro/macro pairs with standard errors
+    # (short_name, micro%, macro%, full_model, micro_se%, macro_se%)
+    data_points: list[tuple[str, float, float, str, float, float]] = []
 
     for model, data in successful.items():
         gtfo = data.get("datasets", {}).get("gtfobins")
@@ -735,7 +1088,23 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
         macro = gtfo.get("detection_rate_macro")
         if micro is None or macro is None:
             continue
-        data_points.append((get_short_name(model), micro * 100, macro * 100, model))
+        micro_se = (gtfo.get("stderr", 0.0) or 0.0) * 100
+
+        # Compute macro SE via variance propagation:
+        # macro = (1/K) * Σ p_i  →  SE = (1/K) * √(Σ p_i(1-p_i)/n_i)
+        per_cat = gtfo.get("per_category_detection_rates", {})
+        if per_cat:
+            var_sum = sum(
+                cd["detection_rate"] * (1 - cd["detection_rate"]) / cd["count"]
+                for cd in per_cat.values()
+            )
+            macro_se = (np.sqrt(var_sum) / len(per_cat)) * 100
+        else:
+            macro_se = 0.0
+
+        data_points.append((
+            get_short_name(model), micro * 100, macro * 100, model, micro_se, macro_se,
+        ))
 
     if not data_points:
         return
@@ -747,16 +1116,21 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
     micros = [d[1] for d in data_points]
     macros = [d[2] for d in data_points]
     full_models = [d[3] for d in data_points]
+    micro_ses = [d[4] for d in data_points]
+    macro_ses = [d[5] for d in data_points]
 
     x = np.arange(len(model_names))
     bar_width = 0.35
 
     fig, ax = plt.subplots(figsize=(max(10, len(model_names) * 1.5), 7))
 
+    error_kw = dict(elinewidth=1, capsize=3, ecolor="gray")
     bars_micro = ax.bar(
         x - bar_width / 2,
         micros,
         bar_width,
+        yerr=micro_ses,
+        error_kw=error_kw,
         label="Micro Avg (overall)",
         color=[get_provider_color(m) for m in full_models],
         alpha=0.85,
@@ -767,6 +1141,8 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
         x + bar_width / 2,
         macros,
         bar_width,
+        yerr=macro_ses,
+        error_kw=error_kw,
         label="Macro Avg (per-category mean)",
         color=[get_provider_color(m) for m in full_models],
         alpha=0.45,
@@ -775,20 +1151,20 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
         hatch="//",
     )
 
-    # Value labels on bars
-    for bar in bars_micro:
+    # Value labels on bars (offset above error bars)
+    for bar, se in zip(bars_micro, micro_ses):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.3,
+            bar.get_height() + se + 0.3,
             f"{bar.get_height():.1f}",
             ha="center",
             va="bottom",
             fontsize=8,
         )
-    for bar in bars_macro:
+    for bar, se in zip(bars_macro, macro_ses):
         ax.text(
             bar.get_x() + bar.get_width() / 2,
-            bar.get_height() + 0.3,
+            bar.get_height() + se + 0.3,
             f"{bar.get_height():.1f}",
             ha="center",
             va="bottom",
@@ -828,6 +1204,9 @@ def generate_all_plots(comparison_file: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_cost_vs_score(results, output_dir)
+    plot_cost_vs_detection_rate(results, output_dir)
+    plot_latency_vs_score(results, output_dir)
+    plot_latency_vs_detection_rate(results, output_dir)
     plot_detection_vs_pass(results, output_dir)
     plot_latency_distribution(results, output_dir)
     plot_cost_comparison(results, output_dir)

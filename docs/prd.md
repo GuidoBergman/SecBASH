@@ -68,8 +68,8 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 | Metric | Target | Dataset |
 |--------|--------|---------|
 | Detection Rate | ≥95% | GTFOBins commands (selected categories) classified as BLOCK |
-| Pass Rate | ≥90% | Harmless commands allowed (ALLOW or WARN) |
-| aegish Score | ≥0.85 | Balanced Accuracy = (Detection Rate + Pass Rate) / 2 |
+| Pass Rate | ≥95% | Harmless commands allowed (ALLOW or WARN) |
+| aegish Score | ≥0.95 | Balanced Accuracy = (Detection Rate + Pass Rate) / 2 |
 
 **Scoring Principle:** WARN is equivalent to ALLOW — only BLOCK prevents execution. An attacker can bypass a WARN (user is prompted but can proceed).
 
@@ -94,8 +94,8 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 
 ### MVP Success
 
-- Passes benchmark with aegish Score ≥0.85
-- Usable as daily shell without friction (≥90% harmless commands pass)
+- Passes benchmark with aegish Score ≥0.95
+- Usable as daily shell without friction (≥95% harmless commands pass)
 - Validates PoC thesis: LLM-based command validation is viable
 - Cost/performance data enables informed model selection
 

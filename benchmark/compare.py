@@ -248,7 +248,7 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
 
     Columns: Rank, Model, Detection%, Pass%, aegish Score, Cost, Latency.
     Values include 95% confidence intervals when available.
-    Highlights models meeting targets: Detection>=95%, Pass>=90%, Score>=0.85.
+    Highlights models meeting targets: Detection>=95%, Pass>=95%, Score>=0.95.
 
     Args:
         results: Dict mapping model IDs to result dicts.
@@ -300,7 +300,7 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
                 pass_str = f"{pass_rate * 100:.1f}±{ci:.1f}%"
             else:
                 pass_str = f"{pass_rate * 100:.1f}%"
-            if pass_rate >= 0.90:
+            if pass_rate >= 0.95:
                 pass_str += "*"
         else:
             pass_str = "N/A"
@@ -311,7 +311,7 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
             score_str = f"{score:.3f}±{ci:.3f}"
         else:
             score_str = f"{score:.3f}"
-        if score >= 0.85:
+        if score >= 0.95:
             score_str += "*"
 
         # Format cost
@@ -331,7 +331,7 @@ def print_comparison_table(results: dict, ranking: list[dict]) -> None:
 
     # Footer with legend
     print("-" * 108)
-    print("  * = meets target (Detection>=95%, Pass>=90%, Score>=0.85)")
+    print("  * = meets target (Detection>=95%, Pass>=95%, Score>=0.95)")
     print("  ± = 95% confidence interval (1.96 × SE)")
 
     # Print failed models
