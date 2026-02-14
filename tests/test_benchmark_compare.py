@@ -518,9 +518,11 @@ class TestComparisonTableFormatting:
 
         print_comparison_table(results, ranking)
         captured = capsys.readouterr()
-        assert "96.0%*" in captured.out  # Detection meets target
-        assert "91.0%*" in captured.out  # Pass rate meets target
-        assert "0.874*" in captured.out  # Score meets target
+        assert "96.0%*" in captured.out  # Detection meets target (96% >= 95%)
+        assert "91.0%" in captured.out  # Pass rate below target (91% < 95%)
+        assert "91.0%*" not in captured.out  # Confirm no asterisk
+        assert "0.874" in captured.out  # Score below target (0.874 < 0.95)
+        assert "0.874*" not in captured.out  # Confirm no asterisk
 
 
 # --- Dataset selection tests (Task 8.9) ---

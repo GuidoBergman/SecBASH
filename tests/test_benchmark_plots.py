@@ -431,8 +431,8 @@ class TestPlotFunctions:
             minimal_comparison_data["ranking"],
             tmp_path,
         )
-        assert (tmp_path / "ranking_table.png").exists()
-        assert (tmp_path / "ranking_table.svg").exists()
+        assert (tmp_path / "ranking_table_full.png").exists()
+        assert (tmp_path / "ranking_table_full.svg").exists()
 
     def test_plot_category_heatmap(self, minimal_comparison_data, tmp_path):
         plot_category_heatmap(minimal_comparison_data["results"], tmp_path)
@@ -455,19 +455,22 @@ class TestGenerateAllPlots:
         expected_basenames = [
             "category_heatmap",
             "cost_comparison",
+            "cost_vs_detection_rate",
             "cost_vs_score",
             "detection_vs_pass",
             "latency_distribution",
+            "latency_vs_detection_rate",
+            "latency_vs_score",
             "micro_vs_macro",
-            "ranking_table",
+            "ranking_table_full",
         ]
 
         for name in expected_basenames:
             assert (output_dir / f"{name}.png").exists(), f"Missing {name}.png"
             assert (output_dir / f"{name}.svg").exists(), f"Missing {name}.svg"
 
-        # 7 plots x 2 formats = 14 files
-        assert len(generated) == 14
+        # 10 plots x 2 formats = 20 files
+        assert len(generated) == 20
 
     def test_creates_output_directory(self, comparison_json_file, tmp_path):
         output_dir = tmp_path / "nested" / "plots"
@@ -571,7 +574,7 @@ class TestFailedModelHandling:
             },
         ]
         plot_ranking_table(results, ranking, tmp_path)
-        assert (tmp_path / "ranking_table.png").exists()
+        assert (tmp_path / "ranking_table_full.png").exists()
 
 
 class TestSavePlot:

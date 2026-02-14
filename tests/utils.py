@@ -58,4 +58,7 @@ def mock_providers(providers: list[str]):
         "aegish.llm_client",
         get_api_key=mock_get_api_key,
         get_model_chain=lambda: model_chain,
+        validate_model_provider=lambda model, allowed=None: (True, ""),
+        get_allowed_providers=lambda: {"openai", "anthropic", "groq", "together_ai", "ollama"},
+        get_fail_mode=lambda: "open",
     )

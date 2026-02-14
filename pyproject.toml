@@ -2,11 +2,13 @@
 name = "aegish"
 version = "0.1.0"
 description = "LLM-powered shell with security validation"
+license = "MIT"
 requires-python = ">=3.10"
 dependencies = [
     "typer>=0.9.0",
     "litellm>=1.0.0",
     "adjusttext>=1.3.0",
+    "bashlex>=0.18,<1.0",
 ]
 
 [project.scripts]

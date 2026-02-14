@@ -21,29 +21,68 @@ AEGISH_FALLBACK_MODELS : str
     Default: anthropic/claude-3-haiku-20240307
     Set to empty string for single-provider mode (no fallbacks).
 
+AEGISH_ALLOWED_PROVIDERS : str
+    Comma-separated list of allowed LLM providers (DD-10: provider allowlist).
+    Default: openai, anthropic, groq, together_ai, ollama
+    Models from providers not in this list are rejected at startup.
+
+AEGISH_MODE : str
+    Operational mode: "production" or "development" (DD-14).
+    Default: development (normal shell behavior).
+    Production: login shell + Landlock enforcement.
+
+AEGISH_FAIL_MODE : str
+    Behavior when validation fails: "safe" (block) or "open" (warn).
+    Default: safe (block on validation failure, DD-05).
+    Open: warn on validation failure (user can confirm to proceed).
+
 At least one API key must be configured for aegish to operate.
 Models are tried in order: primary model first, then fallbacks.
 """
 
+import logging
 import os
+
+logger = logging.getLogger(__name__)
 
 # Default model configuration
 DEFAULT_PRIMARY_MODEL = "openai/gpt-4"
 DEFAULT_FALLBACK_MODELS = ["anthropic/claude-3-haiku-20240307"]
+
+# Default allowed providers (DD-10: provider allowlist, not model allowlist)
+DEFAULT_ALLOWED_PROVIDERS = {"openai", "anthropic", "groq", "together_ai", "ollama"}
+
+# Mode configuration (DD-14: production/development modes)
+DEFAULT_MODE = "development"
+VALID_MODES = {"production", "development"}
+
+# Fail mode configuration (DD-05: default fail-safe)
+DEFAULT_FAIL_MODE = "safe"
+VALID_FAIL_MODES = {"safe", "open"}
+
+# Providers that run locally and don't require API keys
+LOCAL_PROVIDERS = {"ollama"}
 
 
 def get_api_key(provider: str) -> str | None:
     """Get the API key for a provider from environment.
 
     Args:
-        provider: One of "openai", "anthropic".
+        provider: Provider name (e.g., "openai", "anthropic", "groq",
+                  "together_ai", "ollama").
 
     Returns:
-        The API key string or None if not set.
+        The API key string, "local" for local providers, or None if not set.
     """
+    # Local providers don't require API keys
+    if provider.lower() in LOCAL_PROVIDERS:
+        return "local"
+
     env_vars = {
         "openai": "OPENAI_API_KEY",
         "anthropic": "ANTHROPIC_API_KEY",
+        "groq": "GROQ_API_KEY",
+        "together_ai": "TOGETHERAI_API_KEY",
     }
     env_var = env_vars.get(provider.lower())
     if env_var:
@@ -51,6 +90,44 @@ def get_api_key(provider: str) -> str | None:
         # Treat empty or whitespace-only strings as not configured
         return key if key and key.strip() else None
     return None
+
+
+def get_mode() -> str:
+    """Get the operational mode for aegish.
+
+    Reads from AEGISH_MODE environment variable.
+    Default: development (normal shell behavior).
+    Production: login shell + Landlock enforcement.
+
+    Returns:
+        Mode string: "production" or "development".
+    """
+    raw = os.environ.get("AEGISH_MODE", "")
+    mode = raw.strip().lower()
+    if mode in VALID_MODES:
+        return mode
+    if mode:
+        logger.debug("Invalid AEGISH_MODE '%s', falling back to '%s'", raw, DEFAULT_MODE)
+    return DEFAULT_MODE
+
+
+def get_fail_mode() -> str:
+    """Get the fail mode for validation failures.
+
+    Reads from AEGISH_FAIL_MODE environment variable.
+    Default: safe (block on validation failure).
+    Open: warn on validation failure (user can confirm to proceed).
+
+    Returns:
+        Fail mode string: "safe" or "open".
+    """
+    raw = os.environ.get("AEGISH_FAIL_MODE", "")
+    mode = raw.strip().lower()
+    if mode in VALID_FAIL_MODES:
+        return mode
+    if mode:
+        logger.debug("Invalid AEGISH_FAIL_MODE '%s', falling back to '%s'", raw, DEFAULT_FAIL_MODE)
+    return DEFAULT_FAIL_MODE
 
 
 def get_available_providers() -> list[str]:
@@ -179,4 +256,68 @@ def is_valid_model_string(model: str) -> bool:
         True if the format is valid, False otherwise.
     """
     return "/" in model and len(model.split("/")[0]) > 0
+
+
+def get_allowed_providers() -> set[str]:
+    """Get the set of allowed LLM providers.
+
+    Reads from AEGISH_ALLOWED_PROVIDERS environment variable.
+    If not set or empty, returns the default allowlist.
+    Follows the same parsing pattern as get_fallback_models().
+
+    Returns:
+        Set of allowed provider name strings (lowercase).
+    """
+    env_value = os.environ.get("AEGISH_ALLOWED_PROVIDERS")
+
+    # Not set or empty/whitespace - use defaults
+    if env_value is None or not env_value.strip():
+        return DEFAULT_ALLOWED_PROVIDERS.copy()
+
+    # Parse comma-separated list, trimming whitespace, lowercase
+    providers = {p.strip().lower() for p in env_value.split(",") if p.strip()}
+    return providers if providers else DEFAULT_ALLOWED_PROVIDERS.copy()
+
+
+def validate_model_provider(
+    model: str, allowed: set[str] | None = None
+) -> tuple[bool, str]:
+    """Validate that a model's provider is in the allowed providers list.
+
+    Args:
+        model: The model string (e.g., "openai/gpt-4").
+        allowed: Pre-resolved allowed providers set. If None, resolves from
+                 environment. Pass this when calling in a loop to avoid
+                 repeated environment lookups.
+
+    Returns:
+        Tuple of (is_valid, error_message).
+        If valid: (True, "")
+        If invalid: (False, "error message with provider and allowed list")
+    """
+    provider = get_provider_from_model(model).lower()
+    if allowed is None:
+        allowed = get_allowed_providers()
+
+    if provider in allowed:
+        return (True, "")
+
+    allowed_str = ", ".join(sorted(allowed))
+    return (False, f"Provider '{provider}' is not in the allowed providers list. "
+            f"Allowed: {allowed_str}")
+
+
+def is_default_primary_model() -> bool:
+    """Check if the primary model is the default."""
+    return get_primary_model() == DEFAULT_PRIMARY_MODEL
+
+
+def is_default_fallback_models() -> bool:
+    """Check if fallback models match the defaults."""
+    return get_fallback_models() == DEFAULT_FALLBACK_MODELS
+
+
+def has_fallback_models() -> bool:
+    """Check if any fallback models are configured."""
+    return len(get_fallback_models()) > 0
 

@@ -1,6 +1,13 @@
 """Tests for command execution."""
 
-from aegish.executor import execute_command, run_bash_command
+import os
+
+from aegish.executor import (
+    DANGEROUS_ENV_VARS,
+    _build_safe_env,
+    execute_command,
+    run_bash_command,
+)
 
 
 def test_execute_command_exit_code_success():
@@ -408,3 +415,306 @@ def test_exit_code_command_not_found():
     """Test command not found returns 127 (AC2)."""
     result = run_bash_command("nonexistent_command_xyz123 2>/dev/null")
     assert result.returncode == 127
+
+
+# =============================================================================
+# Story 6.2: Environment Sanitization Tests
+# =============================================================================
+
+
+class TestBuildSafeEnv:
+    """Tests for _build_safe_env() environment sanitization (AC1, AC2, AC3)."""
+
+    # --- Edge case: empty environment ---
+
+    def test_empty_environment_returns_empty_dict(self, mocker):
+        """Edge case: empty os.environ returns empty dict."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        env = _build_safe_env()
+        assert env == {}
+
+    # --- Task 1.1: Each DANGEROUS_ENV_VARS member is stripped individually ---
+
+    def test_bash_env_stripped(self, mocker):
+        """AC1: BASH_ENV is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "BASH_ENV": "/tmp/hook.sh"}, clear=True)
+        env = _build_safe_env()
+        assert "BASH_ENV" not in env
+        assert env["PATH"] == "/usr/bin"
+
+    def test_env_stripped(self, mocker):
+        """AC1: ENV is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "ENV": "/tmp/hook.sh"}, clear=True)
+        env = _build_safe_env()
+        assert "ENV" not in env
+
+    def test_prompt_command_stripped(self, mocker):
+        """AC1: PROMPT_COMMAND is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PROMPT_COMMAND": "evil"}, clear=True)
+        env = _build_safe_env()
+        assert "PROMPT_COMMAND" not in env
+
+    def test_editor_stripped(self, mocker):
+        """AC1: EDITOR is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "EDITOR": "vim"}, clear=True)
+        env = _build_safe_env()
+        assert "EDITOR" not in env
+
+    def test_visual_stripped(self, mocker):
+        """AC1: VISUAL is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "VISUAL": "vim"}, clear=True)
+        env = _build_safe_env()
+        assert "VISUAL" not in env
+
+    def test_pager_stripped(self, mocker):
+        """AC1: PAGER is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PAGER": "less"}, clear=True)
+        env = _build_safe_env()
+        assert "PAGER" not in env
+
+    def test_git_pager_stripped(self, mocker):
+        """AC1: GIT_PAGER is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "GIT_PAGER": "less"}, clear=True)
+        env = _build_safe_env()
+        assert "GIT_PAGER" not in env
+
+    def test_manpager_stripped(self, mocker):
+        """AC1: MANPAGER is stripped from environment."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "MANPAGER": "less"}, clear=True)
+        env = _build_safe_env()
+        assert "MANPAGER" not in env
+
+    def test_dangerous_env_vars_has_exactly_eight_entries(self):
+        """Verify DANGEROUS_ENV_VARS constant has exactly 8 entries."""
+        assert len(DANGEROUS_ENV_VARS) == 8
+        assert DANGEROUS_ENV_VARS == {
+            "BASH_ENV", "ENV", "PROMPT_COMMAND",
+            "EDITOR", "VISUAL", "PAGER", "GIT_PAGER", "MANPAGER",
+        }
+
+    # --- Task 1.2: BASH_FUNC_* prefix variables stripped ---
+
+    def test_bash_func_prefix_stripped(self, mocker):
+        """AC2: BASH_FUNC_* variables are stripped."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_FUNC_myfunc%%": "() { echo pwned; }",
+        }, clear=True)
+        env = _build_safe_env()
+        assert "BASH_FUNC_myfunc%%" not in env
+        assert env["PATH"] == "/usr/bin"
+
+    def test_multiple_bash_func_prefixes_stripped(self, mocker):
+        """AC2: Multiple BASH_FUNC_* variables are all stripped."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_FUNC_foo%%": "() { echo foo; }",
+            "BASH_FUNC_bar%%": "() { echo bar; }",
+            "BASH_FUNC_baz%%": "() { echo baz; }",
+        }, clear=True)
+        env = _build_safe_env()
+        bash_func_keys = [k for k in env if k.startswith("BASH_FUNC_")]
+        assert bash_func_keys == []
+
+    def test_bash_func_without_percent_suffix_stripped(self, mocker):
+        """AC2: BASH_FUNC_ prefix without %% suffix is also stripped."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_FUNC_exploit": "malicious",
+        }, clear=True)
+        env = _build_safe_env()
+        assert "BASH_FUNC_exploit" not in env
+        assert env["PATH"] == "/usr/bin"
+
+    # --- Task 1.3: PATH, HOME, USER preserved ---
+
+    def test_path_preserved(self, mocker):
+        """AC3: PATH is preserved."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin:/usr/local/bin"}, clear=True)
+        env = _build_safe_env()
+        assert env["PATH"] == "/usr/bin:/usr/local/bin"
+
+    def test_home_preserved(self, mocker):
+        """AC3: HOME is preserved."""
+        mocker.patch.dict(os.environ, {"HOME": "/home/user"}, clear=True)
+        env = _build_safe_env()
+        assert env["HOME"] == "/home/user"
+
+    def test_user_preserved(self, mocker):
+        """AC3: USER is preserved."""
+        mocker.patch.dict(os.environ, {"USER": "testuser"}, clear=True)
+        env = _build_safe_env()
+        assert env["USER"] == "testuser"
+
+    # --- Task 1.4: API keys preserved ---
+
+    def test_openai_api_key_preserved(self, mocker):
+        """AC3: OPENAI_API_KEY is preserved."""
+        mocker.patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"}, clear=True)
+        env = _build_safe_env()
+        assert env["OPENAI_API_KEY"] == "sk-test123"
+
+    def test_anthropic_api_key_preserved(self, mocker):
+        """AC3: ANTHROPIC_API_KEY is preserved."""
+        mocker.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test"}, clear=True)
+        env = _build_safe_env()
+        assert env["ANTHROPIC_API_KEY"] == "sk-ant-test"
+
+    # --- Task 1.5: Custom user variables preserved ---
+
+    def test_java_home_preserved(self, mocker):
+        """AC3: Custom variable JAVA_HOME is preserved."""
+        mocker.patch.dict(os.environ, {"JAVA_HOME": "/usr/lib/jvm/java-17"}, clear=True)
+        env = _build_safe_env()
+        assert env["JAVA_HOME"] == "/usr/lib/jvm/java-17"
+
+    def test_gopath_preserved(self, mocker):
+        """AC3: Custom variable GOPATH is preserved."""
+        mocker.patch.dict(os.environ, {"GOPATH": "/home/user/go"}, clear=True)
+        env = _build_safe_env()
+        assert env["GOPATH"] == "/home/user/go"
+
+    def test_node_env_preserved(self, mocker):
+        """AC3: Custom variable NODE_ENV is preserved."""
+        mocker.patch.dict(os.environ, {"NODE_ENV": "production"}, clear=True)
+        env = _build_safe_env()
+        assert env["NODE_ENV"] == "production"
+
+    # --- Task 1.6: Combined scenario ---
+
+    def test_combined_dangerous_and_safe_vars(self, mocker):
+        """AC1+AC2+AC3: Only dangerous vars stripped, safe vars preserved in same env."""
+        mocker.patch.dict(os.environ, {
+            # Safe vars (5)
+            "PATH": "/usr/bin",
+            "HOME": "/home/user",
+            "USER": "testuser",
+            "OPENAI_API_KEY": "sk-test",
+            "JAVA_HOME": "/usr/lib/jvm",
+            # All 8 DANGEROUS_ENV_VARS
+            "BASH_ENV": "/tmp/evil.sh",
+            "ENV": "/tmp/evil.sh",
+            "PROMPT_COMMAND": "curl evil.com",
+            "EDITOR": "/tmp/evil",
+            "VISUAL": "/tmp/evil",
+            "PAGER": "/tmp/evil",
+            "GIT_PAGER": "/tmp/evil",
+            "MANPAGER": "/tmp/evil",
+            # BASH_FUNC_ prefix
+            "BASH_FUNC_exploit%%": "() { echo pwned; }",
+        }, clear=True)
+        env = _build_safe_env()
+
+        # All 8 dangerous vars stripped
+        for var in DANGEROUS_ENV_VARS:
+            assert var not in env, f"{var} should be stripped"
+        assert "BASH_FUNC_exploit%%" not in env
+
+        # Safe vars preserved
+        assert env["PATH"] == "/usr/bin"
+        assert env["HOME"] == "/home/user"
+        assert env["USER"] == "testuser"
+        assert env["OPENAI_API_KEY"] == "sk-test"
+        assert env["JAVA_HOME"] == "/usr/lib/jvm"
+        assert len(env) == 5
+
+
+class TestExecuteCommandHardening:
+    """Tests for execute_command() subprocess hardening (AC4)."""
+
+    # --- Task 2.1: --norc and --noprofile flags ---
+
+    def test_execute_command_uses_norc_noprofile(self, mocker):
+        """AC4: execute_command passes --norc and --noprofile to bash."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        call_args = mock_run.call_args
+        cmd_list = call_args[0][0]
+        assert cmd_list[0] == "bash"
+        assert "--norc" in cmd_list
+        assert "--noprofile" in cmd_list
+        assert "-c" in cmd_list
+
+    # --- Task 2.2: env kwarg with sanitized dict ---
+
+    def test_execute_command_passes_sanitized_env(self, mocker):
+        """AC4: execute_command passes env kwarg with sanitized dict."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_ENV": "/tmp/evil.sh",
+        }, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        call_args = mock_run.call_args
+        assert "env" in call_args.kwargs
+        env_dict = call_args.kwargs["env"]
+        assert isinstance(env_dict, dict)
+        assert env_dict["PATH"] == "/usr/bin"
+
+    # --- Task 2.3: env dict excludes BASH_ENV ---
+
+    def test_execute_command_env_excludes_bash_env(self, mocker):
+        """AC4: env dict passed to subprocess does NOT contain BASH_ENV."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_ENV": "/tmp/evil.sh",
+        }, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        env_dict = mock_run.call_args.kwargs["env"]
+        assert "BASH_ENV" not in env_dict
+
+
+class TestRunBashCommandHardening:
+    """Tests for run_bash_command() subprocess hardening (AC5)."""
+
+    # --- Task 3.1: --norc and --noprofile flags ---
+
+    def test_run_bash_command_uses_norc_noprofile(self, mocker):
+        """AC5: run_bash_command passes --norc and --noprofile to bash."""
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="", stderr=""
+        )
+
+        run_bash_command("echo test")
+
+        call_args = mock_run.call_args
+        cmd_list = call_args[0][0]
+        assert cmd_list[0] == "bash"
+        assert "--norc" in cmd_list
+        assert "--noprofile" in cmd_list
+        assert "-c" in cmd_list
+
+    # --- Task 3.2: env kwarg with sanitized dict ---
+
+    def test_run_bash_command_passes_sanitized_env(self, mocker):
+        """AC5: run_bash_command passes env kwarg with sanitized dict."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "BASH_ENV": "/tmp/evil.sh",
+            "PROMPT_COMMAND": "evil",
+        }, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(
+            returncode=0, stdout="", stderr=""
+        )
+
+        run_bash_command("echo test")
+
+        call_args = mock_run.call_args
+        assert "env" in call_args.kwargs
+        env_dict = call_args.kwargs["env"]
+        assert isinstance(env_dict, dict)
+        assert env_dict["PATH"] == "/usr/bin"
+        assert "BASH_ENV" not in env_dict
+        assert "PROMPT_COMMAND" not in env_dict

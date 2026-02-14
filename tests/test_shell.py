@@ -1,6 +1,7 @@
 """Tests for shell module."""
 
-from unittest.mock import patch, MagicMock
+import pytest
+from unittest.mock import patch, MagicMock, call
 
 from aegish.shell import get_prompt, run_shell
 
@@ -285,3 +286,163 @@ class TestWarnConfirmation:
                     mock_exec.assert_called_once()
                     call_args = mock_exec.call_args
                     assert call_args[0][1] == 130  # last_exit_code should be 130
+
+
+class TestStartupModeBanner:
+    """Tests for mode display in startup banner (Story 8.1)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock model chain, API key, and health check to isolate tests."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "")):
+                    yield
+
+    def test_production_mode_displayed_in_banner(self, capsys):
+        """AC2: Production mode banner shows mode with enforcement details."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "Mode: production (login shell + Landlock enforcement)" in captured.out
+
+    def test_development_mode_displayed_in_banner(self, capsys):
+        """AC3: Development mode banner shows mode."""
+        with patch("aegish.shell.get_mode", return_value="development"):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "Mode: development" in captured.out
+
+
+class TestStartupHealthCheck:
+    """Tests for health check integration at startup (Story 9.2)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock model chain display to isolate tests from environment."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                yield
+
+    def test_startup_displays_warning_on_health_check_failure(self, capsys):
+        """AC2: Warning printed when health check fails."""
+        with patch("aegish.shell.health_check", return_value=(False, "primary model did not respond correctly")):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+
+                captured = capsys.readouterr()
+                assert "WARNING: Health check failed" in captured.out
+                assert "primary model did not respond correctly" in captured.out
+                assert "degraded mode" in captured.out.lower()
+
+    def test_startup_silent_on_health_check_success(self, capsys):
+        """AC1: No health check output when primary model responds correctly."""
+        with patch("aegish.shell.health_check", return_value=(True, "")):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+
+                captured = capsys.readouterr()
+                assert "Health check failed" not in captured.out
+                assert "degraded mode" not in captured.out.lower()
+
+    def test_shell_continues_after_health_check_failure(self):
+        """AC2: Shell loop runs normally after health check failure."""
+        mock_validation = {"action": "allow", "reason": "Safe", "confidence": 0.95}
+        with patch("aegish.shell.health_check", return_value=(False, "API unreachable")):
+            with patch("aegish.shell.validate_command", return_value=mock_validation):
+                with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+                    with patch("builtins.input", side_effect=["ls -la", "exit"]):
+                        run_shell()
+
+                        # Shell loop still works - command was executed
+                        mock_execute.assert_called_once_with("ls -la", 0)
+
+
+class TestStartupFailModeBanner:
+    """Tests for fail mode display in startup banner (Story 7.4)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock model chain and health check to isolate tests."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "")):
+                    yield
+
+    def test_safe_mode_displayed_in_banner(self, capsys):
+        """AC3: Safe fail mode banner."""
+        with patch("aegish.shell.get_mode", return_value="development"):
+            with patch("aegish.shell.get_fail_mode", return_value="safe"):
+                with patch("builtins.input", side_effect=["exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    assert "Fail mode: safe (block on validation failure)" in captured.out
+
+    def test_open_mode_displayed_in_banner(self, capsys):
+        """AC3: Open fail mode banner."""
+        with patch("aegish.shell.get_mode", return_value="development"):
+            with patch("aegish.shell.get_fail_mode", return_value="open"):
+                with patch("builtins.input", side_effect=["exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    assert "Fail mode: open (warn on validation failure)" in captured.out
+
+    def test_both_mode_and_fail_mode_displayed(self, capsys):
+        """AC5: Production mode and fail mode shown independently."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("aegish.shell.get_fail_mode", return_value="open"):
+                with patch("builtins.input", side_effect=["exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    assert "Mode: production" in captured.out
+                    assert "Fail mode: open" in captured.out
+
+
+class TestStartupModelWarnings:
+    """Tests for non-default model warnings at startup (Story 9.3)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock model chain, API key, health check, and default config for isolation."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "")):
+                    with patch("aegish.shell.get_primary_model", return_value="openai/gpt-4"):
+                        with patch("aegish.shell.get_fallback_models", return_value=["anthropic/claude-3-haiku-20240307"]):
+                            yield
+
+    def test_non_default_primary_model_warning(self, capsys):
+        """AC1: Warning shown for non-default primary model."""
+        with patch("aegish.shell.get_primary_model", return_value="anthropic/claude-sonnet-4-5-20250929"):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "WARNING: Using non-default primary model: anthropic/claude-sonnet-4-5-20250929" in captured.out
+                assert "Default is: openai/gpt-4" in captured.out
+
+    def test_no_fallback_warning(self, capsys):
+        """AC2: Warning shown when no fallbacks configured."""
+        with patch("aegish.shell.get_fallback_models", return_value=[]):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "WARNING: No fallback models configured. Single-provider mode." in captured.out
+
+    def test_no_warnings_with_defaults(self, capsys):
+        """AC3: No warnings when defaults are used."""
+        with patch("builtins.input", side_effect=["exit"]):
+            run_shell()
+            captured = capsys.readouterr()
+            assert "WARNING: Using non-default" not in captured.out
+            assert "WARNING: No fallback" not in captured.out
+
+    def test_non_default_fallback_warning(self, capsys):
+        """AC4: Warning shown for non-default fallback models."""
+        with patch("aegish.shell.get_fallback_models", return_value=["openai/gpt-3.5-turbo"]):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "WARNING: Using non-default fallback models: openai/gpt-3.5-turbo" in captured.out
+                assert "Default is: anthropic/claude-3-haiku-20240307" in captured.out

@@ -1,4 +1,4 @@
-# generated: 2026-01-28
+# generated: 2026-02-13
 # project: aegish
 # project_key: aegish
 # tracking_system: file-system
@@ -34,7 +34,7 @@
 # - SM typically drafts next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
-generated: 2026-01-28
+generated: 2026-02-13
 project: aegish
 project_key: aegish
 tracking_system: file-system
@@ -80,7 +80,7 @@ development_status:
   epic-4-retrospective: optional
 
   # Epic 5: Benchmark & Production Hardening
-  epic-5: in-progress
+  epic-5: done
   5-1-remove-llamaguard-from-codebase: done
   5-2-restructure-benchmark-out-of-tests: done
   5-3-fix-scoring-methodology: done
@@ -89,3 +89,40 @@ development_status:
   5-6-fix-and-extend-harmless-dataset: done
   5-7-harden-evaluation-configuration: done
   epic-5-retrospective: optional
+
+  # Epic 6: Sanitize Subprocess Execution Environment
+  epic-6: done
+  6-1-harden-subprocess-execution-with-environment-sanitization: done
+  6-2-unit-tests-for-environment-sanitization: done
+  epic-6-retrospective: optional
+
+  # Epic 7: Harden Command Validation Pipeline
+  epic-7: in-progress
+  7-1-expand-environment-variables-before-llm-validation: done
+  7-2-detect-variable-in-command-position-via-bashlex: done
+  7-3-wrap-commands-in-delimiters-for-prompt-injection-defense: done
+  7-4-configurable-fail-mode: done
+  7-5-block-oversized-commands: done
+  7-6-implement-confidence-threshold-on-allow: backlog
+  7-7-add-new-dependencies: done
+  7-8-unit-tests-for-validation-pipeline-hardening: backlog
+  epic-7-retrospective: optional
+
+  # Epic 8: Production Mode - Login Shell + Landlock Enforcement
+  epic-8: in-progress
+  8-1-implement-aegish-mode-configuration: done
+  8-2-login-shell-exit-behavior: backlog
+  8-3-landlock-sandbox-implementation: done
+  8-4-runner-binary-setup: backlog
+  8-5-integrate-landlock-into-executor: backlog
+  8-6-docker-based-testing-infrastructure: done
+  8-7-integration-tests-for-bypass-verification: backlog
+  epic-8-retrospective: optional
+
+  # Epic 9: Environment Variable Integrity
+  epic-9: in-progress
+  9-1-provider-allowlist-validation: done
+  9-2-startup-health-check: done
+  9-3-non-default-model-warnings: done
+  9-4-unit-tests-for-config-integrity: backlog
+  epic-9-retrospective: optional

@@ -8,14 +8,24 @@ import os
 import pytest
 
 from aegish.config import (
+    DEFAULT_ALLOWED_PROVIDERS,
+    DEFAULT_FALLBACK_MODELS,
+    DEFAULT_PRIMARY_MODEL,
+    get_allowed_providers,
     get_api_key,
     get_available_providers,
+    get_fail_mode,
     get_fallback_models,
+    get_mode,
     get_model_chain,
     get_primary_model,
     get_provider_from_model,
+    has_fallback_models,
+    is_default_fallback_models,
+    is_default_primary_model,
     is_valid_model_string,
     validate_credentials,
+    validate_model_provider,
 )
 
 
@@ -65,6 +75,32 @@ class TestGetApiKey:
         assert get_api_key("OPENAI") == "test-key"
         assert get_api_key("OpenAI") == "test-key"
         assert get_api_key("openai") == "test-key"
+
+
+class TestGetApiKeyExtendedProviders:
+    """Tests for get_api_key support of groq, together_ai, ollama (review fix H1)."""
+
+    def test_groq_api_key(self, mocker):
+        """Groq provider reads GROQ_API_KEY."""
+        mocker.patch.dict(os.environ, {"GROQ_API_KEY": "groq-key"}, clear=True)
+        assert get_api_key("groq") == "groq-key"
+
+    def test_together_ai_api_key(self, mocker):
+        """Together AI provider reads TOGETHERAI_API_KEY."""
+        mocker.patch.dict(os.environ, {"TOGETHERAI_API_KEY": "tai-key"}, clear=True)
+        assert get_api_key("together_ai") == "tai-key"
+
+    def test_ollama_needs_no_key(self, mocker):
+        """Ollama (local) returns truthy value without any env var."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        result = get_api_key("ollama")
+        assert result is not None
+        assert result  # truthy
+
+    def test_groq_missing_key_returns_none(self, mocker):
+        """Groq without GROQ_API_KEY returns None."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_api_key("groq") is None
 
 
 class TestGetApiKeyEmptyString:
@@ -186,6 +222,58 @@ class TestValidateCredentials:
 
         assert is_valid is False
         assert "No LLM API credentials configured" in message
+
+
+class TestGetMode:
+    """Tests for get_mode function."""
+
+    def test_default_mode_when_no_env_var(self, mocker):
+        """AC1: Default mode is development when AEGISH_MODE not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_mode() == "development"
+
+    def test_production_mode_from_env_var(self, mocker):
+        """AC2: Production mode when AEGISH_MODE=production."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        assert get_mode() == "production"
+
+    def test_development_mode_from_env_var(self, mocker):
+        """AC3: Development mode when explicitly set."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "development"}, clear=True)
+        assert get_mode() == "development"
+
+    @pytest.mark.parametrize("invalid_value", ["staging", "test", "prod", "Production123"])
+    def test_invalid_mode_falls_back_to_development(self, mocker, invalid_value):
+        """AC4: Invalid value falls back to development."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": invalid_value}, clear=True)
+        assert get_mode() == "development"
+
+    def test_invalid_mode_logs_debug_warning(self, mocker, caplog):
+        """AC4: Invalid value logs a debug-level warning."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "staging"}, clear=True)
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
+            get_mode()
+        assert "Invalid AEGISH_MODE" in caplog.text
+        assert "staging" in caplog.text
+
+    def test_empty_mode_does_not_log(self, mocker, caplog):
+        """Empty/unset AEGISH_MODE should not produce a debug log."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": ""}, clear=True)
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
+            get_mode()
+        assert "Invalid AEGISH_MODE" not in caplog.text
+
+    def test_mode_normalized_whitespace_and_case(self, mocker):
+        """AC5: Whitespace and mixed case are normalized."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": " Production "}, clear=True)
+        assert get_mode() == "production"
+
+    def test_empty_mode_returns_development(self, mocker):
+        """AC1: Empty string falls back to development."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": ""}, clear=True)
+        assert get_mode() == "development"
 
 
 class TestGetPrimaryModel:
@@ -424,3 +512,280 @@ class TestIsValidModelString:
     def test_invalid_empty_string(self):
         """Invalid: empty string."""
         assert is_valid_model_string("") is False
+
+
+class TestGetAllowedProviders:
+    """Tests for get_allowed_providers function."""
+
+    def test_default_allowed_providers(self, mocker):
+        """Default providers returned when no env var set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        result = get_allowed_providers()
+
+        assert result == DEFAULT_ALLOWED_PROVIDERS
+        assert "openai" in result
+        assert "anthropic" in result
+        assert "groq" in result
+        assert "together_ai" in result
+        assert "ollama" in result
+
+    def test_custom_allowed_providers(self, mocker):
+        """Custom providers from env var."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "openai,custom-corp"},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == {"openai", "custom-corp"}
+
+    def test_empty_env_var_uses_default(self, mocker):
+        """Empty env var uses default allowlist."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": ""},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == DEFAULT_ALLOWED_PROVIDERS
+
+    def test_whitespace_only_env_var_uses_default(self, mocker):
+        """Whitespace-only env var uses default allowlist."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "   "},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == DEFAULT_ALLOWED_PROVIDERS
+
+    def test_whitespace_trimmed_in_providers(self, mocker):
+        """Whitespace around provider names is trimmed."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": " openai , anthropic , groq "},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == {"openai", "anthropic", "groq"}
+
+    def test_providers_lowercased(self, mocker):
+        """Provider names are lowercased."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "OpenAI,ANTHROPIC"},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == {"openai", "anthropic"}
+
+    def test_trailing_comma_handled(self, mocker):
+        """Trailing comma does not produce empty entry."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "openai,anthropic,"},
+            clear=True,
+        )
+
+        result = get_allowed_providers()
+
+        assert result == {"openai", "anthropic"}
+
+
+class TestValidateModelProvider:
+    """Tests for validate_model_provider function."""
+
+    def test_known_provider_accepted(self, mocker):
+        """Known provider (openai) is accepted."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        is_valid, msg = validate_model_provider("openai/gpt-4")
+
+        assert is_valid is True
+        assert msg == ""
+
+    def test_anthropic_provider_accepted(self, mocker):
+        """Known provider (anthropic) is accepted."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        is_valid, msg = validate_model_provider("anthropic/claude-3-haiku-20240307")
+
+        assert is_valid is True
+
+    def test_ollama_provider_accepted(self, mocker):
+        """Ollama (local) provider accepted by default (AC6)."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        is_valid, msg = validate_model_provider("ollama/llama3")
+
+        assert is_valid is True
+
+    def test_unknown_provider_rejected(self, mocker):
+        """Unknown provider is rejected with clear error (AC2)."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        is_valid, msg = validate_model_provider("evil-corp/permissive-model")
+
+        assert is_valid is False
+        assert "evil-corp" in msg
+        assert "openai" in msg  # shows allowed list
+
+    def test_rejection_message_includes_allowed_list(self, mocker):
+        """Rejection message includes all allowed providers."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+
+        is_valid, msg = validate_model_provider("evil-corp/bad")
+
+        assert is_valid is False
+        for provider in DEFAULT_ALLOWED_PROVIDERS:
+            assert provider in msg
+
+    def test_custom_allowlist_provider_accepted(self, mocker):
+        """Custom allowlist provider accepted (AC3)."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "openai,custom-corp"},
+            clear=True,
+        )
+
+        is_valid, msg = validate_model_provider("custom-corp/my-model")
+
+        assert is_valid is True
+        assert msg == ""
+
+    def test_custom_allowlist_rejects_non_listed(self, mocker):
+        """Custom allowlist rejects providers not in the list."""
+        mocker.patch.dict(
+            os.environ,
+            {"AEGISH_ALLOWED_PROVIDERS": "openai,custom-corp"},
+            clear=True,
+        )
+
+        is_valid, msg = validate_model_provider("anthropic/claude-3-haiku-20240307")
+
+        assert is_valid is False
+        assert "anthropic" in msg
+
+
+class TestGetFailMode:
+    """Tests for get_fail_mode function (Story 7.4)."""
+
+    def test_default_fail_mode_is_safe(self, mocker):
+        """AC1: Default is safe when AEGISH_FAIL_MODE not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_fail_mode() == "safe"
+
+    def test_safe_mode_from_env(self, mocker):
+        """AC1: Explicit safe mode."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": "safe"}, clear=True)
+        assert get_fail_mode() == "safe"
+
+    def test_open_mode_from_env(self, mocker):
+        """AC2: Open mode."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": "open"}, clear=True)
+        assert get_fail_mode() == "open"
+
+    def test_invalid_value_defaults_to_safe(self, mocker):
+        """AC4: Invalid value falls back to safe."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": "invalid"}, clear=True)
+        assert get_fail_mode() == "safe"
+
+    def test_whitespace_and_case_normalized(self, mocker):
+        """Whitespace and mixed case are normalized."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": " Open "}, clear=True)
+        assert get_fail_mode() == "open"
+
+    def test_empty_defaults_to_safe(self, mocker):
+        """Empty string defaults to safe."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": ""}, clear=True)
+        assert get_fail_mode() == "safe"
+
+    def test_invalid_value_logs_debug_warning(self, mocker, caplog):
+        """H1 fix: Invalid value logs a debug-level warning."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": "closed"}, clear=True)
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
+            get_fail_mode()
+        assert "Invalid AEGISH_FAIL_MODE" in caplog.text
+        assert "closed" in caplog.text
+
+    def test_empty_fail_mode_does_not_log(self, mocker, caplog):
+        """Empty/unset AEGISH_FAIL_MODE should not produce a debug log."""
+        mocker.patch.dict(os.environ, {"AEGISH_FAIL_MODE": ""}, clear=True)
+        import logging
+        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
+            get_fail_mode()
+        assert "Invalid AEGISH_FAIL_MODE" not in caplog.text
+
+
+class TestIsDefaultPrimaryModel:
+    """Tests for is_default_primary_model function."""
+
+    def test_default_when_env_not_set(self, mocker):
+        """Returns True when AEGISH_PRIMARY_MODEL not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert is_default_primary_model() is True
+
+    def test_non_default_when_env_set(self, mocker):
+        """Returns False when env var is a different model."""
+        mocker.patch.dict(os.environ, {"AEGISH_PRIMARY_MODEL": "anthropic/claude-sonnet-4-5-20250929"}, clear=True)
+        assert is_default_primary_model() is False
+
+    def test_default_when_env_set_to_default(self, mocker):
+        """Returns True when env var matches default."""
+        mocker.patch.dict(os.environ, {"AEGISH_PRIMARY_MODEL": "openai/gpt-4"}, clear=True)
+        assert is_default_primary_model() is True
+
+    def test_default_when_env_empty(self, mocker):
+        """Returns True when env var is empty (falls back to default)."""
+        mocker.patch.dict(os.environ, {"AEGISH_PRIMARY_MODEL": ""}, clear=True)
+        assert is_default_primary_model() is True
+
+
+class TestIsDefaultFallbackModels:
+    """Tests for is_default_fallback_models function."""
+
+    def test_default_when_env_not_set(self, mocker):
+        """Returns True when AEGISH_FALLBACK_MODELS not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert is_default_fallback_models() is True
+
+    def test_non_default_when_env_set(self, mocker):
+        """Returns False when env var is a different model list."""
+        mocker.patch.dict(os.environ, {"AEGISH_FALLBACK_MODELS": "openai/gpt-3.5-turbo"}, clear=True)
+        assert is_default_fallback_models() is False
+
+    def test_non_default_when_env_empty(self, mocker):
+        """Returns False when env var is empty (single-provider mode)."""
+        mocker.patch.dict(os.environ, {"AEGISH_FALLBACK_MODELS": ""}, clear=True)
+        assert is_default_fallback_models() is False
+
+
+class TestHasFallbackModels:
+    """Tests for has_fallback_models function."""
+
+    def test_has_fallbacks_with_defaults(self, mocker):
+        """Returns True with default fallback models."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert has_fallback_models() is True
+
+    def test_no_fallbacks_when_empty(self, mocker):
+        """Returns False when AEGISH_FALLBACK_MODELS is empty string."""
+        mocker.patch.dict(os.environ, {"AEGISH_FALLBACK_MODELS": ""}, clear=True)
+        assert has_fallback_models() is False
+
+    def test_has_fallbacks_when_custom(self, mocker):
+        """Returns True with custom fallback models."""
+        mocker.patch.dict(os.environ, {"AEGISH_FALLBACK_MODELS": "openai/gpt-3.5-turbo"}, clear=True)
+        assert has_fallback_models() is True

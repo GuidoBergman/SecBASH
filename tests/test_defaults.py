@@ -184,17 +184,22 @@ class TestDefaultShell:
     """Tests for default shell being bash."""
 
     def test_default_shell_is_bash(self, mocker):
-        """AC2: Default shell is bash."""
+        """AC2: Default shell is bash with hardened flags and sanitized env."""
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = mocker.MagicMock(returncode=0)
 
         from aegish.executor import execute_command
         execute_command("echo hello", 0)
 
-        # Verify bash is used
+        # Verify bash is used with hardened flags in correct order
+        # (-c must come last before the command string)
         call_args = mock_run.call_args
-        assert call_args[0][0][0] == "bash"
-        assert call_args[0][0][1] == "-c"
+        cmd_list = call_args[0][0]
+        assert cmd_list == ["bash", "--norc", "--noprofile", "-c", "(exit 0); echo hello"]
+
+        # Verify env sanitization is applied (AC1: env=safe_env)
+        assert "env" in call_args.kwargs
+        assert isinstance(call_args.kwargs["env"], dict)
 
 
 class TestVersionFlag:

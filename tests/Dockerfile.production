@@ -1,0 +1,49 @@
+FROM ubuntu:24.04
+
+# 1.1: Install system dependencies (Python 3.10+, test tools, SSH, utilities)
+# Note: python3-pip and python3-venv omitted -- uv handles all package management
+RUN apt-get update && apt-get install -y \
+    python3 \
+    vim-tiny less man-db \
+    git openssh-server \
+    gettext-base \
+    netcat-openbsd \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1.2: Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# 1.3: Install aegish (layer-cached: deps first, then source)
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_BREAK_SYSTEM_PACKAGES=1
+WORKDIR /opt/aegish-src
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ src/
+RUN uv pip install .
+
+# 1.4: Create runner binary (MUST be hardlink, NOT symlink -- DD-17)
+# Landlock resolves symlinks before checking permissions, so a symlink
+# to /bin/bash would be resolved and denied. A hardlink has a distinct
+# path entry that Landlock checks independently.
+RUN mkdir -p /opt/aegish/bin && \
+    ln /bin/bash /opt/aegish/bin/runner
+
+# 1.5: Register aegish as a valid login shell
+RUN echo "$(which aegish)" >> /etc/shells
+
+# 1.6: Create test user with aegish as login shell
+RUN useradd -m -s "$(which aegish)" testuser && \
+    echo "testuser:testpass" | chpasswd
+
+# 1.7: Configure SSH for login shell testing
+# Use sed to ensure first-match-wins for PasswordAuthentication (sshd uses first match)
+RUN mkdir /run/sshd && \
+    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
+# 1.8: Set production mode environment variables
+ENV AEGISH_MODE=production
+ENV AEGISH_FAIL_MODE=safe
+
+# 1.9: Expose SSH port and start SSH daemon
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]

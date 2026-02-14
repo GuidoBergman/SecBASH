@@ -11,12 +11,26 @@ When imported, readline enables:
 """
 
 import atexit
+import logging
 import os
 import readline  # Provides line editing and history support
 
-from aegish.config import get_api_key, get_model_chain, get_provider_from_model
+from aegish.config import (
+    DEFAULT_FALLBACK_MODELS,
+    DEFAULT_PRIMARY_MODEL,
+    get_api_key,
+    get_fail_mode,
+    get_fallback_models,
+    get_mode,
+    get_model_chain,
+    get_primary_model,
+    get_provider_from_model,
+)
 from aegish.executor import execute_command
+from aegish.llm_client import health_check
 from aegish.validator import validate_command
+
+logger = logging.getLogger(__name__)
 
 # History configuration
 HISTORY_FILE: str = os.path.expanduser("~/.aegish_history")
@@ -94,7 +108,36 @@ def run_shell() -> int:
         status = "active" if has_key else "--"
         model_display_parts.append(f"{model} ({status})")
     print(f"Model chain: {' > '.join(model_display_parts)}")
+    mode = get_mode()
+    if mode == "production":
+        print("Mode: production (login shell + Landlock enforcement)")
+    else:
+        print("Mode: development")
+    fail_mode = get_fail_mode()
+    if fail_mode == "safe":
+        print("Fail mode: safe (block on validation failure)")
+    else:
+        print("Fail mode: open (warn on validation failure)")
     print("Type 'exit' or press Ctrl+D to quit.\n")
+
+    # Non-default model warnings (Story 9.3, FR50)
+    primary = get_primary_model()
+    if primary != DEFAULT_PRIMARY_MODEL:
+        print(f"WARNING: Using non-default primary model: {primary}")
+        print(f"         Default is: {DEFAULT_PRIMARY_MODEL}")
+
+    fallbacks = get_fallback_models()
+    if not fallbacks:
+        print("WARNING: No fallback models configured. Single-provider mode.")
+    elif fallbacks != DEFAULT_FALLBACK_MODELS:
+        print(f"WARNING: Using non-default fallback models: {', '.join(fallbacks)}")
+        print(f"         Default is: {DEFAULT_FALLBACK_MODELS[0]}")
+
+    # Verify primary model responds correctly before entering shell loop
+    success, reason = health_check()
+    if not success:
+        logger.warning("Health check failed: %s", reason)
+        print(f"WARNING: Health check failed - {reason}. Operating in degraded mode.")
 
     while True:
         try:

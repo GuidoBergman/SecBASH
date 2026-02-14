@@ -1,0 +1,39 @@
+# Docker Compose for aegish production mode testing
+# Usage: docker compose -f tests/docker-compose.production.yml up -d
+#
+# Landlock compatibility:
+#   Docker's default seccomp profile includes Landlock syscalls (moby/moby PR #43199).
+#   No special flags are needed on modern Docker (20.10+).
+#
+#   Fallback for older Docker versions where Landlock syscalls are blocked:
+#     security_opt:
+#       - seccomp=unconfined
+#
+# Landlock verification command:
+#   docker exec aegish-prod-test python3 -c "
+#   import ctypes, ctypes.util
+#   libc = ctypes.CDLL(ctypes.util.find_library('c'))
+#   try:
+#       fd = libc.syscall(444, 0, 0, 0x4)  # SYS_landlock_create_ruleset
+#       import os; os.close(fd)
+#       print('Landlock: SUPPORTED')
+#   except:
+#       print('Landlock: NOT SUPPORTED')
+#   "
+
+services:
+  aegish-prod-test:
+    build:
+      context: ..
+      dockerfile: tests/Dockerfile.production
+    image: aegish-test
+    container_name: aegish-prod-test
+    restart: unless-stopped
+    ports:
+      - "2222:22"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "22"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

@@ -171,7 +171,7 @@ This document provides the complete epic and story breakdown for aegish, decompo
 | FR36 | Epic 6 | Subprocess env sanitization |
 | FR37 | Epic 7 | Configurable fail-mode (safe/open) |
 | FR38 | Epic 7 | Block oversized commands |
-| FR39 | Epic 7 | Confidence threshold on allow |
+| FR39 | ~~Epic 7~~ | ~~Confidence threshold on allow~~ *(deferred)* |
 | FR40 | Epic 7 | envsubst expansion before LLM |
 | FR41 | Epic 7 | bashlex variable-in-command detection |
 | FR42 | Epic 7 | Command delimiters in user message |
@@ -229,9 +229,9 @@ Subprocess command execution uses a hardened bash invocation that prevents envir
 ### Epic 7: Harden Command Validation Pipeline
 The validation pipeline enriches LLM context with expanded variables, detects variable-in-command-position attacks, resists prompt injection via delimiters, blocks oversized commands, applies confidence thresholds, and supports configurable fail-safe/fail-open behavior.
 
-**FRs covered:** FR37, FR38, FR39, FR40, FR41, FR42
+**FRs covered:** FR37, FR38, FR40, FR41, FR42 *(FR39 deferred)*
 **NFRs addressed:** NFR6 (bypass resistance), NFR7 (jailbreak resistance)
-**NFR Assessment:** BYPASS-01 (prompt injection), BYPASS-02 (fail-open), BYPASS-05 (length overflow), BYPASS-08 (confidence ignored), BYPASS-15 (pre/post expansion gap)
+**NFR Assessment:** BYPASS-01 (prompt injection), BYPASS-02 (fail-open), BYPASS-05 (length overflow), BYPASS-15 (pre/post expansion gap)
 **Design decisions:** DD-03, DD-05, DD-07, DD-08, DD-09, DD-18 (see docs/security-hardening-scope.md)
 **New dependencies:** bashlex (PyPI), gettext-base (system, provides envsubst)
 
@@ -1549,36 +1549,9 @@ So that **padding attacks cannot bypass validation by exceeding the length limit
 **Files to modify:**
 - `src/aegish/llm_client.py`: Change oversized command response from warn to block
 
-### Story 7.6: Implement Confidence Threshold on Allow
+### ~~Story 7.6: Implement Confidence Threshold on Allow~~ *(OUT OF SCOPE)*
 
-As a **security engineer**,
-I want **low-confidence "allow" responses escalated to "warn"**,
-So that **uncertain LLM classifications are not silently executed**.
-
-**FRs covered:** FR39
-
-**Acceptance Criteria:**
-
-**Given** the LLM returns `{"action": "allow", "confidence": 0.3}`
-**When** the confidence is below the threshold (default 0.7)
-**Then** the action is escalated to "warn"
-**And** the reason is prefixed: "Low confidence (30%): {original reason}"
-
-**Given** the LLM returns `{"action": "allow", "confidence": 0.95}`
-**When** the confidence is above the threshold
-**Then** the command is allowed normally
-
-**Given** the LLM returns `{"action": "block", "confidence": 0.3}`
-**When** the response is processed
-**Then** the block is kept as-is (threshold applies only to allow)
-
-**Given** `AEGISH_CONFIDENCE_THRESHOLD=0.5` is set
-**When** the threshold is loaded
-**Then** 0.5 is used instead of the default 0.7
-
-**Files to modify:**
-- `src/aegish/config.py`: Add `get_confidence_threshold()` function
-- `src/aegish/shell.py`: Add threshold check after `validate_command()`
+> Deferred. Low-confidence allow escalation is a nice-to-have but not a critical bypass vector.
 
 ### Story 7.7: Add New Dependencies
 
@@ -1618,8 +1591,6 @@ So that **regressions in security hardening are caught immediately**.
 - Fail-safe mode: validation failure returns block
 - Fail-open mode: validation failure returns warn
 - Oversized command: 5000-char command returns block
-- Confidence threshold: allow with 0.3 confidence escalated to warn
-- Confidence threshold: allow with 0.95 confidence unchanged
 
 **Files to create:**
 - `tests/test_validation_pipeline.py`
