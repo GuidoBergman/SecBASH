@@ -59,7 +59,9 @@
       "WebFetch(domain:selinuxproject.org)",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:docs.github.com)",
-      "Bash(docker --version:*)"
+      "Bash(docker --version:*)",
+      "Skill(sharp-edges:sharp-edges)",
+      "Skill(semgrep)"
     ]
   }
 }

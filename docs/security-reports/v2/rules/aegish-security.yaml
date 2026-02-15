@@ -1,0 +1,109 @@
+rules:
+  # Rule 1: ALLOW without explanation
+  - id: aegish-allow-without-explanation
+    languages: [python]
+    severity: WARNING
+    message: >-
+      `data.get("reason", ...)` accepts empty strings as valid reasons.
+      An LLM returning action=allow with reason="" silently permits commands
+      without justification. Validate that reason is non-empty after retrieval.
+    metadata:
+      cwe: "CWE-20: Improper Input Validation"
+      confidence: HIGH
+      category: security
+      technology: [python]
+      references:
+        - "https://cwe.mitre.org/data/definitions/20.html"
+    patterns:
+      - pattern: |
+          $REASON = $DATA.get("reason", ...)
+      - pattern-not-inside: |
+          $REASON = $DATA.get("reason", ...)
+          ...
+          if not $REASON or not $REASON.strip():
+              ...
+      - pattern-not-inside: |
+          $REASON = $DATA.get("reason", ...).strip()
+          ...
+
+  # Rule 2: Unsanitized environment in subprocess
+  - id: aegish-subprocess-unsanitized-env
+    languages: [python]
+    severity: ERROR
+    message: >-
+      `subprocess.run()` called without explicit `env=` parameter. The child
+      process inherits BASH_ENV, PROMPT_COMMAND, and API keys. Always pass
+      `env=_build_safe_env()` or `env=_get_safe_env()`.
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      confidence: HIGH
+      category: security
+      technology: [python]
+      references:
+        - "https://cwe.mitre.org/data/definitions/78.html"
+    patterns:
+      - pattern: subprocess.run(...)
+      - pattern-not: subprocess.run(..., env=..., ...)
+
+  # Rule 3: Command string interpolation
+  - id: aegish-command-string-interpolation
+    languages: [python]
+    severity: WARNING
+    message: >-
+      f-string interpolation used to build a shell command string. If any
+      interpolated variable is user-controlled, this is shell injection.
+      Prefer list-form arguments or ensure all interpolated values are type-safe.
+    metadata:
+      cwe: "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      confidence: MEDIUM
+      category: security
+      technology: [python]
+      references:
+        - "https://cwe.mitre.org/data/definitions/78.html"
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $CMD = f"...{...}..."
+          - pattern: |
+              $CMD = f"...{...}...{...}..."
+          - pattern: |
+              $CMD = f"...{...}...{...}...{...}..."
+      - metavariable-regex:
+          metavariable: $CMD
+          regex: ".*(command|cmd|cmdline|commandline).*"
+
+  # Rule 4a: Missing timeout on subprocess
+  - id: aegish-missing-timeout-subprocess
+    languages: [python]
+    severity: WARNING
+    message: >-
+      `subprocess.run()` called without `timeout=`. A hanging command blocks
+      the aegish shell indefinitely. Always pass an explicit timeout.
+    metadata:
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+      confidence: HIGH
+      category: security
+      technology: [python]
+      references:
+        - "https://cwe.mitre.org/data/definitions/400.html"
+    patterns:
+      - pattern: subprocess.run(...)
+      - pattern-not: subprocess.run(..., timeout=..., ...)
+
+  # Rule 4b: Missing timeout on LLM completion
+  - id: aegish-missing-timeout-completion
+    languages: [python]
+    severity: WARNING
+    message: >-
+      `completion()` called without `timeout=`. An unresponsive LLM provider
+      blocks validation indefinitely. Always pass an explicit timeout.
+    metadata:
+      cwe: "CWE-400: Uncontrolled Resource Consumption"
+      confidence: HIGH
+      category: security
+      technology: [python]
+      references:
+        - "https://cwe.mitre.org/data/definitions/400.html"
+    patterns:
+      - pattern: completion(...)
+      - pattern-not: completion(..., timeout=..., ...)

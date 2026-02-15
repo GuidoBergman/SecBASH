@@ -1,0 +1,47 @@
+# Secrets
+.env
+
+# Git
+.git
+.gitignore
+
+# Logs and eval data
+logs/
+
+# Benchmark data (not needed in production test image)
+benchmark/
+
+# BMAD workflow configs
+.bmad/
+.bmad-user-memory/
+
+# Claude Code settings
+.claude/
+
+# Documentation (not needed in image)
+docs/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environments
+.venv/
+venv/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
