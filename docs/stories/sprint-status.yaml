@@ -97,32 +97,32 @@ development_status:
   epic-6-retrospective: optional
 
   # Epic 7: Harden Command Validation Pipeline
-  epic-7: in-progress
+  epic-7: done
   7-1-expand-environment-variables-before-llm-validation: done
   7-2-detect-variable-in-command-position-via-bashlex: done
   7-3-wrap-commands-in-delimiters-for-prompt-injection-defense: done
   7-4-configurable-fail-mode: done
   7-5-block-oversized-commands: done
-  7-6-implement-confidence-threshold-on-allow: backlog
+  7-6-implement-confidence-threshold-on-allow: backlog  # out of scope
   7-7-add-new-dependencies: done
-  7-8-unit-tests-for-validation-pipeline-hardening: backlog
+  7-8-unit-tests-for-validation-pipeline-hardening: done
   epic-7-retrospective: optional
 
   # Epic 8: Production Mode - Login Shell + Landlock Enforcement
-  epic-8: in-progress
+  epic-8: done
   8-1-implement-aegish-mode-configuration: done
-  8-2-login-shell-exit-behavior: backlog
+  8-2-login-shell-exit-behavior: done
   8-3-landlock-sandbox-implementation: done
-  8-4-runner-binary-setup: backlog
-  8-5-integrate-landlock-into-executor: backlog
+  8-4-runner-binary-setup: done
+  8-5-integrate-landlock-into-executor: done
   8-6-docker-based-testing-infrastructure: done
-  8-7-integration-tests-for-bypass-verification: backlog
+  8-7-integration-tests-for-bypass-verification: done
   epic-8-retrospective: optional
 
   # Epic 9: Environment Variable Integrity
-  epic-9: in-progress
+  epic-9: done
   9-1-provider-allowlist-validation: done
   9-2-startup-health-check: done
   9-3-non-default-model-warnings: done
-  9-4-unit-tests-for-config-integrity: backlog
+  9-4-unit-tests-for-config-integrity: done
   epic-9-retrospective: optional

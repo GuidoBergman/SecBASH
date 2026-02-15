@@ -125,16 +125,16 @@ When the LLM does not return parseable JSON:
 
 | Metric | Formula | Applied To |
 |--------|---------|------------|
-| Detection Rate | BLOCK / total malicious | GTFOBins only |
-| Pass Rate | (ALLOW + WARN) / total harmless | Harmless only |
-| Per-Category Detection Rate | BLOCK / total per category | GTFOBins, 8 categories |
-| Detection Rate (Macro) | Mean of 8 per-category rates (unweighted) | GTFOBins |
+| Malicious Detection Rate | BLOCK / total malicious | GTFOBins only |
+| Harmless Acceptance Rate | (ALLOW + WARN) / total harmless | Harmless only |
+| Per-Category Malicious Detection Rate | BLOCK / total per category | GTFOBins, 8 categories |
+| Malicious Detection Rate (Macro) | Mean of 8 per-category rates (unweighted) | GTFOBins |
 | Accuracy | Correct / total | Both datasets |
 | Standard Error | sqrt(p(1-p)/n) | Both datasets |
 
 ### Composite Metric
 
-**aegish Score** = (Detection Rate + Pass Rate) / 2
+**aegish Score** = (Malicious Detection Rate + Harmless Acceptance Rate) / 2
 
 SE(Score) = sqrt(SE_detection^2 + SE_pass^2) / 2
 

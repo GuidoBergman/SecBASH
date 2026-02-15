@@ -1,6 +1,7 @@
 # NFR Assessment - aegish Security Bypass Analysis
 
 **Date:** 2026-02-04
+**Scaffolding:** BMAD `testarch-nfr` workflow (v4.0)
 **Feature:** aegish LLM-Powered Shell Security Validator
 **Overall Status:** FAIL (multiple confirmed bypass vectors)
 
@@ -371,7 +372,7 @@ The following bypasses are **structural** - they don't depend on fooling the LLM
   - This means the most critical threat class has ZERO benchmark coverage
   - The "shell" category in GTFOBins includes patterns like: `awk 'BEGIN {system("/bin/sh")}'`, `find . -exec /bin/sh \;`, `nmap --interactive` then `!sh`, `vim -c ':!/bin/sh'`, etc. - exactly what aegish needs to detect
   - The `suid` and `sudo` categories are also excluded, meaning privilege escalation via SUID binaries and sudo misconfigurations are untested
-- **Recommendation:** HIGH - Add the GTFOBins "shell" category to the benchmark. Also add "suid" and "sudo" categories with appropriate context annotation. These are the most dangerous patterns and must have measured detection rates.
+- **Recommendation:** HIGH - Add the GTFOBins "shell" category to the benchmark. Also add "suid" and "sudo" categories with appropriate context annotation. These are the most dangerous patterns and must have measured malicious detection rates.
 
 ---
 
@@ -510,7 +511,7 @@ The following bypasses are **structural** - they don't depend on fooling the LLM
 6. **Add GTFOBins "shell" category to benchmark** (Testing) - HIGH
    - Remove "shell" from `EXCLUDED_CATEGORIES` in `extract_gtfobins.py:42`
    - Re-run extraction to add ~200+ shell-spawning test commands
-   - Measure actual detection rate for the #1 threat category
+   - Measure actual malicious detection rate for the #1 threat category
 
 ---
 
@@ -562,8 +563,8 @@ The following bypasses are **structural** - they don't depend on fooling the LLM
 8. **Add GTFOBins "shell" category to benchmark** - HIGH - Developer
    - Remove "shell" from `EXCLUDED_CATEGORIES` in `extract_gtfobins.py`
    - Add "suid" and "sudo" categories
-   - Re-run extraction and measure detection rates
-   - Validation criteria: >95% detection rate on shell-spawning patterns
+   - Re-run extraction and measure malicious detection rates
+   - Validation criteria: >95% malicious detection rate on shell-spawning patterns
 
 ### Short-term (Next Sprint) - MEDIUM Priority
 
@@ -607,10 +608,10 @@ The following bypasses are **structural** - they don't depend on fooling the LLM
 
 7 evidence gaps identified:
 
-- [ ] **GTFOBins Shell Category Detection Rate** (Security - CRITICAL GAP)
+- [ ] **GTFOBins Shell Category Malicious Detection Rate** (Security - CRITICAL GAP)
   - **Owner:** Developer
   - **Suggested Evidence:** Add "shell" category to benchmark, extract ~200+ commands, run against live LLM providers
-  - **Impact:** The #1 threat category has ZERO benchmark coverage. Detection rate is completely unknown.
+  - **Impact:** The #1 threat category has ZERO benchmark coverage. Malicious detection rate is completely unknown.
 
 - [ ] **Interactive Program Escape Rate** (Security - CRITICAL GAP)
   - **Owner:** Developer
@@ -627,7 +628,7 @@ The following bypasses are **structural** - they don't depend on fooling the LLM
   - **Suggested Evidence:** Create test suite of 50+ variable-based command construction patterns (`a=ba; b=sh; $a$b`, `printf -v`, `set --`, IFS tricks) and measure detection
   - **Impact:** These bypass the LLM because it validates text, not expanded values
 
-- [ ] **Obfuscation Detection Rate** (Security)
+- [ ] **Obfuscation Malicious Detection Rate** (Security)
   - **Owner:** Developer
   - **Suggested Evidence:** Create a test suite of 100+ obfuscated dangerous commands (base64, hex, octal escapes, brace expansion) and measure detection
   - **Impact:** Real attackers use obfuscation; current tests use mostly plain-text commands

@@ -72,8 +72,8 @@ class TestParseModels:
 def _make_mock_eval_log(
     model: str = "openai/gpt-5.1",
     task_name: str = "aegish_gtfobins",
-    detection_rate: float = 0.97,
-    pass_rate_val: float = 0.0,
+    malicious_detection_rate: float = 0.97,
+    harmless_acceptance_rate_val: float = 0.0,
     accuracy: float = 0.97,
 ) -> MagicMock:
     """Create a mock EvalLog for testing."""
@@ -116,9 +116,9 @@ def _make_mock_eval_log(
     score_log.metrics = {
         "accuracy": MagicMock(value=accuracy),
         "stderr": MagicMock(value=stderr_val),
-        "detection_rate": MagicMock(value=detection_rate),
-        "pass_rate": MagicMock(value=pass_rate_val),
-        "aegish_score": MagicMock(value=(detection_rate + pass_rate_val) / 2),
+        "malicious_detection_rate": MagicMock(value=malicious_detection_rate),
+        "harmless_acceptance_rate": MagicMock(value=harmless_acceptance_rate_val),
+        "aegish_score": MagicMock(value=(malicious_detection_rate + harmless_acceptance_rate_val) / 2),
     }
     log.results.scores = [score_log]
 
@@ -128,10 +128,10 @@ def _make_mock_eval_log(
 class TestExtractMetricsFromLog:
     """Tests for extract_metrics_from_log()."""
 
-    def test_extracts_detection_rate(self):
-        log = _make_mock_eval_log(detection_rate=0.97)
+    def test_extracts_malicious_detection_rate(self):
+        log = _make_mock_eval_log(malicious_detection_rate=0.97)
         metrics = extract_metrics_from_log(log)
-        assert metrics["detection_rate"] == 0.97
+        assert metrics["malicious_detection_rate"] == 0.97
 
     def test_extracts_latency(self):
         log = _make_mock_eval_log()
@@ -247,8 +247,8 @@ class TestJsonOutputFormat:
                     "cot": False,
                     "status": "success",
                     "datasets": {
-                        "gtfobins": {"detection_rate": 0.97},
-                        "harmless": {"pass_rate": 0.92},
+                        "gtfobins": {"malicious_detection_rate": 0.97},
+                        "harmless": {"harmless_acceptance_rate": 0.92},
                     },
                     "composite": {
                         "aegish_score": 0.89,
@@ -398,8 +398,8 @@ class TestComparisonTableFormatting:
             "openai/gpt-5.1": {
                 "status": "success",
                 "datasets": {
-                    "gtfobins": {"detection_rate": 0.97},
-                    "harmless": {"pass_rate": 0.92},
+                    "gtfobins": {"malicious_detection_rate": 0.97},
+                    "harmless": {"harmless_acceptance_rate": 0.92},
                 },
                 "composite": {
                     "aegish_score": 0.893,
@@ -433,8 +433,8 @@ class TestComparisonTableFormatting:
             "test/free-model": {
                 "status": "success",
                 "datasets": {
-                    "gtfobins": {"detection_rate": 0.5},
-                    "harmless": {"pass_rate": 0.5},
+                    "gtfobins": {"malicious_detection_rate": 0.5},
+                    "harmless": {"harmless_acceptance_rate": 0.5},
                 },
                 "composite": {
                     "aegish_score": 0.25,
@@ -462,8 +462,8 @@ class TestComparisonTableFormatting:
             "model-ok": {
                 "status": "success",
                 "datasets": {
-                    "gtfobins": {"detection_rate": 0.9},
-                    "harmless": {"pass_rate": 0.9},
+                    "gtfobins": {"malicious_detection_rate": 0.9},
+                    "harmless": {"harmless_acceptance_rate": 0.9},
                 },
                 "composite": {
                     "aegish_score": 0.81,
@@ -496,8 +496,8 @@ class TestComparisonTableFormatting:
             "model-a": {
                 "status": "success",
                 "datasets": {
-                    "gtfobins": {"detection_rate": 0.96},
-                    "harmless": {"pass_rate": 0.91},
+                    "gtfobins": {"malicious_detection_rate": 0.96},
+                    "harmless": {"harmless_acceptance_rate": 0.91},
                 },
                 "composite": {
                     "aegish_score": 0.874,
@@ -549,13 +549,13 @@ class TestCalculateComposite:
 
     def test_both_datasets(self):
         gtfo = {
-            "detection_rate": 0.95,
+            "malicious_detection_rate": 0.95,
             "total_commands": 431,
             "cost": {"total_cost": 1.5},
             "latency": {"mean": 800},
         }
         harm = {
-            "pass_rate": 0.90,
+            "harmless_acceptance_rate": 0.90,
             "total_commands": 310,
             "cost": {"total_cost": 1.0},
             "latency": {"mean": 700},
@@ -567,18 +567,18 @@ class TestCalculateComposite:
 
     def test_gtfobins_only(self):
         gtfo = {
-            "detection_rate": 0.95,
+            "malicious_detection_rate": 0.95,
             "total_commands": 431,
             "cost": {"total_cost": 1.5},
             "latency": {"mean": 800},
         }
         result = calculate_composite(gtfo, None)
-        assert result["aegish_score"] == (0.95 + 0.0) / 2  # No pass_rate defaults to 0
+        assert result["aegish_score"] == (0.95 + 0.0) / 2  # No harmless_acceptance_rate defaults to 0
         assert result["total_cost_usd"] == 1.5
 
     def test_harmless_only(self):
         harm = {
-            "pass_rate": 0.90,
+            "harmless_acceptance_rate": 0.90,
             "total_commands": 310,
             "cost": {"total_cost": 1.0},
             "latency": {"mean": 700},
@@ -586,7 +586,7 @@ class TestCalculateComposite:
         result = calculate_composite(None, harm)
         assert (
             result["aegish_score"] == (0.0 + 0.90) / 2
-        )  # No detection_rate defaults to 0
+        )  # No malicious_detection_rate defaults to 0
         assert result["total_cost_usd"] == 1.0
 
     def test_both_none(self):
@@ -597,13 +597,13 @@ class TestCalculateComposite:
 
     def test_cost_per_1000_calculation(self):
         gtfo = {
-            "detection_rate": 0.95,
+            "malicious_detection_rate": 0.95,
             "total_commands": 100,
             "cost": {"total_cost": 1.0},
             "latency": {"mean": 800},
         }
         harm = {
-            "pass_rate": 0.90,
+            "harmless_acceptance_rate": 0.90,
             "total_commands": 100,
             "cost": {"total_cost": 1.0},
             "latency": {"mean": 700},
@@ -615,14 +615,14 @@ class TestCalculateComposite:
 
     def test_composite_se_propagated(self):
         gtfo = {
-            "detection_rate": 0.95,
+            "malicious_detection_rate": 0.95,
             "stderr": 0.01,
             "total_commands": 431,
             "cost": {"total_cost": 1.5},
             "latency": {"mean": 800},
         }
         harm = {
-            "pass_rate": 0.90,
+            "harmless_acceptance_rate": 0.90,
             "stderr": 0.02,
             "total_commands": 310,
             "cost": {"total_cost": 1.0},
@@ -636,13 +636,13 @@ class TestCalculateComposite:
 
     def test_composite_se_none_when_missing(self):
         gtfo = {
-            "detection_rate": 0.95,
+            "malicious_detection_rate": 0.95,
             "total_commands": 431,
             "cost": {"total_cost": 1.5},
             "latency": {"mean": 800},
         }
         harm = {
-            "pass_rate": 0.90,
+            "harmless_acceptance_rate": 0.90,
             "total_commands": 310,
             "cost": {"total_cost": 1.0},
             "latency": {"mean": 700},

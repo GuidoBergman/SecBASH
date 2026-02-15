@@ -8,14 +8,14 @@
 
 aegish benchmarked **9 LLMs** across **4 providers** on **1,172 commands** (676 malicious from GTFOBins + 496 harmless). Two additional models (Phi-4 via OpenRouter, Gemini-3-Pro) failed to complete evaluation and are excluded from this analysis.
 
-**Key result: 4 of 9 models meet all targets** (Detection >=95%, Pass >=90%, Score >=0.85). The clear winner on accuracy is **Gemini-3-Flash** (0.984 score), while the best cost/latency tradeoff goes to **GPT-5-mini** (0.971 score, 21s latency, $1.12/1k). All 9 models exceed the 0.85 score threshold, with **Foundation-Sec-8B** ranking last (0.893). **GPT-5 Nano** (rank 8, score 0.935) is the cheapest and fastest model but fails the 95% detection target at 88.3%, with its dominant failure mode being outright ALLOW classifications on malicious commands.
+**Key result: 4 of 9 models meet all targets** (Malicious Detection >=95%, Harmless Acceptance >=90%, Score >=0.85). The clear winner on accuracy is **Gemini-3-Flash** (0.984 score), while the best cost/latency tradeoff goes to **GPT-5-mini** (0.971 score, 21s latency, $1.12/1k). All 9 models exceed the 0.85 score threshold, with **Foundation-Sec-8B** ranking last (0.893). **GPT-5 Nano** (rank 8, score 0.935) is the cheapest and fastest model but fails the 95% malicious detection target at 88.3%, with its dominant failure mode being outright ALLOW classifications on malicious commands.
 
 ### Targets (from PRD)
 
 | Metric | Target | Best Result |
 |--------|--------|-------------|
-| Detection Rate (GTFOBins) | >= 95% | 97.8% (Gemini Flash) |
-| Pass Rate (Harmless) | >= 90% | 100.0% (Opus, Foundation-Sec) |
+| Malicious Detection Rate (GTFOBins) | >= 95% | 97.8% (Gemini Flash) |
+| Harmless Acceptance Rate (Harmless) | >= 90% | 100.0% (Opus, Foundation-Sec) |
 | aegish Score (balanced accuracy) | >= 0.85 | 0.984 (Gemini Flash) |
 
 ---
@@ -74,7 +74,7 @@ A banned-name validator prevents regressions: extraction fails if any command co
 
 ## 3. Model Rankings
 
-| Rank | Model | Detection% | Pass% | Score | Cost/1k | Latency |
+| Rank | Model | Malicious Detection% | Harmless Acceptance% | Score | Cost/1k | Latency |
 |------|-------|-----------|-------|-------|---------|---------|
 | 1 | gemini-3-flash-preview | **97.8%** | **99.0%** | **0.984** | $1.12 | 70.9s* |
 | 2 | gpt-5-mini | 95.9% | 98.4% | 0.971 | $1.12 | **21.4s** |
@@ -91,19 +91,19 @@ A banned-name validator prevents regressions: extraction fails if any command co
 ### Tier Analysis
 
 **Tier 1 -- Meets All Targets (green in ranking table):**
-Gemini-3-Flash, GPT-5-mini, Claude-Haiku-4-5, Llama-Primus-Reasoning. All four achieve Detection >=95% AND Pass >=90% AND Score >=0.85.
+Gemini-3-Flash, GPT-5-mini, Claude-Haiku-4-5, Llama-Primus-Reasoning. All four achieve Malicious Detection >=95% AND Harmless Acceptance >=90% AND Score >=0.85.
 
-**Tier 2 -- Misses Detection Target (yellow in ranking table):**
+**Tier 2 -- Misses Malicious Detection Target (yellow in ranking table):**
 Claude-Opus (92.0%), GPT-5.1 (92.6%), Claude-Sonnet (92.9%), GPT-5-Nano (88.3%). These models meet Pass and Score targets but under-detect malicious commands. Section 5 explains the distinct failure modes: larger models are penalized by content filters and cautious reasoning, while Nano is penalized by genuinely weaker security reasoning.
 
-**Tier 3 -- Significantly Below Detection Target:**
+**Tier 3 -- Significantly Below Malicious Detection Target:**
 Foundation-Sec-8B at 78.6% detection. Despite being security-specialized, it misses 145 of 676 malicious commands. Its dominant failure mode is classifying malicious commands as WARN (128 of 145 errors).
 
 ---
 
-## 4. Per-Category Detection Rates
+## 4. Per-Category Malicious Detection Rates
 
-*(Source: `comparison_20260210_142957.json`, per_category_detection_rates field)*
+*(Source: `comparison_20260210_142957.json`, per_category_malicious_detection_rates field)*
 
 ### Category Difficulty Ranking
 
@@ -167,7 +167,7 @@ However, this pattern does **not** extend to the smallest model:
 |----------|---------------|:-----:|-------------|:-----:|
 | OpenAI | gpt-5-nano | **0.935** | gpt-5-mini | **0.971** |
 
-The relationship between model size and security classification performance forms a **soft inverted U**: mid-size models (mini, haiku) outperform both flagships (due to content filters and cautious reasoning) and the smallest model (due to weaker security reasoning). The gap between Nano and the mid-tier models is moderate (0.035 points) rather than catastrophic, but Nano's 88.3% detection rate falls meaningfully short of the 95% target.
+The relationship between model size and security classification performance forms a **soft inverted U**: mid-size models (mini, haiku) outperform both flagships (due to content filters and cautious reasoning) and the smallest model (due to weaker security reasoning). The gap between Nano and the mid-tier models is moderate (0.035 points) rather than catastrophic, but Nano's 88.3% malicious detection rate falls meaningfully short of the 95% target.
 
 ### Root Cause: Content Filters and Cautious Reasoning
 
@@ -188,9 +188,9 @@ Claude Opus and Sonnet trigger **safety content filters** on GTFOBins commands, 
 
 These are concentrated in the **file-write** category, where commands write to `/etc/cron.d/` and `/etc/sudoers`. Claude Sonnet scores 64.3% on file-write with 29 content filters; Claude Opus scores 71.4% with 21 content filters. Haiku has 0 content filters and scores 100%.
 
-**Counterfactual analysis**: If content filter activations were treated as correct (the model *did* detect something dangerous -- it refused to engage), the adjusted detection rates would be:
+**Counterfactual analysis**: If content filter activations were treated as correct (the model *did* detect something dangerous -- it refused to engage), the adjusted malicious detection rates would be:
 
-| Model | Original Detection | + Content Filters | Adjusted |
+| Model | Original Malicious Detection | + Content Filters | Adjusted |
 |-------|:-----------------:|:-----------------:|:--------:|
 | claude-opus-4-6 | 92.0% | +21 | **95.1%** |
 | claude-sonnet-4-5 | 92.9% | +29 | **97.2%** |
@@ -254,7 +254,7 @@ GPT-5 Nano (rank 8, score 0.935) introduces a third failure mode distinct from l
 
 **Note on FORMAT_ERROR history:** An earlier evaluation run of Nano (Feb 10, 12:33 UTC) produced 218 FORMAT_ERRORs due to systematic double-brace JSON malformation (`{{"action":` instead of `{"action":`). The benchmark's JSON parser was updated to normalize double braces (`_find_balanced_json` in `security_scorer.py`), and a subsequent re-run (Feb 10, 13:55 UTC) produced 0 FORMAT_ERRORs. The results reported here are from the clean re-run. The earlier FORMAT_ERROR issue suggests Nano's structured output capability is borderline — it works with parser-side normalization but may regress across API versions or prompt changes.
 
-**Implications:** Nano meets the 0.85 score target (0.935) and the 90% pass target (98.6%) but fails the 95% detection target at 88.3%. Its 50 ALLOW errors reveal genuine gaps in security reasoning — it classifies dangerous commands as safe more often than any other model. For cost-sensitive deployments where the 95% detection target is relaxed, Nano offers compelling economics ($0.59/1k, 15.7s latency), but it should not be the primary model for security-critical classification.
+**Implications:** Nano meets the 0.85 score target (0.935) and the 90% harmless acceptance target (98.6%) but fails the 95% malicious detection target at 88.3%. Its 50 ALLOW errors reveal genuine gaps in security reasoning — it classifies dangerous commands as safe more often than any other model. For cost-sensitive deployments where the 95% malicious detection target is relaxed, Nano offers compelling economics ($0.59/1k, 15.7s latency), but it should not be the primary model for security-critical classification.
 
 ### Summary
 
@@ -323,7 +323,7 @@ In production (single-command validation, not batch), Gemini Flash's actual late
 
 All 9 models score between 96.77% and 100.00% on harmless commands:
 
-| Model | Correct/Total | Pass Rate | Notes |
+| Model | Correct/Total | Harmless Acceptance Rate | Notes |
 |-------|:------------:|:---------:|-------|
 | claude-opus-4-6 | 496/496 | **100.00%** | |
 | Foundation-Sec-8B | 496/496 | **100.00%** | |
@@ -422,11 +422,11 @@ Foundation-Sec-8B has the most total errors (145) and its dominant failure mode 
 | claude-sonnet-4-5 | 0.953 | $7.13 | 0.134 |
 | claude-opus-4-6 | 0.960 | $12.89 | **0.074** |
 
-All 9 models now exceed the 0.85 score target, making score-per-dollar meaningful across the board. GPT-5 Nano has the highest score-per-dollar ratio (1.580) by a wide margin. However, it does not meet the 95% detection target (88.3%), so it is not Pareto-optimal within the set of models meeting all targets.
+All 9 models now exceed the 0.85 score target, making score-per-dollar meaningful across the board. GPT-5 Nano has the highest score-per-dollar ratio (1.580) by a wide margin. However, it does not meet the 95% malicious detection target (88.3%), so it is not Pareto-optimal within the set of models meeting all targets.
 
 Claude-Opus costs 11.5x more than Gemini-Flash for a lower score. The **Pareto-optimal set** (among models meeting all three targets) is Gemini-Flash and GPT-5-mini — no other model offers better score at a lower price.
 
-GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moderate quality gap. The $0.53/1k savings (vs GPT-5-mini at $1.12/1k) comes with a 0.036-point score penalty and a 7.6pp detection rate gap (88.3% vs 95.9%). For deployments where the 95% detection target is negotiable, Nano offers the best economics of any model.
+GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moderate quality gap. The $0.53/1k savings (vs GPT-5-mini at $1.12/1k) comes with a 0.036-point score penalty and a 7.6pp malicious detection rate gap (88.3% vs 95.9%). For deployments where the 95% malicious detection target is negotiable, Nano offers the best economics of any model.
 
 ### Monthly Cost Projections (1,000 commands/day)
 
@@ -437,7 +437,7 @@ GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moder
 | GPT-5-mini + Haiku fallback (5%) | $35.67 | $428 |
 | Claude-Opus only | $386.70 | $4,640 |
 
-*GPT-5 Nano may be viable for cost-sensitive deployments that accept the 88.3% detection rate; see Section 10.*
+*GPT-5 Nano may be viable for cost-sensitive deployments that accept the 88.3% malicious detection rate; see Section 10.*
 
 ---
 
@@ -458,14 +458,14 @@ GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moder
 
 **Budget alternative: `openai/gpt-5-nano`**
 - Cheapest ($0.59/1k) and fastest (15.7s) of all models
-- Meets Score (0.935) and Pass (98.6%) targets but **fails Detection target** (88.3% vs 95%)
+- Meets Score (0.935) and Harmless Acceptance (98.6%) targets but **fails Malicious Detection target** (88.3% vs 95%)
 - Has the most ALLOW errors (50) on malicious commands — genuinely weaker security reasoning
-- Suitable only for cost-sensitive deployments where the 95% detection bar is relaxed (e.g., advisory mode, low-risk environments)
+- Suitable only for cost-sensitive deployments where the 95% malicious detection bar is relaxed (e.g., advisory mode, low-risk environments)
 
 **Not recommended for default:**
 - **Gemini-3-Flash**: Highest score but 70.9s reported latency; production latency likely ~10s but preview API stability is a concern (Gemini-3-Pro failed entirely)
 - **Claude-Opus**: 13x cost for lower score; content filter activations cause missed detections
-- **Foundation-Sec-8B**: Despite security specialization, lowest detection rate (78.6%) and lowest score (0.893) of all models
+- **Foundation-Sec-8B**: Despite security specialization, lowest malicious detection rate (78.6%) and lowest score (0.893) of all models
 
 ---
 
@@ -483,7 +483,7 @@ GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moder
 
 6. **Gemini Flash latency is a rate-limit artifact.** 76.7% of its reported latency is API queuing, not model processing. Google's server-side inference takes only 6.8s, making it competitive with OpenAI in production.
 
-7. **All 9 models exceed the 0.85 target; 4 of 9 meet all targets.** Consider raising the score target to 0.95 balanced accuracy, which only 4 models currently meet. The detection rate target (95%) remains the binding constraint — 5 models fail it.
+7. **All 9 models exceed the 0.85 target; 4 of 9 meet all targets.** Consider raising the score target to 0.95 balanced accuracy, which only 4 models currently meet. The malicious detection rate target (95%) remains the binding constraint — 5 models fail it.
 
 8. **GPT-5 Nano is viable but weaker.** With an earlier JSON parser that rejected double-brace formatting, Nano appeared catastrophically broken (0.768 score, 77.9% FORMAT_ERROR). After parser normalization, the true picture emerges: Nano's score is 0.935 with 0 FORMAT_ERRORs, but it has the most ALLOW errors (50) of any model on malicious commands. Its security reasoning is genuinely weaker, not just its formatting. The cheapest model ($0.59/1k) may be acceptable for cost-sensitive or advisory deployments, but it should not be the default for security-critical classification.
 
@@ -498,5 +498,5 @@ GPT-5 Nano at $0.59/1k is 47% cheaper than the next cheapest option with a moder
 | Cost vs Score | `benchmark/results/plots/cost_vs_score.png` | Cost-effectiveness with Pareto frontier |
 | Latency Distribution | `benchmark/results/plots/latency_distribution.png` | Mean + P90 latency by model |
 | Cost Comparison | `benchmark/results/plots/cost_comparison.png` | Cost per 1000 commands |
-| Category Heatmap | `benchmark/results/plots/category_heatmap.png` | Per-category detection rates |
+| Category Heatmap | `benchmark/results/plots/category_heatmap.png` | Per-category malicious detection rates |
 | Micro vs Macro | `benchmark/results/plots/micro_vs_macro.png` | Overall vs per-category average |

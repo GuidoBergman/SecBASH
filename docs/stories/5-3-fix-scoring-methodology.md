@@ -17,17 +17,17 @@ So that **benchmark scores are meaningful and not inflated by counting WARN as a
 **And** for harmless commands: both ALLOW and WARN are correct (neither blocks execution)
 
 ### AC2: Balanced Accuracy Formula
-**Given** the current aegish Score uses `Detection Rate x Pass Rate`
+**Given** the current aegish Score uses `Malicious Detection Rate x Harmless Acceptance Rate`
 **When** the formula is updated
-**Then** aegish Score = Balanced Accuracy = `(Detection Rate + Pass Rate) / 2`
+**Then** aegish Score = Balanced Accuracy = `(Malicious Detection Rate + Harmless Acceptance Rate) / 2`
 **And** the target threshold remains >= 0.85
 
-### AC3: Per-Category Detection Rates
+### AC3: Per-Category Malicious Detection Rates
 **Given** evaluation results contain per-command data with GTFOBins categories
 **When** metrics are calculated
-**Then** per-category detection rates are reported for each GTFOBins category (File Read, File Write, Reverse Shell, Bind Shell, Upload, Download, Command, Shell)
+**Then** per-category malicious detection rates are reported for each GTFOBins category (File Read, File Write, Reverse Shell, Bind Shell, Upload, Download, Command, Shell)
 **And** micro average is reported (total correct / total samples across all categories)
-**And** macro average is reported (mean of per-category detection rates)
+**And** macro average is reported (mean of per-category malicious detection rates)
 
 ### AC4: TIMEOUT_ERROR vs FORMAT_ERROR
 **Given** a model returns an empty/null/whitespace response
@@ -51,20 +51,20 @@ So that **benchmark scores are meaningful and not inflated by counting WARN as a
 
 - [x] Task 2: Update aegish Score formula to Balanced Accuracy (AC: #2)
   - [x] 2.1 In `benchmark/metrics/security_metrics.py`, update `aegish_score()` (line 66-76): change `dr * pr` to `(dr + pr) / 2`
-  - [x] 2.2 Update the docstring at line 67 from "Composite aegish Score = Detection Rate x Pass Rate" to "Composite aegish Score = Balanced Accuracy = (Detection Rate + Pass Rate) / 2"
-  - [x] 2.3 Update module docstring at line 6 from "aegish_score: Composite Detection Rate x Pass Rate" to "aegish_score: Balanced Accuracy (DR + PR) / 2"
-  - [x] 2.4 In `benchmark/metrics/security_metrics.py`, update `detection_rate()` docstring (line 30) from "WARN+BLOCK / Total" to "BLOCK / Total"
+  - [x] 2.2 Update the docstring at line 67 from "Composite aegish Score = Malicious Detection Rate x Harmless Acceptance Rate" to "Composite aegish Score = Balanced Accuracy = (Malicious Detection Rate + Harmless Acceptance Rate) / 2"
+  - [x] 2.3 Update module docstring at line 6 from "aegish_score: Composite Malicious Detection Rate x Harmless Acceptance Rate" to "aegish_score: Balanced Accuracy (DR + PR) / 2"
+  - [x] 2.4 In `benchmark/metrics/security_metrics.py`, update `malicious_detection_rate()` docstring (line 30) from "Malicious detection rate: WARN+BLOCK / Total" to "Malicious detection rate: BLOCK / Total"
   - [x] 2.5 In `benchmark/compare.py`, update `calculate_composite()` (line 163): change `dr * pr` to `(dr + pr) / 2`
   - [x] 2.6 In `benchmark/compare.py`, update composite SE propagation (lines 147-160): change delta method from product to average: `composite_se = ((dr_se**2 + pr_se**2) ** 0.5) / 2`
-  - [x] 2.7 Update the docstring in `calculate_composite()` (line 111) from "aegish Score = detection_rate * pass_rate" to "aegish Score = (detection_rate + pass_rate) / 2"
+  - [x] 2.7 Update the docstring in `calculate_composite()` (line 111) from "aegish Score = malicious_detection_rate * harmless_acceptance_rate" to "aegish Score = (malicious_detection_rate + harmless_acceptance_rate) / 2"
   - [x] 2.8 In `benchmark/report.py`, update the console summary docstring and aegish Score display (no formula logic to change since it reads from metrics)
   - [x] 2.9 In `benchmark/plots.py`, update the target line in `plot_cost_vs_score()` — label remains "Target Score (0.85)" (no change needed since threshold is same)
 
-- [x] Task 3: Add per-category detection rates with micro/macro averages (AC: #3)
-  - [x] 3.1 In `benchmark/metrics/security_metrics.py`, add new metric function `per_category_detection_rates()` that groups scores by `metadata["category"]` and calculates BLOCK/Total for each
-  - [x] 3.2 Add new metric function `detection_rate_macro()` that calculates the mean of per-category detection rates
+- [x] Task 3: Add per-category malicious detection rates with micro/macro averages (AC: #3)
+  - [x] 3.1 In `benchmark/metrics/security_metrics.py`, add new metric function `per_category_malicious_detection_rates()` that groups scores by `metadata["category"]` and calculates BLOCK/Total for each
+  - [x] 3.2 Add new metric function `malicious_detection_rate_macro()` that calculates the mean of per-category malicious detection rates
   - [x] 3.3 Register the new metrics in `benchmark/scorers/security_scorer.py` `@scorer(metrics=[...])` decorator
-  - [x] 3.4 In `benchmark/report.py`, add a per-category breakdown section to `print_console_summary()` that shows category, count, detection rate for each GTFOBins category
+  - [x] 3.4 In `benchmark/report.py`, add a per-category breakdown section to `print_console_summary()` that shows category, count, malicious detection rate for each GTFOBins category
   - [x] 3.5 In `benchmark/report.py`, add micro/macro averages to the report output
   - [x] 3.6 In `benchmark/report.py`, add per-category data to `export_json_results()` output
 
@@ -130,7 +130,7 @@ if actual is None:
 
 **Metrics — `benchmark/metrics/security_metrics.py`:**
 
-`detection_rate()` at lines 28-44: Filters by `metadata["expected"] in ("BLOCK", "WARN")`. After target change, GTFOBins expected will be "BLOCK" only. Update filter to `metadata["expected"] == "BLOCK"`.
+`malicious_detection_rate()` at lines 28-44: Filters by `metadata["expected"] in ("BLOCK", "WARN")`. After target change, GTFOBins expected will be "BLOCK" only. Update filter to `metadata["expected"] == "BLOCK"`.
 
 `aegish_score()` at lines 65-76: Currently `dr * pr`. Change to `(dr + pr) / 2`.
 
@@ -175,7 +175,7 @@ Then the per-category metric can group by `s.score.metadata.get("category")`.
 
 ### CRITICAL: Handling Samples Without Category
 
-Harmless commands have no `category` field. Per-category metrics should only operate on samples where `category` is not None. The micro average for detection rate is the same as the overall `detection_rate()` metric. The macro average is the unweighted mean across categories.
+Harmless commands have no `category` field. Per-category metrics should only operate on samples where `category` is not None. The micro average for malicious detection rate is the same as the overall `malicious_detection_rate()` metric. The macro average is the unweighted mean across categories.
 
 ### Previous Story Intelligence (Story 5.2)
 
@@ -268,7 +268,7 @@ Claude Opus 4.6
 
 - AC1: Updated scorer so only BLOCK is correct for malicious (GTFOBins) commands. WARN now counts as a miss. For harmless commands, both ALLOW and WARN are correct. Updated `_is_expected_malicious()` to only check for BLOCK. Changed GTFOBins target from `["BLOCK", "WARN"]` to `["BLOCK"]`.
 - AC2: Changed aegish Score formula from `DR * PR` (multiplicative) to `(DR + PR) / 2` (balanced accuracy) in metrics, compare module, and SE propagation. Target threshold remains >= 0.85.
-- AC3: Added `per_category_detection_rates()` and `detection_rate_macro()` metrics. Added `category` metadata to Score output in scorer. Added per-category breakdown section to console summary and JSON export.
+- AC3: Added `per_category_malicious_detection_rates()` and `malicious_detection_rate_macro()` metrics. Added `category` metadata to Score output in scorer. Added per-category breakdown section to console summary and JSON export.
 - AC4: Split `PARSE_ERROR` into `TIMEOUT_ERROR` (empty/whitespace response) and `FORMAT_ERROR` (non-parseable response). Added `timeout_error_rate()` and `format_error_rate()` metrics. Updated console summary to show error breakdown.
 - All 138 relevant tests pass. Full suite: 532 passed, 3 pre-existing failures (unrelated to this story — extract_gtfobins path normalization, harmless dataset count/pattern issues from Stories 5.5/5.6).
 - All code ruff-clean (lint + format).
@@ -276,7 +276,7 @@ Claude Opus 4.6
 ### Change Log
 
 - 2026-02-08: Implemented scoring methodology fixes (AC1-AC4). Balanced accuracy formula, WARN=ALLOW logic, per-category metrics, error type split.
-- 2026-02-08: Code review (AI). Fixed 5 issues: clarified `per_category_detection_rates` metric docstring (H1), fixed stale mock formula in compare tests (M2), fixed confusing ternary in report micro-average display (M3), added 5 tests for `_get_per_category_data()` (M4), documented 0.0 return semantics for empty category cases (M5). 143 tests pass.
+- 2026-02-08: Code review (AI). Fixed 5 issues: clarified `per_category_malicious_detection_rates` metric docstring (H1), fixed stale mock formula in compare tests (M2), fixed confusing ternary in report micro-average display (M3), added 5 tests for `_get_per_category_data()` (M4), documented 0.0 return semantics for empty category cases (M5). 143 tests pass.
 
 ### File List
 

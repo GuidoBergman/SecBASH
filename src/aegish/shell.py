@@ -14,6 +14,7 @@ import atexit
 import logging
 import os
 import readline  # Provides line editing and history support
+import sys
 
 from aegish.config import (
     DEFAULT_FALLBACK_MODELS,
@@ -25,9 +26,11 @@ from aegish.config import (
     get_model_chain,
     get_primary_model,
     get_provider_from_model,
+    validate_runner_binary,
 )
 from aegish.executor import execute_command
 from aegish.llm_client import health_check
+from aegish.sandbox import landlock_available
 from aegish.validator import validate_command
 
 logger = logging.getLogger(__name__)
@@ -118,6 +121,23 @@ def run_shell() -> int:
         print("Fail mode: safe (block on validation failure)")
     else:
         print("Fail mode: open (warn on validation failure)")
+    # Validate runner binary in production mode
+    if mode == "production":
+        runner_ok, runner_msg = validate_runner_binary()
+        if not runner_ok:
+            print(f"ERROR: {runner_msg}")
+            print("Falling back to development mode.\n")
+            os.environ["AEGISH_MODE"] = "development"
+            mode = "development"
+
+    # Landlock availability warning in production mode
+    if mode == "production":
+        ll_available, ll_version = landlock_available()
+        if ll_available:
+            print(f"Landlock: active (ABI v{ll_version})")
+        else:
+            print("WARNING: Landlock not supported on this kernel. Sandbox disabled.")
+
     print("Type 'exit' or press Ctrl+D to quit.\n")
 
     # Non-default model warnings (Story 9.3, FR50)
@@ -150,7 +170,12 @@ def run_shell() -> int:
 
             # Handle exit command
             if command.strip() == "exit":
-                break
+                if get_mode() == "production":
+                    print("Session terminated.")
+                    sys.exit(0)
+                else:
+                    print("WARNING: Leaving aegish. The parent shell is NOT security-monitored.")
+                    break
 
             # Validate command with LLM before execution
             result = validate_command(command)
@@ -204,6 +229,11 @@ def run_shell() -> int:
         except EOFError:
             # Ctrl+D: exit the shell
             print()  # Move to new line
-            break
+            if get_mode() == "production":
+                print("Session terminated.")
+                sys.exit(0)
+            else:
+                print("WARNING: Leaving aegish. The parent shell is NOT security-monitored.")
+                break
 
     return 0

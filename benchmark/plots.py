@@ -300,8 +300,8 @@ def plot_cost_vs_score(results: dict, output_dir: Path) -> None:
     save_plot(fig, output_dir / "cost_vs_score")
 
 
-def plot_cost_vs_detection_rate(results: dict, output_dir: Path) -> None:
-    """Generate Cost vs Detection Rate scatter plot with Pareto frontier.
+def plot_cost_vs_malicious_detection_rate(results: dict, output_dir: Path) -> None:
+    """Generate Cost vs Malicious Detection Rate scatter plot with Pareto frontier.
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -320,7 +320,7 @@ def plot_cost_vs_detection_rate(results: dict, output_dir: Path) -> None:
         composite = data.get("composite", {})
         cost = composite.get("cost_per_1000_combined", 0.0)
         gtfo = data.get("datasets", {}).get("gtfobins", {})
-        det_rate = gtfo.get("detection_rate", 0.0)
+        det_rate = gtfo.get("malicious_detection_rate", 0.0)
         det_se = gtfo.get("stderr", 0.0) or 0.0
         costs.append(cost)
         scores.append(det_rate)
@@ -404,10 +404,10 @@ def plot_cost_vs_detection_rate(results: dict, output_dir: Path) -> None:
         ax.legend(handles=legend_handles, loc="lower right", fontsize=9)
 
     ax.set_xlabel("Cost per 1000 Commands ($)")
-    ax.set_ylabel("Detection Rate")
-    ax.set_title("Cost vs Detection Rate")
+    ax.set_ylabel("Malicious Detection Rate")
+    ax.set_title("Cost vs Malicious Detection Rate")
 
-    save_plot(fig, output_dir / "cost_vs_detection_rate")
+    save_plot(fig, output_dir / "cost_vs_malicious_detection_rate")
 
 
 def _plot_latency_vs_score_impl(
@@ -424,7 +424,7 @@ def _plot_latency_vs_score_impl(
     Args:
         results: The "results" dict from comparison JSON.
         output_dir: Directory to save output files.
-        score_key: Either "aegish_score" (composite) or "detection_rate"
+        score_key: Either "aegish_score" (composite) or "malicious_detection_rate"
             (gtfobins dataset).
         score_label: Y-axis label.
         title: Plot title.
@@ -450,7 +450,7 @@ def _plot_latency_vs_score_impl(
             score_se = data.get("composite", {}).get("aegish_score_se", 0.0) or 0.0
         else:
             gtfo = data.get("datasets", {}).get("gtfobins", {})
-            score = gtfo.get("detection_rate", 0.0)
+            score = gtfo.get("malicious_detection_rate", 0.0)
             score_se = gtfo.get("stderr", 0.0) or 0.0
 
         latencies.append(latency_s)
@@ -586,8 +586,8 @@ def plot_latency_vs_score(results: dict, output_dir: Path) -> None:
     )
 
 
-def plot_latency_vs_detection_rate(results: dict, output_dir: Path) -> None:
-    """Generate Latency vs Detection Rate Pareto frontier plot.
+def plot_latency_vs_malicious_detection_rate(results: dict, output_dir: Path) -> None:
+    """Generate Latency vs Malicious Detection Rate Pareto frontier plot.
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -596,15 +596,15 @@ def plot_latency_vs_detection_rate(results: dict, output_dir: Path) -> None:
     _plot_latency_vs_score_impl(
         results,
         output_dir,
-        score_key="detection_rate",
-        score_label="Detection Rate",
-        title="Latency vs Detection Rate",
-        filename="latency_vs_detection_rate",
+        score_key="malicious_detection_rate",
+        score_label="Malicious Detection Rate",
+        title="Latency vs Malicious Detection Rate",
+        filename="latency_vs_malicious_detection_rate",
     )
 
 
 def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
-    """Generate Detection Rate vs Pass Rate scatter plot.
+    """Generate Malicious Detection Rate vs Harmless Acceptance Rate scatter plot.
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -625,14 +625,14 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         if not gtfo or not harm:
             continue
 
-        pass_rate = harm.get("pass_rate", 0.0) * 100
-        detection_rate = gtfo.get("detection_rate", 0.0) * 100
+        harmless_acceptance_rate = harm.get("harmless_acceptance_rate", 0.0) * 100
+        malicious_detection_rate = gtfo.get("malicious_detection_rate", 0.0) * 100
         pass_se = (harm.get("stderr", 0.0) or 0.0) * 100
         det_se = (gtfo.get("stderr", 0.0) or 0.0) * 100
 
         color = get_provider_color(model)
         ax.errorbar(
-            pass_rate, detection_rate,
+            harmless_acceptance_rate, malicious_detection_rate,
             xerr=pass_se, yerr=det_se,
             fmt="o", color=color, markersize=10,
             markeredgecolor="white", markeredgewidth=0.5, zorder=5,
@@ -640,8 +640,8 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
         )
         texts.append(
             ax.text(
-                pass_rate,
-                detection_rate,
+                harmless_acceptance_rate,
+                malicious_detection_rate,
                 get_short_name(model),
                 fontsize=8,
             )
@@ -651,13 +651,13 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
     # Set axis limits before drawing target zone
     # Ensure both threshold lines (x=90, y=95) are visible
     all_pass = [
-        harm.get("pass_rate", 0.0) * 100
+        harm.get("harmless_acceptance_rate", 0.0) * 100
         for d in successful.values()
         for harm in [d.get("datasets", {}).get("harmless", {})]
         if harm
     ]
     all_det = [
-        gtfo.get("detection_rate", 0.0) * 100
+        gtfo.get("malicious_detection_rate", 0.0) * 100
         for d in successful.values()
         for gtfo in [d.get("datasets", {}).get("gtfobins", {})]
         if gtfo
@@ -678,10 +678,10 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
 
     # Threshold lines with separate labels
     ax.axhline(
-        y=95, color="green", linestyle="--", alpha=0.5, label="Detection Target (95%)"
+        y=95, color="green", linestyle="--", alpha=0.5, label="M.Det Target (95%)"
     )
     ax.axvline(
-        x=95, color="green", linestyle="--", alpha=0.5, label="Pass Rate Target (95%)"
+        x=95, color="green", linestyle="--", alpha=0.5, label="H.Acc Target (95%)"
     )
 
     # Use adjustText to prevent label overlaps
@@ -701,7 +701,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             color="green",
             linestyle="--",
             alpha=0.5,
-            label="Detection \u226595%",
+            label="M.Det \u226595%",
         ),
         plt.Line2D(
             [0],
@@ -709,7 +709,7 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             color="green",
             linestyle="--",
             alpha=0.5,
-            label="Pass Rate \u226595%",
+            label="H.Acc \u226595%",
         ),
     ]
     for provider, color in PROVIDER_COLORS.items():
@@ -727,9 +727,9 @@ def plot_detection_vs_pass(results: dict, output_dir: Path) -> None:
             )
     ax.legend(handles=legend_handles, loc="lower left", fontsize=9)
 
-    ax.set_xlabel("Pass Rate (Harmless Allowed %)")
-    ax.set_ylabel("Detection Rate (Malicious Flagged %)")
-    ax.set_title("Detection Rate vs Pass Rate")
+    ax.set_xlabel("Harmless Acceptance Rate (%)")
+    ax.set_ylabel("Malicious Detection Rate (%)")
+    ax.set_title("Malicious Detection Rate vs Harmless Acceptance Rate")
 
     save_plot(fig, output_dir / "detection_vs_pass")
 
@@ -897,8 +897,8 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
     columns = [
         "Rank",
         "Model",
-        "Detection% (±SE)",
-        "Pass% (±SE)",
+        "M.Det% (±SE)",
+        "H.Acc% (±SE)",
         "Score (±SE)",
         "Cost/1k",
         "Latency",
@@ -917,9 +917,9 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
         gtfo = datasets.get("gtfobins", {})
         harm = datasets.get("harmless", {})
 
-        det_rate = gtfo.get("detection_rate", 0.0) if gtfo else 0.0
+        det_rate = gtfo.get("malicious_detection_rate", 0.0) if gtfo else 0.0
         det_se = gtfo.get("stderr", 0.0) if gtfo else 0.0
-        pass_rate = harm.get("pass_rate", 0.0) if harm else 0.0
+        harmless_acceptance_rate = harm.get("harmless_acceptance_rate", 0.0) if harm else 0.0
         pass_se = harm.get("stderr", 0.0) if harm else 0.0
         score = composite.get("aegish_score", 0.0)
         score_se = composite.get("aegish_score_se", 0.0) or 0.0
@@ -932,21 +932,21 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
         score_ci = score_se
 
         det_check = " \u2713" if det_rate >= 0.95 else ""
-        pass_check = " \u2713" if pass_rate >= 0.95 else ""
+        pass_check = " \u2713" if harmless_acceptance_rate >= 0.95 else ""
         score_check = " \u2713" if score >= 0.95 else ""
 
         row = [
             str(entry["rank"]),
             get_short_name(model),
             f"{det_rate * 100:.1f}% ±{det_ci:.1f}{det_check}",
-            f"{pass_rate * 100:.1f}% ±{pass_ci:.1f}{pass_check}",
+            f"{harmless_acceptance_rate * 100:.1f}% ±{pass_ci:.1f}{pass_check}",
             f"{score:.3f} ±{score_ci:.3f}{score_check}",
             f"${cost:.2f}" if cost > 0 else "$0.00",
             f"{latency / 1000:.1f}s",
         ]
         cell_data.append(row)
 
-        if det_rate >= 0.95 and pass_rate >= 0.95 and score >= 0.95:
+        if det_rate >= 0.95 and harmless_acceptance_rate >= 0.95 and score >= 0.95:
             row_colors.append("#d4edda")  # green
         elif score >= 0.50:
             row_colors.append("#fff3cd")  # yellow
@@ -985,8 +985,8 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
 
     # Footnotes
     footnote = (
-        "\u2713 = meets target (Detection ≥95%, Pass ≥95%, Score ≥0.95).  "
-        "Green = meets all targets.  Yellow = misses detection.  "
+        "\u2713 = meets target (M.Det ≥95%, H.Acc ≥95%, Score ≥0.95).  "
+        "Green = meets all targets.  Yellow = misses detection target.  "
         "Red = significantly below.\n"
         f"* Gemini Flash latency corrected for rate-limiting "
         f"({_RATE_LIMIT_FRACTION:.0%} rate-limit queuing removed)."
@@ -1000,7 +1000,7 @@ def plot_ranking_table(results: dict, ranking: list[dict], output_dir: Path) -> 
 
 
 def plot_category_heatmap(results: dict, output_dir: Path) -> None:
-    """Generate per-category detection rate heatmap (models x categories).
+    """Generate per-category malicious detection rate heatmap (models x categories).
 
     Args:
         results: The "results" dict from comparison JSON.
@@ -1018,13 +1018,13 @@ def plot_category_heatmap(results: dict, output_dir: Path) -> None:
         gtfo = data.get("datasets", {}).get("gtfobins")
         if not gtfo:
             continue
-        per_cat = gtfo.get("per_category_detection_rates", {})
+        per_cat = gtfo.get("per_category_malicious_detection_rates", {})
         if not per_cat:
             continue
         short = get_short_name(model)
         model_names.append(short)
         model_category_rates[short] = {
-            cat: vals["detection_rate"] for cat, vals in per_cat.items()
+            cat: vals["malicious_detection_rate"] for cat, vals in per_cat.items()
         }
         all_categories.update(per_cat.keys())
 
@@ -1053,18 +1053,18 @@ def plot_category_heatmap(results: dict, output_dir: Path) -> None:
         yticklabels=model_names,
         linewidths=0.5,
         linecolor="white",
-        cbar_kws={"label": "Detection Rate (%)"},
+        cbar_kws={"label": "Malicious Detection Rate (%)"},
         ax=ax,
     )
     # Rotate x-axis labels for readability
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-    ax.set_title("Per-Category Detection Rates by Model (%)")
+    ax.set_title("Per-Category Malicious Detection Rates by Model (%)")
 
     save_plot(fig, output_dir / "category_heatmap")
 
 
 def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
-    """Generate grouped bar chart comparing micro and macro detection rates.
+    """Generate grouped bar chart comparing micro and macro malicious detection rates.
 
     Highlights models with uneven performance across categories
     (large gap between micro and macro averages).
@@ -1084,18 +1084,18 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
         gtfo = data.get("datasets", {}).get("gtfobins")
         if not gtfo:
             continue
-        micro = gtfo.get("detection_rate")
-        macro = gtfo.get("detection_rate_macro")
+        micro = gtfo.get("malicious_detection_rate")
+        macro = gtfo.get("malicious_detection_rate_macro")
         if micro is None or macro is None:
             continue
         micro_se = (gtfo.get("stderr", 0.0) or 0.0) * 100
 
         # Compute macro SE via variance propagation:
         # macro = (1/K) * Σ p_i  →  SE = (1/K) * √(Σ p_i(1-p_i)/n_i)
-        per_cat = gtfo.get("per_category_detection_rates", {})
+        per_cat = gtfo.get("per_category_malicious_detection_rates", {})
         if per_cat:
             var_sum = sum(
-                cd["detection_rate"] * (1 - cd["detection_rate"]) / cd["count"]
+                cd["malicious_detection_rate"] * (1 - cd["malicious_detection_rate"]) / cd["count"]
                 for cd in per_cat.values()
             )
             macro_se = (np.sqrt(var_sum) / len(per_cat)) * 100
@@ -1109,7 +1109,7 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
     if not data_points:
         return
 
-    # Sort by micro detection rate descending
+    # Sort by micro malicious detection rate descending
     data_points.sort(key=lambda x: x[1], reverse=True)
 
     model_names = [d[0] for d in data_points]
@@ -1176,8 +1176,8 @@ def plot_micro_vs_macro(results: dict, output_dir: Path) -> None:
 
     ax.set_xticks(x)
     ax.set_xticklabels(model_names, rotation=45, ha="right")
-    ax.set_ylabel("Detection Rate (%)")
-    ax.set_title("Micro vs Macro Average Detection Rate")
+    ax.set_ylabel("Malicious Detection Rate (%)")
+    ax.set_title("Micro vs Macro Average Malicious Detection Rate")
     ax.legend(loc="lower right", fontsize=9)
 
     # Set y-axis to show relevant range
@@ -1204,9 +1204,9 @@ def generate_all_plots(comparison_file: Path, output_dir: Path) -> list[Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     plot_cost_vs_score(results, output_dir)
-    plot_cost_vs_detection_rate(results, output_dir)
+    plot_cost_vs_malicious_detection_rate(results, output_dir)
     plot_latency_vs_score(results, output_dir)
-    plot_latency_vs_detection_rate(results, output_dir)
+    plot_latency_vs_malicious_detection_rate(results, output_dir)
     plot_detection_vs_pass(results, output_dir)
     plot_latency_distribution(results, output_dir)
     plot_cost_comparison(results, output_dir)

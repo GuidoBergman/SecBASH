@@ -60,6 +60,9 @@ VALID_MODES = {"production", "development"}
 DEFAULT_FAIL_MODE = "safe"
 VALID_FAIL_MODES = {"safe", "open"}
 
+# Runner binary configuration (DD-17: Landlock bypass via hardlink)
+DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"
+
 # Providers that run locally and don't require API keys
 LOCAL_PROVIDERS = {"ollama"}
 
@@ -320,4 +323,41 @@ def is_default_fallback_models() -> bool:
 def has_fallback_models() -> bool:
     """Check if any fallback models are configured."""
     return len(get_fallback_models()) > 0
+
+
+def get_runner_path() -> str:
+    """Get the path to the runner binary.
+
+    Reads from AEGISH_RUNNER_PATH environment variable.
+    Falls back to DEFAULT_RUNNER_PATH if not set or empty.
+
+    Returns:
+        Path to the runner binary.
+    """
+    path = os.environ.get("AEGISH_RUNNER_PATH", "")
+    if path and path.strip():
+        return path.strip()
+    return DEFAULT_RUNNER_PATH
+
+
+def validate_runner_binary() -> tuple[bool, str]:
+    """Validate that the runner binary exists and is executable.
+
+    Returns:
+        Tuple of (is_valid, message).
+        If valid: (True, "runner binary ready message")
+        If invalid: (False, "error message with setup instructions")
+    """
+    path = get_runner_path()
+
+    if not os.path.exists(path):
+        return (False, f"Runner binary not found at {path}.\n"
+                f"Create it with: sudo mkdir -p {os.path.dirname(path)} && "
+                f"sudo ln /bin/bash {path}")
+
+    if not os.access(path, os.X_OK):
+        return (False, f"Runner binary at {path} is not executable.\n"
+                f"Fix with: sudo chmod +x {path}")
+
+    return (True, f"Runner binary ready at {path}")
 

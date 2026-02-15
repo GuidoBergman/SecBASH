@@ -11,6 +11,7 @@ from aegish.config import (
     DEFAULT_ALLOWED_PROVIDERS,
     DEFAULT_FALLBACK_MODELS,
     DEFAULT_PRIMARY_MODEL,
+    DEFAULT_RUNNER_PATH,
     get_allowed_providers,
     get_api_key,
     get_available_providers,
@@ -20,12 +21,14 @@ from aegish.config import (
     get_model_chain,
     get_primary_model,
     get_provider_from_model,
+    get_runner_path,
     has_fallback_models,
     is_default_fallback_models,
     is_default_primary_model,
     is_valid_model_string,
     validate_credentials,
     validate_model_provider,
+    validate_runner_binary,
 )
 
 
@@ -789,3 +792,71 @@ class TestHasFallbackModels:
         """Returns True with custom fallback models."""
         mocker.patch.dict(os.environ, {"AEGISH_FALLBACK_MODELS": "openai/gpt-3.5-turbo"}, clear=True)
         assert has_fallback_models() is True
+
+
+class TestGetRunnerPath:
+    """Tests for get_runner_path function (Story 8.4)."""
+
+    def test_default_runner_path(self, mocker):
+        """AC4: Default path when AEGISH_RUNNER_PATH not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_runner_path() == DEFAULT_RUNNER_PATH
+
+    def test_custom_runner_path(self, mocker):
+        """AC4: Custom path from AEGISH_RUNNER_PATH env var."""
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "/custom/runner"}, clear=True)
+        assert get_runner_path() == "/custom/runner"
+
+    def test_empty_runner_path_uses_default(self, mocker):
+        """Empty env var falls back to default."""
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": ""}, clear=True)
+        assert get_runner_path() == DEFAULT_RUNNER_PATH
+
+    def test_whitespace_runner_path_uses_default(self, mocker):
+        """Whitespace-only env var falls back to default."""
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "   "}, clear=True)
+        assert get_runner_path() == DEFAULT_RUNNER_PATH
+
+    def test_runner_path_whitespace_trimmed(self, mocker):
+        """Whitespace around path is trimmed."""
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "  /custom/runner  "}, clear=True)
+        assert get_runner_path() == "/custom/runner"
+
+
+class TestValidateRunnerBinary:
+    """Tests for validate_runner_binary function (Story 8.4)."""
+
+    def test_valid_runner_binary(self, mocker, tmp_path):
+        """AC1: Returns True when runner binary exists and is executable."""
+        runner = tmp_path / "runner"
+        runner.write_text("#!/bin/bash")
+        runner.chmod(0o755)
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": str(runner)}, clear=True)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is True
+        assert "ready" in msg
+
+    def test_missing_runner_binary(self, mocker):
+        """AC2: Returns False with instructions when runner is missing."""
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "/nonexistent/runner"}, clear=True)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is False
+        assert "not found" in msg
+        assert "ln" in msg  # setup instructions
+
+    def test_non_executable_runner_binary(self, mocker, tmp_path):
+        """Returns False when runner exists but is not executable."""
+        runner = tmp_path / "runner"
+        runner.write_text("#!/bin/bash")
+        runner.chmod(0o644)
+        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": str(runner)}, clear=True)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is False
+        assert "not executable" in msg
+        assert "chmod" in msg

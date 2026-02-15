@@ -42,19 +42,19 @@ def minimal_comparison_data() -> dict:
                 "status": "success",
                 "datasets": {
                     "gtfobins": {
-                        "detection_rate": 0.96,
-                        "detection_rate_macro": 0.91,
-                        "pass_rate": 0.0,
+                        "malicious_detection_rate": 0.96,
+                        "malicious_detection_rate_macro": 0.91,
+                        "harmless_acceptance_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.96,
                         "stderr": 0.01,
                         "total_commands": 431,
                         "correct": 414,
-                        "per_category_detection_rates": {
-                            "reverse-shell": {"count": 19, "detection_rate": 1.0},
-                            "file-read": {"count": 200, "detection_rate": 0.97},
-                            "shell": {"count": 150, "detection_rate": 0.95},
-                            "command": {"count": 30, "detection_rate": 0.40},
+                        "per_category_malicious_detection_rates": {
+                            "reverse-shell": {"count": 19, "malicious_detection_rate": 1.0},
+                            "file-read": {"count": 200, "malicious_detection_rate": 0.97},
+                            "shell": {"count": 150, "malicious_detection_rate": 0.95},
+                            "command": {"count": 30, "malicious_detection_rate": 0.40},
                         },
                         "latency": {
                             "mean": 25000.0,
@@ -70,8 +70,8 @@ def minimal_comparison_data() -> dict:
                         },
                     },
                     "harmless": {
-                        "detection_rate": 0.0,
-                        "pass_rate": 0.92,
+                        "malicious_detection_rate": 0.0,
+                        "harmless_acceptance_rate": 0.92,
                         "false_positive_rate": 0.08,
                         "accuracy": 0.92,
                         "stderr": 0.015,
@@ -105,19 +105,19 @@ def minimal_comparison_data() -> dict:
                 "status": "success",
                 "datasets": {
                     "gtfobins": {
-                        "detection_rate": 0.89,
-                        "detection_rate_macro": 0.85,
-                        "pass_rate": 0.0,
+                        "malicious_detection_rate": 0.89,
+                        "malicious_detection_rate_macro": 0.85,
+                        "harmless_acceptance_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.89,
                         "stderr": 0.015,
                         "total_commands": 431,
                         "correct": 384,
-                        "per_category_detection_rates": {
-                            "reverse-shell": {"count": 19, "detection_rate": 0.95},
-                            "file-read": {"count": 200, "detection_rate": 0.90},
-                            "shell": {"count": 150, "detection_rate": 0.88},
-                            "command": {"count": 30, "detection_rate": 0.50},
+                        "per_category_malicious_detection_rates": {
+                            "reverse-shell": {"count": 19, "malicious_detection_rate": 0.95},
+                            "file-read": {"count": 200, "malicious_detection_rate": 0.90},
+                            "shell": {"count": 150, "malicious_detection_rate": 0.88},
+                            "command": {"count": 30, "malicious_detection_rate": 0.50},
                         },
                         "latency": {
                             "mean": 15000.0,
@@ -133,8 +133,8 @@ def minimal_comparison_data() -> dict:
                         },
                     },
                     "harmless": {
-                        "detection_rate": 0.0,
-                        "pass_rate": 0.95,
+                        "malicious_detection_rate": 0.0,
+                        "harmless_acceptance_rate": 0.95,
                         "false_positive_rate": 0.05,
                         "accuracy": 0.95,
                         "stderr": 0.012,
@@ -168,19 +168,19 @@ def minimal_comparison_data() -> dict:
                 "status": "success",
                 "datasets": {
                     "gtfobins": {
-                        "detection_rate": 0.951,
-                        "detection_rate_macro": 0.93,
-                        "pass_rate": 0.0,
+                        "malicious_detection_rate": 0.951,
+                        "malicious_detection_rate_macro": 0.93,
+                        "harmless_acceptance_rate": 0.0,
                         "false_positive_rate": 1.0,
                         "accuracy": 0.951,
                         "stderr": 0.0103,
                         "total_commands": 431,
                         "correct": 410,
-                        "per_category_detection_rates": {
-                            "reverse-shell": {"count": 19, "detection_rate": 1.0},
-                            "file-read": {"count": 200, "detection_rate": 0.96},
-                            "shell": {"count": 150, "detection_rate": 0.94},
-                            "command": {"count": 30, "detection_rate": 0.70},
+                        "per_category_malicious_detection_rates": {
+                            "reverse-shell": {"count": 19, "malicious_detection_rate": 1.0},
+                            "file-read": {"count": 200, "malicious_detection_rate": 0.96},
+                            "shell": {"count": 150, "malicious_detection_rate": 0.94},
+                            "command": {"count": 30, "malicious_detection_rate": 0.70},
                         },
                         "latency": {
                             "mean": 37780.0,
@@ -196,8 +196,8 @@ def minimal_comparison_data() -> dict:
                         },
                     },
                     "harmless": {
-                        "detection_rate": 0.0,
-                        "pass_rate": 0.955,
+                        "malicious_detection_rate": 0.0,
+                        "harmless_acceptance_rate": 0.955,
                         "false_positive_rate": 0.045,
                         "accuracy": 0.955,
                         "stderr": 0.0118,
@@ -455,11 +455,11 @@ class TestGenerateAllPlots:
         expected_basenames = [
             "category_heatmap",
             "cost_comparison",
-            "cost_vs_detection_rate",
+            "cost_vs_malicious_detection_rate",
             "cost_vs_score",
             "detection_vs_pass",
             "latency_distribution",
-            "latency_vs_detection_rate",
+            "latency_vs_malicious_detection_rate",
             "latency_vs_score",
             "micro_vs_macro",
             "ranking_table_full",

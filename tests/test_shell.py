@@ -302,10 +302,12 @@ class TestStartupModeBanner:
     def test_production_mode_displayed_in_banner(self, capsys):
         """AC2: Production mode banner shows mode with enforcement details."""
         with patch("aegish.shell.get_mode", return_value="production"):
-            with patch("builtins.input", side_effect=["exit"]):
-                run_shell()
-                captured = capsys.readouterr()
-                assert "Mode: production (login shell + Landlock enforcement)" in captured.out
+            with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+                with patch("builtins.input", side_effect=["exit"]):
+                    with pytest.raises(SystemExit):
+                        run_shell()
+                    captured = capsys.readouterr()
+                    assert "Mode: production (login shell + Landlock enforcement)" in captured.out
 
     def test_development_mode_displayed_in_banner(self, capsys):
         """AC3: Development mode banner shows mode."""
@@ -392,12 +394,14 @@ class TestStartupFailModeBanner:
     def test_both_mode_and_fail_mode_displayed(self, capsys):
         """AC5: Production mode and fail mode shown independently."""
         with patch("aegish.shell.get_mode", return_value="production"):
-            with patch("aegish.shell.get_fail_mode", return_value="open"):
-                with patch("builtins.input", side_effect=["exit"]):
-                    run_shell()
-                    captured = capsys.readouterr()
-                    assert "Mode: production" in captured.out
-                    assert "Fail mode: open" in captured.out
+            with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+                with patch("aegish.shell.get_fail_mode", return_value="open"):
+                    with patch("builtins.input", side_effect=["exit"]):
+                        with pytest.raises(SystemExit):
+                            run_shell()
+                        captured = capsys.readouterr()
+                        assert "Mode: production" in captured.out
+                        assert "Fail mode: open" in captured.out
 
 
 class TestStartupModelWarnings:
@@ -446,3 +450,54 @@ class TestStartupModelWarnings:
                 captured = capsys.readouterr()
                 assert "WARNING: Using non-default fallback models: openai/gpt-3.5-turbo" in captured.out
                 assert "Default is: anthropic/claude-3-haiku-20240307" in captured.out
+
+
+class TestExitBehavior:
+    """Tests for mode-dependent exit behavior (Story 8.2)."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock startup dependencies to isolate exit behavior tests."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "")):
+                    with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+                        yield
+
+    def test_production_exit_calls_sys_exit(self, capsys):
+        """AC1: Production mode + exit: process terminates with 'Session terminated.'"""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("builtins.input", side_effect=["exit"]):
+                with pytest.raises(SystemExit) as exc_info:
+                    run_shell()
+                assert exc_info.value.code == 0
+                captured = capsys.readouterr()
+                assert "Session terminated." in captured.out
+
+    def test_production_ctrl_d_calls_sys_exit(self, capsys):
+        """AC2: Production mode + Ctrl+D: same as exit."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("builtins.input", side_effect=EOFError()):
+                with pytest.raises(SystemExit) as exc_info:
+                    run_shell()
+                assert exc_info.value.code == 0
+                captured = capsys.readouterr()
+                assert "Session terminated." in captured.out
+
+    def test_development_exit_prints_warning(self, capsys):
+        """AC3: Development mode + exit: warning displayed, shell returns normally."""
+        with patch("aegish.shell.get_mode", return_value="development"):
+            with patch("builtins.input", side_effect=["exit"]):
+                result = run_shell()
+                assert result == 0
+                captured = capsys.readouterr()
+                assert "WARNING: Leaving aegish. The parent shell is NOT security-monitored." in captured.out
+
+    def test_development_ctrl_d_prints_warning(self, capsys):
+        """AC4: Development mode + Ctrl+D: warning displayed, shell returns normally."""
+        with patch("aegish.shell.get_mode", return_value="development"):
+            with patch("builtins.input", side_effect=EOFError()):
+                result = run_shell()
+                assert result == 0
+                captured = capsys.readouterr()
+                assert "WARNING: Leaving aegish. The parent shell is NOT security-monitored." in captured.out

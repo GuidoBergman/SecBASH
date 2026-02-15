@@ -33,3 +33,8 @@ dev = [
     "ruff>=0.9.0",
     "seaborn>=0.13.2",
 ]
+
+[tool.pytest.ini_options]
+markers = [
+    "docker: integration tests requiring Docker (deselect with '-m \"not docker\"')",
+]

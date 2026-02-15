@@ -86,14 +86,14 @@ Featherless AI: Billed via HF Inference Providers API credits. ~$1.46/1000 comma
 
 - [x] Task 3: Results aggregation and comparison output (AC: #1, #5)
   - [x] 3.1 Implement `extract_metrics_from_log()` using existing `report.py` functions
-  - [x] 3.2 Implement `calculate_composite()` combining GTFOBins detection_rate and harmless pass_rate into aegish Score
+  - [x] 3.2 Implement `calculate_composite()` combining GTFOBins malicious_detection_rate and harmless harmless_acceptance_rate into aegish Score
   - [x] 3.3 Implement `generate_ranking()` sorting models by aegish Score descending
   - [x] 3.4 Save aggregated comparison to `tests/benchmark/results/comparison_<timestamp>.json`
 
 - [x] Task 4: Console comparison table output (AC: #1)
   - [x] 4.1 Implement `print_comparison_table()` with formatted table showing all models
-  - [x] 4.2 Columns: Rank, Model, Detection%, Pass%, aegish Score, Cost, Latency
-  - [x] 4.3 Highlight models meeting targets (Detection>=95%, Pass>=90%, Score>=0.85)
+  - [x] 4.2 Columns: Rank, Model, Malicious Detection%, Harmless Acceptance%, aegish Score, Cost, Latency
+  - [x] 4.3 Highlight models meeting targets (Malicious Detection>=95%, Harmless Acceptance>=90%, Score>=0.85)
   - [x] 4.4 Show actual cost for all models including Featherless (API credits)
 
 - [x] Task 5: CLI argument parsing (AC: #7)
@@ -135,7 +135,7 @@ Story 4.4 and 4.5 are DONE. The evaluation harness and metrics reporting are ful
 |------|---------|--------|
 | `tests/benchmark/tasks/aegish_eval.py` | Task definitions: `aegish_gtfobins(cot)`, `aegish_harmless(cot)` | EXISTS - use as-is |
 | `tests/benchmark/scorers/security_scorer.py` | Custom scorer: `security_classification_scorer()`, `extract_action()` | EXISTS - use as-is |
-| `tests/benchmark/metrics/security_metrics.py` | Custom metrics: `detection_rate()`, `pass_rate()`, `aegish_score()` | EXISTS - use as-is |
+| `tests/benchmark/metrics/security_metrics.py` | Custom metrics: `malicious_detection_rate()`, `harmless_acceptance_rate()`, `aegish_score()` | EXISTS - use as-is |
 | `tests/benchmark/report.py` | Post-eval reporting: `calculate_latency_metrics()`, `calculate_cost_metrics()`, `export_json_results()` | EXISTS - MODIFY (add pricing) |
 | `tests/benchmark/data/gtfobins_commands.json` | 431 malicious commands | EXISTS - read only |
 | `tests/benchmark/data/harmless_commands.json` | 310 harmless commands | EXISTS - read only |
@@ -309,8 +309,8 @@ log = eval_logs[0]
 
 latency = calculate_latency_metrics(log)       # {mean, p50, p90, p99, max}
 cost = calculate_cost_metrics(log)              # {total_cost, cost_per_1000, cost_per_command}
-detection = _get_metric_value(log, "detection_rate")  # float or None
-pass_rt = _get_metric_value(log, "pass_rate")         # float or None
+detection = _get_metric_value(log, "malicious_detection_rate")  # float or None
+pass_rt = _get_metric_value(log, "harmless_acceptance_rate")         # float or None
 accuracy = _get_metric_value(log, "accuracy")         # float or None
 correct, total = _count_correct(log)                  # (int, int)
 ```
@@ -362,7 +362,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.973,
+          "malicious_detection_rate": 0.973,
           "accuracy": 0.973,
           "total_commands": 431,
           "correct": 419,
@@ -370,7 +370,7 @@ MODEL_PRICING: dict[str, dict[str, float]] = {
           "cost": {"total_cost": 1.23, "cost_per_1000": 2.85, "cost_per_command": 0.00285}
         },
         "harmless": {
-          "pass_rate": 0.921,
+          "harmless_acceptance_rate": 0.921,
           "false_positive_rate": 0.079,
           "accuracy": 0.921,
           "total_commands": 310,
@@ -479,7 +479,7 @@ tests/benchmark/
 
 **From Story 4.5 (Implement Metrics Reporting - DONE):**
 - Custom `security_classification_scorer()` in `scorers/security_scorer.py` with asymmetric scoring
-- Custom `@metric` functions: `detection_rate()`, `pass_rate()`, `aegish_score()` using `SampleScore` API
+- Custom `@metric` functions: `malicious_detection_rate()`, `harmless_acceptance_rate()`, `aegish_score()` using `SampleScore` API
 - `extract_action()` moved from `tasks/aegish_eval.py` to `scorers/security_scorer.py`
 - `extract_classification()` solver REMOVED - scorer handles JSON parsing directly
 - Solver pipeline is now: `[system_message(SYSTEM_PROMPT), generate()]` (+ chain_of_thought if cot)
@@ -520,7 +520,7 @@ Recent commits:
 ### References
 
 - [Source: docs/epics.md#story-46-create-llm-comparison-framework]
-- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, aegish Score >=0.85
+- [Source: docs/prd.md#success-criteria] - Malicious Detection Rate >=95%, Harmless Acceptance Rate >=90%, aegish Score >=0.85
 - [Source: docs/architecture.md#llm-response-format] - {action, reason, confidence}
 - [Source: src/aegish/llm_client.py#LLAMAGUARD_PROMPT] - LlamaGuard prompt template
 - [Source: src/aegish/llm_client.py#_is_llamaguard_model] - LlamaGuard detection

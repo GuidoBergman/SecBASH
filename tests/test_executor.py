@@ -1,10 +1,13 @@
 """Tests for command execution."""
 
 import os
+from unittest.mock import MagicMock, sentinel
 
 from aegish.executor import (
     DANGEROUS_ENV_VARS,
     _build_safe_env,
+    _get_shell_binary,
+    _sandbox_kwargs,
     execute_command,
     run_bash_command,
 )
@@ -718,3 +721,200 @@ class TestRunBashCommandHardening:
         assert env_dict["PATH"] == "/usr/bin"
         assert "BASH_ENV" not in env_dict
         assert "PROMPT_COMMAND" not in env_dict
+
+
+# =============================================================================
+# Story 8.4: Runner Binary Setup Tests
+# =============================================================================
+
+
+class TestGetShellBinary:
+    """Tests for _get_shell_binary() helper (Story 8.4)."""
+
+    def test_development_mode_returns_bash(self, mocker):
+        """AC5: Development mode returns 'bash'."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert _get_shell_binary() == "bash"
+
+    def test_production_mode_returns_runner_path(self, mocker):
+        """AC3: Production mode returns runner path."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        result = _get_shell_binary()
+        assert result == "/opt/aegish/bin/runner"
+
+    def test_production_mode_custom_runner_path(self, mocker):
+        """AC4: Production mode with custom AEGISH_RUNNER_PATH."""
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_RUNNER_PATH": "/custom/runner",
+        }, clear=True)
+        assert _get_shell_binary() == "/custom/runner"
+
+
+class TestExecuteCommandRunner:
+    """Tests for execute_command() using runner binary (Story 8.4)."""
+
+    def test_execute_command_uses_bash_in_dev_mode(self, mocker):
+        """AC5: Development mode uses 'bash' binary."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        cmd_list = mock_run.call_args[0][0]
+        assert cmd_list[0] == "bash"
+
+    def test_execute_command_uses_runner_in_prod_mode(self, mocker):
+        """AC3: Production mode uses runner binary."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        cmd_list = mock_run.call_args[0][0]
+        assert cmd_list[0] == "/opt/aegish/bin/runner"
+        assert "--norc" in cmd_list
+        assert "--noprofile" in cmd_list
+        assert "-c" in cmd_list
+
+    def test_run_bash_command_uses_runner_in_prod_mode(self, mocker):
+        """AC3: run_bash_command also uses runner in production mode."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = mocker.MagicMock(returncode=0, stdout="", stderr="")
+
+        run_bash_command("echo test")
+
+        cmd_list = mock_run.call_args[0][0]
+        assert cmd_list[0] == "/opt/aegish/bin/runner"
+
+
+# =============================================================================
+# Story 8.5: Landlock Sandbox Integration Tests
+# =============================================================================
+
+
+class TestSandboxKwargs:
+    """Tests for _sandbox_kwargs() helper."""
+
+    def test_dev_mode_returns_empty(self, mocker):
+        """Development mode returns empty dict (no sandbox)."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert _sandbox_kwargs() == {}
+
+    def test_prod_mode_landlock_available(self, mocker):
+        """Production + Landlock: returns preexec_fn and pass_fds."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mock_fd = 42
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
+        mock_preexec = sentinel.preexec
+        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+
+        result = _sandbox_kwargs()
+
+        assert result["preexec_fn"] is mock_preexec
+        assert result["pass_fds"] == (mock_fd,)
+
+    def test_prod_mode_landlock_unavailable(self, mocker):
+        """Production + no Landlock: returns empty dict (fallback)."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+
+        assert _sandbox_kwargs() == {}
+
+
+class TestExecuteCommandLandlock:
+    """Tests for execute_command() with Landlock integration (Story 8.5)."""
+
+    def test_prod_landlock_passes_preexec_and_pass_fds(self, mocker):
+        """AC1: Production + Landlock: subprocess gets preexec_fn and pass_fds."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mock_fd = 7
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["preexec_fn"] is mock_preexec
+        assert kwargs["pass_fds"] == (mock_fd,)
+        # Also verify runner binary is used
+        cmd_list = mock_run.call_args[0][0]
+        assert cmd_list[0] == "/opt/aegish/bin/runner"
+
+    def test_prod_no_landlock_no_preexec(self, mocker):
+        """AC2: Production + no Landlock: no preexec_fn or pass_fds."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert "preexec_fn" not in kwargs
+        assert "pass_fds" not in kwargs
+
+    def test_dev_mode_no_preexec(self, mocker):
+        """AC3: Development mode: no preexec_fn or pass_fds."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert "preexec_fn" not in kwargs
+        assert "pass_fds" not in kwargs
+        cmd_list = mock_run.call_args[0][0]
+        assert cmd_list[0] == "bash"
+
+
+class TestRunBashCommandLandlock:
+    """Tests for run_bash_command() with Landlock integration (Story 8.5)."""
+
+    def test_prod_landlock_passes_preexec_and_pass_fds(self, mocker):
+        """AC4: run_bash_command in production + Landlock gets sandbox kwargs."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mock_fd = 9
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+        run_bash_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert kwargs["preexec_fn"] is mock_preexec
+        assert kwargs["pass_fds"] == (mock_fd,)
+
+    def test_prod_no_landlock_no_preexec(self, mocker):
+        """AC4: run_bash_command in production without Landlock: no sandbox."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+        run_bash_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert "preexec_fn" not in kwargs
+        assert "pass_fds" not in kwargs
+
+    def test_dev_mode_no_preexec(self, mocker):
+        """AC4: run_bash_command in dev mode: no sandbox."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
+
+        run_bash_command("echo test")
+
+        kwargs = mock_run.call_args.kwargs
+        assert "preexec_fn" not in kwargs
+        assert "pass_fds" not in kwargs

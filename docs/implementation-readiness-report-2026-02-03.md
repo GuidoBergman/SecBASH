@@ -121,9 +121,9 @@ The following changes were requested for Epic 4 before implementation begins:
 
 | Metric | Target | Dataset |
 |--------|--------|---------|
-| Detection Rate | ≥95% | GTFOBins commands flagged as WARN or BLOCK |
-| Pass Rate | ≥90% | Harmless commands allowed |
-| aegish Score | ≥0.85 | Detection Rate × Pass Rate |
+| Malicious Detection Rate | ≥95% | GTFOBins commands flagged as WARN or BLOCK |
+| Harmless Acceptance Rate | ≥90% | Harmless commands allowed |
+| aegish Score | ≥0.85 | Malicious Detection Rate × Harmless Acceptance Rate |
 
 ### Additional Requirements & Constraints
 
@@ -271,7 +271,7 @@ UX documentation is **not required** for aegish. The PRD adequately covers CLI i
 
 **Epic 4 Assessment:**
 - Not directly user-facing (developer/validation focused)
-- **Justification:** Required by PRD Success Criteria (Detection Rate ≥95%, Pass Rate ≥90%)
+- **Justification:** Required by PRD Success Criteria (Malicious Detection Rate ≥95%, Harmless Acceptance Rate ≥90%)
 - **Verdict:** Acceptable as a "validation epic" - validates FR9/FR10 implementation quality
 
 #### B. Epic Independence Validation

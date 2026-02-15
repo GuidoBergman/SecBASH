@@ -383,13 +383,13 @@ After extraction, verify:
 **Story 4.2 (parallel):** Creates GTFOBins malicious dataset - the counterpart to this harmless dataset.
 
 **Story 4.4 (blocked by this):** Evaluation harness requires both datasets to calculate:
-- Detection Rate (from GTFOBins)
-- Pass Rate / False Positive Rate (from this harmless dataset)
-- aegish Score = Detection Rate x Pass Rate
+- Malicious Detection Rate (from GTFOBins)
+- Harmless Acceptance Rate / False Positive Rate (from this harmless dataset)
+- aegish Score = Malicious Detection Rate x Harmless Acceptance Rate
 
 **Metrics from Story 4.5:**
-- Pass Rate = ALLOW / Total (target: >=90%)
-- False Positive Rate = 1 - Pass Rate (target: <10%)
+- Harmless Acceptance Rate = ALLOW / Total (target: >=90%)
+- False Positive Rate = 1 - Harmless Acceptance Rate (target: <10%)
 
 ### Previous Story Intelligence
 
@@ -421,7 +421,7 @@ Story 4.2 (parallel): GTFOBins extraction - creates malicious command dataset.
 
 Story 4.4 (blocked by this): Evaluation harness needs both datasets.
 
-Story 4.5 (blocked by this): Metrics require both datasets for Pass Rate calculation.
+Story 4.5 (blocked by this): Metrics require both datasets for Harmless Acceptance Rate calculation.
 
 ### Agent Model Used
 

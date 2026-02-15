@@ -19,12 +19,12 @@ So that **I can identify optimal cost/performance trade-offs**.
 - Points labeled by model name
 - Pareto frontier highlighted
 
-### AC2: Detection Rate vs Pass Rate (Scatter Plot)
+### AC2: Malicious Detection Rate vs Harmless Acceptance Rate (Scatter Plot)
 **Given** comparison results
-**When** the detection vs pass rate plot is generated
+**When** the malicious detection vs harmless acceptance rate plot is generated
 **Then** it displays:
-- X-axis: Pass Rate (harmless allowed %)
-- Y-axis: Detection Rate (malicious flagged %)
+- X-axis: Harmless Acceptance Rate (harmless allowed %)
+- Y-axis: Malicious Detection Rate (malicious flagged %)
 - Trade-off visualization
 - Target zone highlighted (>=95% detection, >=90% pass)
 
@@ -47,7 +47,7 @@ So that **I can identify optimal cost/performance trade-offs**.
 **Given** comparison results
 **When** the summary table is generated
 **Then** it displays:
-- Columns: Model, Detection Rate, Pass Rate, Score, Cost, Latency
+- Columns: Model, Malicious Detection Rate, Harmless Acceptance Rate, Score, Cost, Latency
 - Sorted by aegish Score
 - Targets indicated with checkmarks
 
@@ -86,12 +86,12 @@ So that **I can identify optimal cost/performance trade-offs**.
   - [x] 3.7 Add horizontal dashed line at score=0.85 (target)
   - [x] 3.8 Handle $0.00 cost models (Google free tier) - plot at x=0 or near origin
 
-- [x] Task 4: Implement Detection Rate vs Pass Rate scatter plot (AC: #2)
+- [x] Task 4: Implement Malicious Detection Rate vs Harmless Acceptance Rate scatter plot (AC: #2)
   - [x] 4.1 Implement `plot_detection_vs_pass(results: dict, output_dir: Path)`
-  - [x] 4.2 X-axis: `datasets.harmless.pass_rate * 100`; Y-axis: `datasets.gtfobins.detection_rate * 100`
+  - [x] 4.2 X-axis: `datasets.harmless.harmless_acceptance_rate * 100`; Y-axis: `datasets.gtfobins.malicious_detection_rate * 100`
   - [x] 4.3 Color by provider, annotate with model name
-  - [x] 4.4 Add green shaded rectangle for target zone (pass>=90%, detection>=95%)
-  - [x] 4.5 Add dashed lines at detection=95% and pass_rate=90%
+  - [x] 4.4 Add green shaded rectangle for target zone (harmless_acceptance>=90%, malicious_detection>=95%)
+  - [x] 4.5 Add dashed lines at malicious_detection_rate=95% and harmless_acceptance_rate=90%
   - [x] 4.6 Set axis limits to show all data points (don't hardcode 85-100)
 
 - [x] Task 5: Implement Latency Distribution visualization (AC: #3)
@@ -109,7 +109,7 @@ So that **I can identify optimal cost/performance trade-offs**.
 
 - [x] Task 7: Implement Model Ranking Table as figure (AC: #5)
   - [x] 7.1 Implement `plot_ranking_table(results: dict, ranking: list, output_dir: Path)`
-  - [x] 7.2 Use matplotlib table rendering with columns: Rank, Model, Detection%, Pass%, Score, Cost, Latency
+  - [x] 7.2 Use matplotlib table rendering with columns: Rank, Model, Malicious Detection%, Harmless Acceptance%, Score, Cost, Latency
   - [x] 7.3 Sort by aegish Score descending (use ranking from JSON)
   - [x] 7.4 Add checkmark indicators for targets met
   - [x] 7.5 Color rows by performance tier (green=meets all targets, yellow=partial, red=below)
@@ -174,7 +174,7 @@ The input JSON file (`tests/benchmark/results/comparison_*.json`) follows this e
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.951,
+          "malicious_detection_rate": 0.951,
           "accuracy": 0.951,
           "stderr": 0.0103,
           "total_commands": 431,
@@ -183,7 +183,7 @@ The input JSON file (`tests/benchmark/results/comparison_*.json`) follows this e
           "cost": {"total_cost": 2.85, "cost_per_1000": 6.61, "cost_per_command": 0.0066}
         },
         "harmless": {
-          "pass_rate": 0.955,
+          "harmless_acceptance_rate": 0.955,
           "false_positive_rate": 0.045,
           "accuracy": 0.955,
           "stderr": 0.0118,
@@ -210,7 +210,7 @@ The input JSON file (`tests/benchmark/results/comparison_*.json`) follows this e
 
 **Key fields for each plot:**
 - **Cost vs Score:** `composite.cost_per_1000_combined` (X), `composite.aegish_score` (Y)
-- **Detection vs Pass:** `datasets.gtfobins.detection_rate` (Y), `datasets.harmless.pass_rate` (X)
+- **Detection vs Pass:** `datasets.gtfobins.malicious_detection_rate` (Y), `datasets.harmless.harmless_acceptance_rate` (X)
 - **Latency:** `composite.avg_latency_ms` and per-dataset `latency.{mean, p50, p90, p99, max}`
 - **Cost bar:** `composite.cost_per_1000_combined`
 - **Ranking table:** `ranking[]` array from JSON + full metrics from `results`
@@ -222,8 +222,8 @@ These ranges determine axis scaling - DO NOT hardcode narrow ranges:
 | Metric | Min | Max | Notes |
 |--------|-----|-----|-------|
 | aegish Score | 0.026 (gemini-3-pro) | 0.908 (sonnet-4.5) | Huge range, some models near 0 |
-| Detection Rate | 0.369 (llama-guard) | 0.991 (Foundation-Sec) | Most 0.89-0.99 |
-| Pass Rate | 0.055 (gemini-3-pro) | 0.987 (haiku-4.5) | Huge spread |
+| Malicious Detection Rate | 0.369 (llama-guard) | 0.991 (Foundation-Sec) | Most 0.89-0.99 |
+| Harmless Acceptance Rate | 0.055 (gemini-3-pro) | 0.987 (haiku-4.5) | Huge spread |
 | Cost/1000 | $0.00 (Google) | $11.32 (opus-4.6) | Google reports $0 (free tier) |
 | Avg Latency | 6938ms (Foundation-Sec) | 52389ms (gemini-3-pro) | Wide range |
 
@@ -365,7 +365,7 @@ Recent commits:
 ### References
 
 - [Source: docs/epics.md#story-47-generate-comparison-plots] - Original acceptance criteria
-- [Source: docs/prd.md#success-criteria] - Detection Rate >=95%, Pass Rate >=90%, aegish Score >=0.85
+- [Source: docs/prd.md#success-criteria] - Malicious Detection Rate >=95%, Harmless Acceptance Rate >=90%, aegish Score >=0.85
 - [Source: tests/benchmark/compare.py] - Comparison framework, JSON output, model list, ranking
 - [Source: tests/benchmark/report.py] - MODEL_PRICING, RESULTS_DIR, metrics extraction
 - [Source: tests/benchmark/results/comparison_20260206_181702.json] - Actual benchmark data (11 models)
@@ -401,7 +401,7 @@ No debug issues encountered.
 **Outcome:** Approved with fixes applied
 
 **Issues found and fixed (6):**
-- [H1] Detection vs Pass Rate Y-axis extended to 200%+ due to unclamped target zone rectangle - FIXED: axis limits clamped to 105%, rectangle bounded
+- [H1] Malicious Detection vs Harmless Acceptance Rate Y-axis extended to 200%+ due to unclamped target zone rectangle - FIXED: axis limits clamped to 105%, rectangle bounded
 - [H2] Cost vs Score legend omitted Pareto frontier and target line entries - FIXED: added both to legend handles
 - [M3] CLI tests were trivial (only checked `callable(main)`) - FIXED: replaced with 4 real argparse verification tests
 - [M4] Ranking table truncated long model names - FIXED: added `auto_set_column_width()`
@@ -428,8 +428,8 @@ No debug issues encountered.
 - `tests/benchmark/test_plots.py` (NEW) - 39 tests for plots module
 - `tests/benchmark/results/plots/cost_vs_score.png` (NEW) - Cost vs aegish Score scatter plot
 - `tests/benchmark/results/plots/cost_vs_score.svg` (NEW) - Cost vs aegish Score scatter plot (SVG)
-- `tests/benchmark/results/plots/detection_vs_pass.png` (NEW) - Detection vs Pass Rate scatter plot
-- `tests/benchmark/results/plots/detection_vs_pass.svg` (NEW) - Detection vs Pass Rate scatter plot (SVG)
+- `tests/benchmark/results/plots/detection_vs_pass.png` (NEW) - Malicious Detection vs Harmless Acceptance Rate scatter plot
+- `tests/benchmark/results/plots/detection_vs_pass.svg` (NEW) - Malicious Detection vs Harmless Acceptance Rate scatter plot (SVG)
 - `tests/benchmark/results/plots/latency_distribution.png` (NEW) - Latency bar chart
 - `tests/benchmark/results/plots/latency_distribution.svg` (NEW) - Latency bar chart (SVG)
 - `tests/benchmark/results/plots/cost_comparison.png` (NEW) - Cost comparison bar chart

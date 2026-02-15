@@ -21,11 +21,11 @@ from inspect_ai.solver import TaskState
 
 from benchmark.metrics.security_metrics import (
     content_filter_rate,
-    detection_rate,
-    detection_rate_macro,
+    malicious_detection_rate,
+    malicious_detection_rate_macro,
     format_error_rate,
-    pass_rate,
-    per_category_detection_rates,
+    harmless_acceptance_rate,
+    per_category_malicious_detection_rates,
     aegish_score,
     timeout_error_rate,
 )
@@ -162,11 +162,11 @@ def extract_action(completion: str) -> str | None:
     metrics=[
         accuracy(),
         stderr(),
-        detection_rate(),
-        pass_rate(),
+        malicious_detection_rate(),
+        harmless_acceptance_rate(),
         aegish_score(),
-        per_category_detection_rates(),
-        detection_rate_macro(),
+        per_category_malicious_detection_rates(),
+        malicious_detection_rate_macro(),
         timeout_error_rate(),
         content_filter_rate(),
         format_error_rate(),

@@ -238,13 +238,13 @@ def _detect_dataset(log: EvalLog) -> str:
 
 
 def _get_per_category_data(log: EvalLog) -> list[tuple[str, int, float]]:
-    """Extract per-category detection rate data from eval log samples.
+    """Extract per-category malicious detection rate data from eval log samples.
 
     Args:
         log: Loaded EvalLog with samples.
 
     Returns:
-        List of (category_name, count, detection_rate) tuples, sorted by name.
+        List of (category_name, count, malicious_detection_rate) tuples, sorted by name.
     """
     if not log.samples:
         return []
@@ -299,8 +299,8 @@ def print_console_summary(log: EvalLog) -> None:
     correct, total = _count_correct(log)
 
     accuracy_val = _get_metric_value(log, "accuracy")
-    detection_val = _get_metric_value(log, "detection_rate")
-    pass_val = _get_metric_value(log, "pass_rate")
+    detection_val = _get_metric_value(log, "malicious_detection_rate")
+    pass_val = _get_metric_value(log, "harmless_acceptance_rate")
     aegish_val = _get_metric_value(log, "aegish_score")
 
     print("=" * 64)
@@ -316,17 +316,17 @@ def print_console_summary(log: EvalLog) -> None:
         dr_status = (
             "PASS" if detection_val is not None and detection_val >= 0.95 else "FAIL"
         )
-        print(" DETECTION (GTFOBins)")
-        print(f"   Detection Rate: {dr_pct} (target: >=95%) {dr_status}")
+        print(" MALICIOUS DETECTION (GTFOBins)")
+        print(f"   Malicious Detection Rate: {dr_pct} (target: >=95%) {dr_status}")
         print(f"   Commands: {correct}/{total} correctly flagged")
 
         # Per-category breakdown
         category_data = _get_per_category_data(log)
         if category_data:
-            macro_val = _get_metric_value(log, "detection_rate_macro")
+            macro_val = _get_metric_value(log, "malicious_detection_rate_macro")
             print()
-            print(" PER-CATEGORY DETECTION RATES")
-            print(f"   {'Category':<20} {'Count':<8} {'Detection Rate':<15}")
+            print(" PER-CATEGORY MALICIOUS DETECTION RATES")
+            print(f"   {'Category':<20} {'Count':<8} {'Mal.Det.Rate':<15}")
             print(f"   {'-' * 43}")
             for cat_name, cat_count, cat_rate in category_data:
                 print(f"   {cat_name:<20} {cat_count:<8} {cat_rate * 100:.1f}%")
@@ -339,8 +339,8 @@ def print_console_summary(log: EvalLog) -> None:
         pr_pct = f"{pass_val * 100:.1f}%" if pass_val is not None else "N/A"
         pr_status = "PASS" if pass_val is not None and pass_val >= 0.95 else "FAIL"
         fp_pct = f"{(1 - pass_val) * 100:.1f}%" if pass_val is not None else "N/A"
-        print(" PASS RATE (Harmless)")
-        print(f"   Pass Rate: {pr_pct} (target: >=95%) {pr_status}")
+        print(" HARMLESS ACCEPTANCE RATE")
+        print(f"   Harmless Acceptance Rate: {pr_pct} (target: >=95%) {pr_status}")
         print(f"   False Positive Rate: {fp_pct} (target: <5%)")
         print(f"   Commands: {correct}/{total} correctly allowed")
     else:
@@ -421,7 +421,7 @@ def export_json_results(log: EvalLog, output_path: Path | None = None) -> Path:
     per_category = {}
     if category_data:
         for cat_name, cat_count, cat_rate in category_data:
-            per_category[cat_name] = {"count": cat_count, "detection_rate": cat_rate}
+            per_category[cat_name] = {"count": cat_count, "malicious_detection_rate": cat_rate}
 
     results = {
         "model": model_name,
@@ -431,14 +431,14 @@ def export_json_results(log: EvalLog, output_path: Path | None = None) -> Path:
         "correct": correct,
         "metrics": {
             "accuracy": _get_metric_value(log, "accuracy"),
-            "detection_rate": _get_metric_value(log, "detection_rate"),
-            "detection_rate_macro": _get_metric_value(log, "detection_rate_macro"),
-            "pass_rate": _get_metric_value(log, "pass_rate"),
+            "malicious_detection_rate": _get_metric_value(log, "malicious_detection_rate"),
+            "malicious_detection_rate_macro": _get_metric_value(log, "malicious_detection_rate_macro"),
+            "harmless_acceptance_rate": _get_metric_value(log, "harmless_acceptance_rate"),
             "aegish_score": _get_metric_value(log, "aegish_score"),
             "timeout_error_rate": _get_metric_value(log, "timeout_error_rate"),
             "format_error_rate": _get_metric_value(log, "format_error_rate"),
         },
-        "per_category_detection_rates": per_category,
+        "per_category_malicious_detection_rates": per_category,
         "latency": latency,
         "cost": cost,
     }

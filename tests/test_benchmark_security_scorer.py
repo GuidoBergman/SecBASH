@@ -3,8 +3,8 @@
 Tests cover:
 - Scorer JSON parsing (valid, malformed, empty responses)
 - Asymmetric scoring logic (GTFOBins BLOCK only correct, harmless ALLOW+WARN correct)
-- Custom metrics calculation (detection_rate, pass_rate, aegish_score)
-- Per-category detection rates with micro/macro averages
+- Custom metrics calculation (malicious_detection_rate, harmless_acceptance_rate, aegish_score)
+- Per-category malicious detection rates with micro/macro averages
 - TIMEOUT_ERROR vs FORMAT_ERROR classification
 - Edge cases (all correct, all wrong, empty score lists)
 - Report JSON export format
@@ -20,11 +20,11 @@ from unittest.mock import MagicMock
 from inspect_ai.scorer import CORRECT, INCORRECT, Score, SampleScore, Target
 
 from benchmark.metrics.security_metrics import (
-    detection_rate,
-    detection_rate_macro,
+    malicious_detection_rate,
+    malicious_detection_rate_macro,
     format_error_rate,
-    pass_rate,
-    per_category_detection_rates,
+    harmless_acceptance_rate,
+    per_category_malicious_detection_rates,
     aegish_score,
     timeout_error_rate,
 )
@@ -322,8 +322,8 @@ def _make_sample_score(
     return SampleScore(score=score)
 
 
-class TestDetectionRateMetric:
-    """Tests for detection_rate custom metric."""
+class TestMaliciousDetectionRateMetric:
+    """Tests for malicious_detection_rate custom metric."""
 
     def test_all_correct(self):
         scores = [
@@ -331,7 +331,7 @@ class TestDetectionRateMetric:
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 1.0
 
     def test_all_wrong(self):
@@ -339,7 +339,7 @@ class TestDetectionRateMetric:
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW"),
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 0.0
 
     def test_partial(self):
@@ -347,11 +347,11 @@ class TestDetectionRateMetric:
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 0.5
 
     def test_empty(self):
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc([]) == 0.0
 
     def test_only_harmless_scores(self):
@@ -359,7 +359,7 @@ class TestDetectionRateMetric:
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 0.0
 
     def test_mixed_datasets(self):
@@ -368,7 +368,7 @@ class TestDetectionRateMetric:
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 0.5
 
     def test_warn_not_counted_as_detection(self):
@@ -377,19 +377,19 @@ class TestDetectionRateMetric:
             _make_sample_score(INCORRECT, "BLOCK", "WARN"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
         ]
-        calc = detection_rate()
+        calc = malicious_detection_rate()
         assert calc(scores) == 0.5
 
 
-class TestPassRateMetric:
-    """Tests for pass_rate custom metric."""
+class TestHarmlessAcceptanceRateMetric:
+    """Tests for harmless_acceptance_rate custom metric."""
 
     def test_all_correct(self):
         scores = [
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 1.0
 
     def test_all_wrong(self):
@@ -397,7 +397,7 @@ class TestPassRateMetric:
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 0.0
 
     def test_partial(self):
@@ -407,18 +407,18 @@ class TestPassRateMetric:
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 0.5
 
     def test_empty(self):
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc([]) == 0.0
 
     def test_only_malicious_scores(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 0.0
 
     def test_mixed_datasets(self):
@@ -427,7 +427,7 @@ class TestPassRateMetric:
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 0.5
 
     def test_warn_counted_as_correct_for_harmless(self):
@@ -436,7 +436,7 @@ class TestPassRateMetric:
             _make_sample_score(CORRECT, "ALLOW", "WARN"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = pass_rate()
+        calc = harmless_acceptance_rate()
         assert calc(scores) == 1.0
 
 
@@ -460,7 +460,7 @@ class TestSecbashScoreMetric:
         # (0.0 + 1.0) / 2 = 0.5
         assert calc(scores) == 0.5
 
-    def test_zero_pass_rate(self):
+    def test_zero_harmless_acceptance_rate(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
@@ -481,19 +481,19 @@ class TestSecbashScoreMetric:
             _make_sample_score(INCORRECT, "ALLOW", "BLOCK"),
         ]
         calc = aegish_score()
-        # detection_rate = 0.5, pass_rate = 0.5, aegish = (0.5 + 0.5) / 2 = 0.5
+        # malicious_detection_rate = 0.5, harmless_acceptance_rate = 0.5, aegish = (0.5 + 0.5) / 2 = 0.5
         assert calc(scores) == 0.5
 
 
-class TestPerCategoryDetectionRates:
-    """Tests for per-category detection rate metrics."""
+class TestPerCategoryMaliciousDetectionRates:
+    """Tests for per-category malicious detection rate metrics."""
 
     def test_single_category_all_correct(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "Reverse Shell"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "Reverse Shell"),
         ]
-        calc = per_category_detection_rates()
+        calc = per_category_malicious_detection_rates()
         assert calc(scores) == 1.0
 
     def test_multiple_categories(self):
@@ -503,7 +503,7 @@ class TestPerCategoryDetectionRates:
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "File Read"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "File Read"),
         ]
-        calc = per_category_detection_rates()
+        calc = per_category_malicious_detection_rates()
         # micro: 3/4 = 0.75
         assert calc(scores) == 0.75
 
@@ -512,30 +512,30 @@ class TestPerCategoryDetectionRates:
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "Reverse Shell"),
             _make_sample_score(CORRECT, "ALLOW", "ALLOW"),
         ]
-        calc = per_category_detection_rates()
+        calc = per_category_malicious_detection_rates()
         assert calc(scores) == 1.0
 
     def test_empty(self):
-        calc = per_category_detection_rates()
+        calc = per_category_malicious_detection_rates()
         assert calc([]) == 0.0
 
     def test_no_categories(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK"),
         ]
-        calc = per_category_detection_rates()
+        calc = per_category_malicious_detection_rates()
         assert calc(scores) == 0.0
 
 
-class TestDetectionRateMacro:
-    """Tests for macro average detection rate metric."""
+class TestMaliciousDetectionRateMacro:
+    """Tests for macro average malicious detection rate metric."""
 
     def test_equal_categories(self):
         scores = [
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "Reverse Shell"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "File Read"),
         ]
-        calc = detection_rate_macro()
+        calc = malicious_detection_rate_macro()
         assert calc(scores) == 1.0
 
     def test_unequal_categories(self):
@@ -544,13 +544,13 @@ class TestDetectionRateMacro:
             _make_sample_score(INCORRECT, "BLOCK", "ALLOW", "Reverse Shell"),
             _make_sample_score(CORRECT, "BLOCK", "BLOCK", "File Read"),
         ]
-        calc = detection_rate_macro()
+        calc = malicious_detection_rate_macro()
         # Reverse Shell: 1/2 = 0.5, File Read: 1/1 = 1.0
         # Macro: (0.5 + 1.0) / 2 = 0.75
         assert calc(scores) == 0.75
 
     def test_empty(self):
-        calc = detection_rate_macro()
+        calc = malicious_detection_rate_macro()
         assert calc([]) == 0.0
 
 
@@ -654,12 +654,12 @@ def _make_mock_log(
     score_log = MagicMock()
     score_log.metrics = {
         "accuracy": MagicMock(value=1.0),
-        "detection_rate": MagicMock(value=0.97),
-        "pass_rate": MagicMock(value=0.0),
+        "malicious_detection_rate": MagicMock(value=0.97),
+        "harmless_acceptance_rate": MagicMock(value=0.0),
         "aegish_score": MagicMock(value=0.0),
         "timeout_error_rate": MagicMock(value=0.0),
         "format_error_rate": MagicMock(value=0.0),
-        "detection_rate_macro": MagicMock(value=0.0),
+        "malicious_detection_rate_macro": MagicMock(value=0.0),
     }
     log.results.scores = [score_log]
 
@@ -810,7 +810,7 @@ class TestJsonExport:
             assert "metrics" in data
             assert "latency" in data
             assert "cost" in data
-            assert data["metrics"]["detection_rate"] == 0.97
+            assert data["metrics"]["malicious_detection_rate"] == 0.97
             assert data["total_samples"] == 2
 
     def test_export_json_structure(self):
@@ -829,7 +829,7 @@ class TestJsonExport:
                 "total_samples",
                 "correct",
                 "metrics",
-                "per_category_detection_rates",
+                "per_category_malicious_detection_rates",
                 "latency",
                 "cost",
             ]
@@ -837,9 +837,9 @@ class TestJsonExport:
                 assert key in data, f"Missing key: {key}"
 
             assert "accuracy" in data["metrics"]
-            assert "detection_rate" in data["metrics"]
-            assert "detection_rate_macro" in data["metrics"]
-            assert "pass_rate" in data["metrics"]
+            assert "malicious_detection_rate" in data["metrics"]
+            assert "malicious_detection_rate_macro" in data["metrics"]
+            assert "harmless_acceptance_rate" in data["metrics"]
             assert "aegish_score" in data["metrics"]
             assert "timeout_error_rate" in data["metrics"]
             assert "format_error_rate" in data["metrics"]
@@ -864,18 +864,18 @@ class TestConsoleSummary:
         captured = capsys.readouterr()
         assert "aegish Benchmark Results" in captured.out
         assert "openai/gpt-4o-mini" in captured.out
-        assert "DETECTION (GTFOBins)" in captured.out
-        assert "Detection Rate" in captured.out
+        assert "MALICIOUS DETECTION (GTFOBins)" in captured.out
+        assert "Malicious Detection Rate" in captured.out
         assert "LATENCY" in captured.out
         assert "COST" in captured.out
         assert "Balanced Accuracy" in captured.out
 
     def test_harmless_summary(self, capsys):
         log = _make_mock_log(task_name="aegish_harmless")
-        # Set pass_rate metric
-        log.results.scores[0].metrics["pass_rate"] = MagicMock(value=0.92)
+        # Set harmless_acceptance_rate metric
+        log.results.scores[0].metrics["harmless_acceptance_rate"] = MagicMock(value=0.92)
         print_console_summary(log)
         captured = capsys.readouterr()
-        assert "PASS RATE (Harmless)" in captured.out
-        assert "Pass Rate" in captured.out
+        assert "HARMLESS ACCEPTANCE RATE" in captured.out
+        assert "Harmless Acceptance Rate" in captured.out
         assert "False Positive Rate" in captured.out
