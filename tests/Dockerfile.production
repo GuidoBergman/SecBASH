@@ -8,6 +8,8 @@ RUN apt-get update && apt-get install -y \
     git openssh-server \
     gettext-base \
     netcat-openbsd \
+    gcc libc6-dev make \
+    sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # 1.2: Install uv package manager
@@ -35,15 +37,34 @@ RUN echo "$(which aegish)" >> /etc/shells
 RUN useradd -m -s "$(which aegish)" testuser && \
     echo "testuser:testpass" | chpasswd
 
+# 1.6a: Grant testuser passwordless sudo (for sudo sandboxing tests)
+RUN echo "testuser ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/testuser && \
+    chmod 440 /etc/sudoers.d/testuser
+
 # 1.7: Configure SSH for login shell testing
 # Use sed to ensure first-match-wins for PasswordAuthentication (sshd uses first match)
 RUN mkdir /run/sshd && \
     sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# 1.8: Set production mode environment variables
-ENV AEGISH_MODE=production
-ENV AEGISH_FAIL_MODE=safe
+# 1.8: Create production config file (root-owned, secure permissions)
+# SSH sessions don't inherit Docker ENV vars, so security-critical settings
+# must live in /etc/aegish/config (read by _load_config_file at startup).
+RUN mkdir -p /etc/aegish && \
+    printf '%s\n' \
+        'AEGISH_MODE=production' \
+        'AEGISH_FAIL_MODE=safe' \
+        'AEGISH_ROLE=default' \
+        'AEGISH_ALLOWED_PROVIDERS=openai,anthropic,groq,together_ai,ollama,gemini,featherless_ai,huggingface' \
+        'AEGISH_VAR_CMD_ACTION=block' \
+    > /etc/aegish/config && \
+    chmod 644 /etc/aegish/config
 
-# 1.9: Expose SSH port and start SSH daemon
+# 1.9: Create audit log directory (writable by all users)
+RUN mkdir -p /var/log/aegish && chmod 1733 /var/log/aegish
+
+# 1.10: Build and install the Landlock sandboxer library
+RUN cd /opt/aegish-src/src/sandboxer && make && make install
+
+# 1.11: Expose SSH port and start SSH daemon
 EXPOSE 22
 CMD ["/usr/sbin/sshd", "-D"]

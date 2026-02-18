@@ -61,7 +61,8 @@
       "WebFetch(domain:docs.github.com)",
       "Bash(docker --version:*)",
       "Skill(sharp-edges:sharp-edges)",
-      "Skill(semgrep)"
+      "Skill(semgrep)",
+      "WebFetch(domain:docs.litellm.ai)"
     ]
   }
 }

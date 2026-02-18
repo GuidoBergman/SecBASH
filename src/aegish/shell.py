@@ -229,30 +229,37 @@ def run_shell() -> int:
     env["PWD"] = current_dir
     env["OLDPWD"] = previous_dir
 
-    print("aegish - LLM-powered shell with security validation")
-    # Show model chain with availability status
+    print("aegish \u2014 LLM-powered security shell")
+    print("\u2500" * 42)
+
+    # Model chain: show primary + fallback summary
     model_chain = get_model_chain()
-    model_display_parts = []
-    for model in model_chain:
-        provider = get_provider_from_model(model)
-        has_key = get_api_key(provider) is not None
-        status = "active" if has_key else "--"
-        model_display_parts.append(f"{model} ({status})")
-    print(f"Model chain: {' > '.join(model_display_parts)}")
+    primary = model_chain[0] if model_chain else "none"
+    active_count = sum(
+        1 for m in model_chain
+        if get_api_key(get_provider_from_model(m)) is not None
+    )
+    inactive = len(model_chain) - active_count
+    fallback_info = f"{active_count - 1} active" if active_count > 1 else "none"
+    if inactive:
+        fallback_info += f", {inactive} no key"
+    print(f"  Primary:   {primary}")
+    print(f"  Fallbacks: {fallback_info}")
+
     mode = get_mode()
     if mode == "production":
-        print("Mode: production (login shell + Landlock enforcement)")
+        print("  Mode:      production (login shell + Landlock)")
     else:
-        print("Mode: development")
+        print("  Mode:      development")
     fail_mode = get_fail_mode()
     if fail_mode == "safe":
-        print("Fail mode: safe (block on validation failure)")
+        print("  Fail mode: safe (block on error)")
     else:
-        print("Fail mode: open (warn on validation failure)")
-    # Display non-default role (Story 12.4)
+        print("  Fail mode: open (warn on error)")
     role = get_role()
-    if role != "default":
-        print(f"Role: {role}")
+    print(f"  Role:      {role}")
+
+    print("\u2500" * 42)
     # Validate runner binary and sandboxer library in production mode
     if mode == "production":
         runner_ok, runner_msg = validate_runner_binary()
@@ -305,16 +312,16 @@ def run_shell() -> int:
     success, reason, active_model = health_check()
     if not success:
         logger.warning("Health check failed: %s", reason)
+        print(reason)
         if login_shell:
             print(
-                f"WARNING: Health check failed - {reason}. "
-                "This is your login shell -- if the API remains unreachable, "
-                "command execution may be blocked. Operating in degraded mode."
+                "WARNING: All models unreachable. "
+                "This is your login shell \u2014 commands may be blocked."
             )
         else:
-            print(f"WARNING: Health check failed - {reason}. Operating in degraded mode.")
+            print("WARNING: All models unreachable. Operating in degraded mode.")
     elif active_model and active_model != get_primary_model():
-        print(f"WARNING: Primary model timed out, using fallback: {active_model}")
+        print(f"NOTE: Using fallback model: {active_model}")
 
     while True:
         try:

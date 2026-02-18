@@ -623,9 +623,9 @@ class TestConfigurableModels:
 
             call_args = mock_completion.call_args
             # With only OPENAI_API_KEY, first model with valid key is used
-            # (primary google model skipped without GOOGLE_API_KEY)
+            # (primary gemini model skipped without GEMINI_API_KEY)
             called_model = call_args.kwargs["model"]
-            assert "openai/" in called_model or "google/" in called_model
+            assert "openai/" in called_model or "gemini/" in called_model
 
     def test_invalid_model_error_logged_and_skipped(self, mocker):
         """AC4: Invalid model errors are logged and model is skipped."""

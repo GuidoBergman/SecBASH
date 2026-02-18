@@ -17,9 +17,16 @@ Architecture (Story 14.2):
 import logging
 import os
 import re
+import stat
 import subprocess
 
-from aegish.config import get_mode, get_runner_path
+from aegish.config import (
+    get_mode,
+    get_role,
+    get_runner_path,
+    get_sandboxer_path,
+    validate_sandboxer_library,
+)
 from aegish.sandbox import make_no_new_privs_fn
 
 logger = logging.getLogger(__name__)
@@ -48,6 +55,153 @@ ALLOWED_ENV_PREFIXES = ("LC_", "XDG_", "AEGISH_")
 # Regex to detect bare cd commands for fast-path interception.
 # Matches: cd, cd ~, cd -, cd /path, cd relative, cd ~user
 _CD_PATTERN = re.compile(r"^\s*cd\s*($|\s+\S+\s*$)")
+
+
+# Absolute path to the sudo binary (avoid PATH-based resolution)
+SUDO_BINARY_PATH = "/usr/bin/sudo"
+
+
+def _is_sudo_command(command: str) -> bool:
+    """Detect if command starts with sudo.
+
+    Matches 'sudo cmd', 'sudo' alone, and 'sudo\\tcmd'.
+    Does not match 'sudoers', 'echo sudo', etc.
+
+    Args:
+        command: The raw command string.
+
+    Returns:
+        True if the command starts with 'sudo' as a distinct word.
+    """
+    stripped = command.strip()
+    if not stripped:
+        return False
+    # Must start with 'sudo' followed by whitespace or end of string
+    if stripped == "sudo":
+        return True
+    if stripped.startswith("sudo") and stripped[4] in (" ", "\t"):
+        return True
+    return False
+
+
+def _strip_sudo_prefix(command: str) -> str:
+    """Remove the 'sudo' prefix from a command string.
+
+    Args:
+        command: A command string known to start with sudo.
+
+    Returns:
+        The command without the leading 'sudo' and surrounding whitespace.
+    """
+    stripped = command.strip()
+    # Remove 'sudo' prefix
+    remainder = stripped[4:]
+    return remainder.strip()
+
+
+def _validate_sudo_binary() -> tuple[bool, str]:
+    """Validate that /usr/bin/sudo exists, is root-owned, and has SUID set.
+
+    Returns:
+        Tuple of (is_valid, error_message).
+    """
+    path = SUDO_BINARY_PATH
+    if not os.path.exists(path):
+        return (False, f"sudo binary not found at {path}")
+
+    try:
+        file_stat = os.stat(path)
+    except OSError as e:
+        return (False, f"Cannot stat sudo binary {path}: {e}")
+
+    # Must be owned by root
+    if file_stat.st_uid != 0:
+        return (False, f"sudo binary at {path} is not owned by root "
+                f"(owned by uid {file_stat.st_uid})")
+
+    # Must have SUID bit set
+    if not (file_stat.st_mode & stat.S_ISUID):
+        return (False, f"sudo binary at {path} does not have SUID bit set")
+
+    return (True, "")
+
+
+def _execute_sudo_sandboxed(
+    command: str,
+    last_exit_code: int,
+    env: dict[str, str],
+    cwd: str,
+) -> tuple[int, dict[str, str], str]:
+    """Execute a sudo command with post-elevation Landlock sandboxing.
+
+    Skips preexec_fn (which sets NO_NEW_PRIVS and would prevent sudo from
+    elevating). Instead, sudo elevates first, then the LD_PRELOAD sandboxer
+    library applies NO_NEW_PRIVS + Landlock inside the already-elevated
+    process.
+
+    On pre-flight failure (invalid sudo binary or missing sandboxer),
+    falls back to executing the stripped command without sudo.
+
+    Note: Environment capture is not supported through the sudo path.
+    The original env and cwd are returned unchanged.
+
+    Args:
+        command: The full command string (including 'sudo' prefix).
+        last_exit_code: Exit code from the previous command.
+        env: Current environment dict.
+        cwd: Current working directory.
+
+    Returns:
+        Tuple of (exit_code, original_env, original_cwd).
+    """
+    stripped_cmd = _strip_sudo_prefix(command)
+
+    # Pre-flight: validate sudo binary
+    sudo_ok, sudo_err = _validate_sudo_binary()
+    if not sudo_ok:
+        logger.warning("sudo pre-flight failed: %s; running without sudo", sudo_err)
+        return execute_command(stripped_cmd, last_exit_code, env, cwd)
+
+    # Pre-flight: validate sandboxer library
+    sandboxer_ok, sandboxer_err = validate_sandboxer_library()
+    if not sandboxer_ok:
+        logger.warning(
+            "sandboxer pre-flight failed: %s; running without sudo",
+            sandboxer_err,
+        )
+        return execute_command(stripped_cmd, last_exit_code, env, cwd)
+
+    # Handle bare 'sudo' with no command
+    if not stripped_cmd:
+        logger.warning("bare 'sudo' with no command; running without sudo")
+        return execute_command("sudo", last_exit_code, env, cwd)
+
+    sandboxer_path = get_sandboxer_path()
+    runner_path = get_runner_path()
+
+    # Build the sudo command:
+    # sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> \
+    #   <runner> --norc --noprofile -c "<command>"
+    args = [
+        SUDO_BINARY_PATH,
+        "env",
+        f"LD_PRELOAD={sandboxer_path}",
+        f"AEGISH_RUNNER_PATH={runner_path}",
+        runner_path,
+        "--norc",
+        "--noprofile",
+        "-c",
+        stripped_cmd,
+    ]
+
+    result = subprocess.run(
+        args,
+        env=env,
+        cwd=cwd,
+    )
+
+    # Return original env and cwd (no capture through sudo path)
+    return result.returncode, env, cwd
 
 
 def _get_sandboxer_path() -> str:
@@ -251,6 +405,16 @@ def execute_command(
         env = _build_safe_env()
     if cwd is None:
         cwd = os.getcwd()
+
+    # Delegate sudo commands for sysadmin users in production mode.
+    # sudo requires privilege escalation, which NO_NEW_PRIVS blocks.
+    # The sudo path skips preexec_fn and lets the sandboxer library
+    # handle NO_NEW_PRIVS + Landlock inside the elevated process.
+    if get_mode() == "production" and _is_sudo_command(command):
+        if get_role() == "sysadmin":
+            return _execute_sudo_sandboxed(
+                command, last_exit_code, env, cwd,
+            )
 
     # Create pipe for env capture
     env_r, env_w = os.pipe()

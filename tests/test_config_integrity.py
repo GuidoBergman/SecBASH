@@ -209,12 +209,12 @@ class TestStartupIntegration:
                         # Both warnings present
                         assert "WARNING: Using non-default primary model" in output
                         assert "WARNING: No fallback models configured" in output
-                        assert "WARNING: Health check failed" in output
+                        assert "WARNING: All models unreachable" in output
 
                         # Order: model warnings before health check warning
                         model_warn_pos = output.index("WARNING: Using non-default primary model")
                         fallback_warn_pos = output.index("WARNING: No fallback models configured")
-                        health_warn_pos = output.index("WARNING: Health check failed")
+                        health_warn_pos = output.index("WARNING: All models unreachable")
                         assert model_warn_pos < health_warn_pos
                         assert fallback_warn_pos < health_warn_pos
 
@@ -242,4 +242,4 @@ class TestStartupIntegration:
 
                         assert "WARNING: Using non-default primary model: groq/llama-3-70b" in output
                         assert "WARNING: No fallback models configured. Single-provider mode." in output
-                        assert "WARNING: Health check failed - Connection refused" in output
+                        assert "WARNING: All models unreachable" in output

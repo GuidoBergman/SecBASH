@@ -437,6 +437,25 @@ This could potentially trick the LLM into returning an "allow" response for dang
 
 ---
 
+## Sudo Privilege Elevation in Production Mode
+
+In production mode, aegish sets `PR_SET_NO_NEW_PRIVS` via `preexec_fn` before executing commands. This is required by Landlock's `landlock_restrict_self()` but also prevents SUID binaries (like `sudo`) from escalating privileges.
+
+For sysadmin users (`AEGISH_ROLE=sysadmin`) running sudo commands, aegish uses a separate execution path (DD-19):
+
+1. **Skip `preexec_fn`** — no `NO_NEW_PRIVS` is set by Python, allowing sudo to elevate
+2. **sudo elevates** — the process gains root privileges
+3. **LD_PRELOAD sandboxer** — the `landlock_sandboxer.so` constructor runs inside the elevated process, calling `prctl(PR_SET_NO_NEW_PRIVS)` and applying Landlock restrictions
+4. **Shell escapes blocked** — Landlock blocks shell binaries and the runner binary even as root
+
+The command structure: `sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> <runner> --norc --noprofile -c "<command>"`
+
+**Known limitation (v1):** Only `sudo <command>` is supported. Sudo flags like `-u`, `-E`, `-i` are not supported through this path. Environment capture is not available for sudo commands (original env/cwd returned unchanged).
+
+**Fallback:** If the sudo binary or sandboxer library fails pre-flight validation, the command runs without sudo through the normal execution path.
+
+---
+
 ## Architecture Completion Summary
 
 **Architecture Decision Workflow:** COMPLETED ✅

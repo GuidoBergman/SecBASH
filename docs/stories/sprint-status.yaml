@@ -174,3 +174,7 @@ development_status:
   15-3-move-adjusttext: done
   15-4-benchmark-counts: done
   15-5-stale-gitignore: done
+
+  # Epic 16: Sudo Post-Elevation Sandboxing
+  epic-16: done
+  16-1-sudo-post-elevation-sandboxing: done

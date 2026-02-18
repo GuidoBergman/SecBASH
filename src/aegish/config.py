@@ -67,23 +67,24 @@ _config_file_cache: dict[str, str] | None = None
 _config_file_loaded: bool = False
 
 # Default model configuration (Story 12.3: benchmark-recommended models)
-DEFAULT_PRIMARY_MODEL = "google/gemini-3-flash-preview"
+# Note: litellm uses "gemini/" prefix for Google AI Studio (not "google/").
+DEFAULT_PRIMARY_MODEL = "gemini/gemini-3-flash-preview"
 DEFAULT_FALLBACK_MODELS = [
-    "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
+    "featherless_ai/trendmicro-ailab/Llama-Primus-Reasoning",
     "openai/gpt-5-mini",
     "anthropic/claude-haiku-4-5-20251001",
     "anthropic/claude-sonnet-4-5-20250929",
     "openai/gpt-5.1",
     "anthropic/claude-opus-4-6",
     "openai/gpt-5-nano",
-    "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
+    "featherless_ai/fdtn-ai/Foundation-Sec-8B-Instruct",
 ]
 
 # Default allowed providers (DD-10: provider allowlist, not model allowlist)
-# Story 12.3: added google and hf-inference-providers for benchmark models
+# Story 12.3: added gemini, featherless_ai, huggingface for benchmark models
 DEFAULT_ALLOWED_PROVIDERS = {
     "openai", "anthropic", "groq", "together_ai", "ollama",
-    "google", "hf-inference-providers",
+    "gemini", "featherless_ai", "huggingface",
 }
 
 # Mode configuration (DD-14: production/development modes)
@@ -126,6 +127,17 @@ DEFAULT_FILTER_SENSITIVE_VARS = False
 
 # Providers that run locally and don't require API keys
 LOCAL_PROVIDERS = {"ollama"}
+
+# Provider → env var(s) mapping. Tuples mean "try in order".
+PROVIDER_ENV_VARS: dict[str, str | tuple[str, ...]] = {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "groq": "GROQ_API_KEY",
+    "together_ai": "TOGETHERAI_API_KEY",
+    "gemini": ("GEMINI_API_KEY", "GOOGLE_API_KEY"),
+    "featherless_ai": "FEATHERLESS_AI_API_KEY",
+    "huggingface": "HF_TOKEN",
+}
 
 
 def _validate_config_file_permissions(path: str) -> tuple[bool, str]:
@@ -298,8 +310,8 @@ def get_api_key(provider: str) -> str | None:
     """Get the API key for a provider from environment.
 
     Args:
-        provider: Provider name (e.g., "openai", "anthropic", "groq",
-                  "together_ai", "ollama", "google", "hf-inference-providers").
+        provider: Provider name (e.g., "openai", "anthropic", "gemini",
+                  "featherless_ai", "huggingface", "ollama").
 
     Returns:
         The API key string, "local" for local providers, or None if not set.
@@ -308,19 +320,15 @@ def get_api_key(provider: str) -> str | None:
     if provider.lower() in LOCAL_PROVIDERS:
         return "local"
 
-    env_vars = {
-        "openai": "OPENAI_API_KEY",
-        "anthropic": "ANTHROPIC_API_KEY",
-        "groq": "GROQ_API_KEY",
-        "together_ai": "TOGETHERAI_API_KEY",
-        "google": "GOOGLE_API_KEY",
-        "hf-inference-providers": "HF_TOKEN",
-    }
-    env_var = env_vars.get(provider.lower())
-    if env_var:
+    lookup = PROVIDER_ENV_VARS.get(provider.lower())
+    if lookup is None:
+        return None
+    # Support multiple env var names (try in order)
+    names = (lookup,) if isinstance(lookup, str) else lookup
+    for env_var in names:
         key = os.environ.get(env_var)
-        # Treat empty or whitespace-only strings as not configured
-        return key if key and key.strip() else None
+        if key and key.strip():
+            return key.strip()
     return None
 
 

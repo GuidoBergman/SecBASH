@@ -37,23 +37,23 @@ class TestDefaultModelConfiguration:
     """Tests for default model configuration."""
 
     def test_default_primary_model(self, mocker):
-        """AC2: Default primary model is google/gemini-3-flash-preview."""
+        """AC2: Default primary model is gemini/gemini-3-flash-preview."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_primary_model() == "google/gemini-3-flash-preview"
+        assert get_primary_model() == "gemini/gemini-3-flash-preview"
 
     def test_default_fallback_models(self, mocker):
         """AC2: Default fallback chain has 8 models (Story 12.3)."""
         mocker.patch.dict(os.environ, {}, clear=True)
         fallbacks = get_fallback_models()
         assert len(fallbacks) == 8
-        assert fallbacks[0].startswith("hf-inference-providers/")
+        assert fallbacks[0].startswith("featherless_ai/")
         assert "openai/gpt-5-mini" in fallbacks
 
     def test_default_model_chain_order(self, mocker):
         """AC2: Model chain starts with primary, then 8 fallbacks."""
         mocker.patch.dict(os.environ, {}, clear=True)
         model_chain = get_model_chain()
-        assert model_chain[0] == "google/gemini-3-flash-preview"
+        assert model_chain[0] == "gemini/gemini-3-flash-preview"
         assert len(model_chain) == 9
 
 
@@ -133,8 +133,8 @@ class TestWorksWithOneApiKey:
 class TestStartupShowsModelChain:
     """Tests for startup message showing model chain with availability status."""
 
-    def test_startup_shows_model_chain(self, mocker, capsys):
-        """AC2: Startup message shows model chain with availability status."""
+    def test_startup_shows_primary_model(self, mocker, capsys):
+        """AC2: Startup message shows primary model and fallback summary."""
         mocker.patch.dict(
             os.environ,
             {"OPENAI_API_KEY": "test-key", "ANTHROPIC_API_KEY": "test-key2"},
@@ -151,15 +151,14 @@ class TestStartupShowsModelChain:
         captured = capsys.readouterr()
         output = captured.out
 
-        # Should show model chain format with active/inactive status
-        assert "model chain:" in output.lower()
-        # Primary model should be shown
-        assert "google/gemini-3-flash-preview" in output.lower()
-        # Verify priority order indicator
-        assert ">" in output
+        # Should show primary model
+        assert "primary:" in output.lower()
+        assert "gemini/gemini-3-flash-preview" in output.lower()
+        # Should show fallback summary
+        assert "fallbacks:" in output.lower()
 
-    def test_startup_shows_unconfigured_models(self, mocker, capsys):
-        """AC2: Startup shows unconfigured models marked as inactive."""
+    def test_startup_shows_inactive_count(self, mocker, capsys):
+        """AC2: Startup shows count of models without API keys."""
         mocker.patch.dict(
             os.environ,
             {"ANTHROPIC_API_KEY": "test-key"},
@@ -174,10 +173,8 @@ class TestStartupShowsModelChain:
         captured = capsys.readouterr()
         output = captured.out
 
-        # Primary google model should be inactive (no GOOGLE_API_KEY)
-        assert "google/gemini-3-flash-preview (--)" in output.lower()
-        # Anthropic models should be active
-        assert "(active)" in output.lower()
+        # Should show inactive count for models without keys
+        assert "no key" in output.lower()
 
 
 class TestDefaultShell:

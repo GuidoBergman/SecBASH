@@ -123,25 +123,40 @@ class TestGetApiKeyExtendedProviders:
         mocker.patch.dict(os.environ, {}, clear=True)
         assert get_api_key("groq") is None
 
-    def test_google_api_key(self, mocker):
-        """Story 12.3: Google provider reads GOOGLE_API_KEY."""
+    def test_gemini_api_key(self, mocker):
+        """Story 12.3: Gemini provider reads GEMINI_API_KEY."""
+        mocker.patch.dict(os.environ, {"GEMINI_API_KEY": "gemini-key"}, clear=True)
+        assert get_api_key("gemini") == "gemini-key"
+
+    def test_gemini_falls_back_to_google_api_key(self, mocker):
+        """Gemini provider falls back to GOOGLE_API_KEY."""
         mocker.patch.dict(os.environ, {"GOOGLE_API_KEY": "google-key"}, clear=True)
-        assert get_api_key("google") == "google-key"
+        assert get_api_key("gemini") == "google-key"
 
-    def test_google_missing_key_returns_none(self, mocker):
-        """Google without GOOGLE_API_KEY returns None."""
+    def test_gemini_missing_key_returns_none(self, mocker):
+        """Gemini without any API key returns None."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_api_key("google") is None
+        assert get_api_key("gemini") is None
 
-    def test_hf_inference_providers_api_key(self, mocker):
-        """Story 12.3: HF Inference Providers reads HF_TOKEN."""
+    def test_featherless_ai_api_key(self, mocker):
+        """Featherless AI reads FEATHERLESS_AI_API_KEY."""
+        mocker.patch.dict(os.environ, {"FEATHERLESS_AI_API_KEY": "fl-key"}, clear=True)
+        assert get_api_key("featherless_ai") == "fl-key"
+
+    def test_featherless_ai_missing_key_returns_none(self, mocker):
+        """Featherless AI without FEATHERLESS_AI_API_KEY returns None."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_api_key("featherless_ai") is None
+
+    def test_huggingface_api_key(self, mocker):
+        """HuggingFace reads HF_TOKEN."""
         mocker.patch.dict(os.environ, {"HF_TOKEN": "hf-token"}, clear=True)
-        assert get_api_key("hf-inference-providers") == "hf-token"
+        assert get_api_key("huggingface") == "hf-token"
 
-    def test_hf_inference_providers_missing_key_returns_none(self, mocker):
-        """HF Inference Providers without HF_TOKEN returns None."""
+    def test_huggingface_missing_key_returns_none(self, mocker):
+        """HuggingFace without HF_TOKEN returns None."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_api_key("hf-inference-providers") is None
+        assert get_api_key("huggingface") is None
 
 
 class TestGetApiKeyEmptyString:
@@ -333,7 +348,7 @@ class TestGetPrimaryModel:
         result = get_primary_model()
 
         assert result == DEFAULT_PRIMARY_MODEL
-        assert result == "google/gemini-3-flash-preview"
+        assert result == "gemini/gemini-3-flash-preview"
 
     def test_custom_primary_model_from_env_var(self, mocker):
         """AC1: Custom primary model via env var."""
@@ -576,8 +591,9 @@ class TestGetAllowedProviders:
         assert "groq" in result
         assert "together_ai" in result
         assert "ollama" in result
-        assert "google" in result
-        assert "hf-inference-providers" in result
+        assert "gemini" in result
+        assert "featherless_ai" in result
+        assert "huggingface" in result
 
     def test_custom_allowed_providers(self, mocker):
         """Custom providers from env var."""

@@ -1,16 +1,22 @@
 """Tests for command execution."""
 
 import os
-from unittest.mock import MagicMock, sentinel
+import stat
+from unittest.mock import MagicMock, patch, sentinel
 
 from aegish.executor import (
     ALLOWED_ENV_PREFIXES,
     ALLOWED_ENV_VARS,
     DEFAULT_SANDBOXER_PATH,
+    SUDO_BINARY_PATH,
     _build_safe_env,
+    _execute_sudo_sandboxed,
     _get_sandboxer_path,
     _get_shell_binary,
+    _is_sudo_command,
     _sandbox_kwargs,
+    _strip_sudo_prefix,
+    _validate_sudo_binary,
     execute_command,
     is_bare_cd,
     parse_nul_env,
@@ -1279,3 +1285,281 @@ class TestExecuteCommandStatePersistence:
         exit_code, _, cwd2 = execute_command("pwd", cwd=cwd1)
         assert exit_code == 0
         assert cwd2 == os.path.realpath(target)
+
+
+# =============================================================================
+# Story 16.1: Sudo Post-Elevation Sandboxing Tests
+# =============================================================================
+
+
+class TestIsSudoCommand:
+    """Tests for _is_sudo_command() detection."""
+
+    def test_sudo_with_command(self):
+        """'sudo cmd' is a sudo command."""
+        assert _is_sudo_command("sudo ls") is True
+
+    def test_bare_sudo(self):
+        """'sudo' alone is a sudo command."""
+        assert _is_sudo_command("sudo") is True
+
+    def test_sudo_with_tab(self):
+        """'sudo\\tcmd' is a sudo command."""
+        assert _is_sudo_command("sudo\tls") is True
+
+    def test_sudo_with_leading_spaces(self):
+        """'  sudo cmd' is a sudo command."""
+        assert _is_sudo_command("  sudo ls") is True
+
+    def test_sudoers_not_sudo(self):
+        """'sudoers' is NOT a sudo command."""
+        assert _is_sudo_command("sudoers") is False
+
+    def test_echo_sudo_not_sudo(self):
+        """'echo sudo' is NOT a sudo command."""
+        assert _is_sudo_command("echo sudo") is False
+
+    def test_empty_string(self):
+        """Empty string is NOT a sudo command."""
+        assert _is_sudo_command("") is False
+
+    def test_sudo_with_flags(self):
+        """'sudo -u root ls' is a sudo command."""
+        assert _is_sudo_command("sudo -u root ls") is True
+
+    def test_sudoedit(self):
+        """'sudoedit' is NOT a sudo command."""
+        assert _is_sudo_command("sudoedit /etc/hosts") is False
+
+
+class TestStripSudoPrefix:
+    """Tests for _strip_sudo_prefix() prefix removal."""
+
+    def test_simple_strip(self):
+        """Strip sudo prefix from 'sudo ls -la'."""
+        assert _strip_sudo_prefix("sudo ls -la") == "ls -la"
+
+    def test_extra_whitespace(self):
+        """Strip sudo prefix with extra whitespace."""
+        assert _strip_sudo_prefix("  sudo   ls -la  ") == "ls -la"
+
+    def test_bare_sudo(self):
+        """Strip sudo prefix from bare 'sudo' returns empty string."""
+        assert _strip_sudo_prefix("sudo") == ""
+
+    def test_sudo_with_tab(self):
+        """Strip sudo prefix with tab separator."""
+        assert _strip_sudo_prefix("sudo\tls") == "ls"
+
+
+class TestValidateSudoBinary:
+    """Tests for _validate_sudo_binary() validation."""
+
+    def test_valid_sudo_binary(self, mocker):
+        """Valid: root-owned, SUID set."""
+        mock_stat = MagicMock()
+        mock_stat.st_uid = 0
+        mock_stat.st_mode = stat.S_ISUID | stat.S_IFREG | 0o4755
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.stat", return_value=mock_stat)
+
+        ok, msg = _validate_sudo_binary()
+        assert ok is True
+        assert msg == ""
+
+    def test_missing_sudo_binary(self, mocker):
+        """Invalid: sudo binary does not exist."""
+        mocker.patch("os.path.exists", return_value=False)
+
+        ok, msg = _validate_sudo_binary()
+        assert ok is False
+        assert "not found" in msg
+
+    def test_not_root_owned(self, mocker):
+        """Invalid: not owned by root."""
+        mock_stat = MagicMock()
+        mock_stat.st_uid = 1000
+        mock_stat.st_mode = stat.S_ISUID | stat.S_IFREG | 0o4755
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.stat", return_value=mock_stat)
+
+        ok, msg = _validate_sudo_binary()
+        assert ok is False
+        assert "not owned by root" in msg
+
+    def test_no_suid_bit(self, mocker):
+        """Invalid: SUID bit not set."""
+        mock_stat = MagicMock()
+        mock_stat.st_uid = 0
+        mock_stat.st_mode = stat.S_IFREG | 0o0755  # No SUID
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.stat", return_value=mock_stat)
+
+        ok, msg = _validate_sudo_binary()
+        assert ok is False
+        assert "SUID" in msg
+
+
+class TestExecuteSudoSandboxed:
+    """Tests for _execute_sudo_sandboxed() execution path."""
+
+    def test_correct_subprocess_args(self, mocker):
+        """Verify the correct subprocess args are passed."""
+        mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
+        mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
+        mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        env = {"PATH": "/usr/bin"}
+        _execute_sudo_sandboxed("sudo ls -la", 0, env, "/tmp")
+
+        args = mock_run.call_args[0][0]
+        assert args[0] == SUDO_BINARY_PATH
+        assert args[1] == "env"
+        assert args[2] == "LD_PRELOAD=/opt/aegish/lib/landlock_sandboxer.so"
+        assert args[3] == "AEGISH_RUNNER_PATH=/opt/aegish/bin/runner"
+        assert args[4] == "/opt/aegish/bin/runner"
+        assert "--norc" in args
+        assert "--noprofile" in args
+        assert "-c" in args
+        assert args[-1] == "ls -la"
+
+    def test_no_preexec_fn(self, mocker):
+        """Verify no preexec_fn is passed to subprocess."""
+        mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
+        mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
+        mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/sandboxer.so")
+        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        _execute_sudo_sandboxed("sudo echo test", 0, {"PATH": "/usr/bin"}, "/tmp")
+
+        kwargs = mock_run.call_args.kwargs
+        assert "preexec_fn" not in kwargs
+
+    def test_env_returned_unchanged(self, mocker):
+        """Verify original env and cwd are returned unchanged."""
+        mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
+        mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
+        mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/sandboxer.so")
+        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        original_env = {"PATH": "/usr/bin", "HOME": "/home/test"}
+        original_cwd = "/home/test"
+        rc, env, cwd = _execute_sudo_sandboxed(
+            "sudo whoami", 0, original_env, original_cwd,
+        )
+
+        assert rc == 0
+        assert env is original_env
+        assert cwd is original_cwd
+
+    def test_fallback_on_missing_sandboxer(self, mocker):
+        """Falls back to execute_command without sudo on missing sandboxer."""
+        mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
+        mocker.patch("aegish.executor.validate_sandboxer_library",
+                     return_value=(False, "Sandboxer not found"))
+        mock_exec = mocker.patch("aegish.executor.execute_command",
+                                 return_value=(0, {"PATH": "/usr/bin"}, "/tmp"))
+
+        rc, env, cwd = _execute_sudo_sandboxed(
+            "sudo ls", 0, {"PATH": "/usr/bin"}, "/tmp",
+        )
+
+        # Should fall back to execute_command with stripped command
+        mock_exec.assert_called_once_with("ls", 0, {"PATH": "/usr/bin"}, "/tmp")
+
+    def test_fallback_on_invalid_sudo_binary(self, mocker):
+        """Falls back to execute_command without sudo on invalid sudo binary."""
+        mocker.patch("aegish.executor._validate_sudo_binary",
+                     return_value=(False, "sudo not found"))
+        mock_exec = mocker.patch("aegish.executor.execute_command",
+                                 return_value=(0, {"PATH": "/usr/bin"}, "/tmp"))
+
+        rc, env, cwd = _execute_sudo_sandboxed(
+            "sudo ls", 0, {"PATH": "/usr/bin"}, "/tmp",
+        )
+
+        mock_exec.assert_called_once_with("ls", 0, {"PATH": "/usr/bin"}, "/tmp")
+
+    def test_bare_sudo_fallback(self, mocker):
+        """Bare 'sudo' falls back to regular execute_command."""
+        mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
+        mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
+        mock_exec = mocker.patch("aegish.executor.execute_command",
+                                 return_value=(0, {"PATH": "/usr/bin"}, "/tmp"))
+
+        _execute_sudo_sandboxed("sudo", 0, {"PATH": "/usr/bin"}, "/tmp")
+
+        # Bare sudo falls back to execute_command("sudo", ...)
+        mock_exec.assert_called_once_with("sudo", 0, {"PATH": "/usr/bin"}, "/tmp")
+
+
+class TestExecuteCommandSudoDelegation:
+    """Tests for execute_command() delegation to _execute_sudo_sandboxed."""
+
+    def test_delegates_for_sysadmin_production_sudo(self, mocker):
+        """Delegates to sudo path for sysadmin + production + sudo command."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_role", return_value="sysadmin")
+        mock_sudo = mocker.patch(
+            "aegish.executor._execute_sudo_sandboxed",
+            return_value=(0, {"PATH": "/usr/bin"}, "/tmp"),
+        )
+
+        rc, env, cwd = execute_command("sudo ls -la")
+
+        mock_sudo.assert_called_once()
+        assert rc == 0
+
+    def test_no_delegation_for_default_role(self, mocker):
+        """Default role does NOT delegate to sudo path."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_role", return_value="default")
+        mock_sudo = mocker.patch("aegish.executor._execute_sudo_sandboxed")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("sudo ls")
+
+        mock_sudo.assert_not_called()
+
+    def test_no_delegation_for_restricted_role(self, mocker):
+        """Restricted role does NOT delegate to sudo path."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_role", return_value="restricted")
+        mock_sudo = mocker.patch("aegish.executor._execute_sudo_sandboxed")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("sudo ls")
+
+        mock_sudo.assert_not_called()
+
+    def test_no_delegation_in_dev_mode(self, mocker):
+        """Development mode does NOT delegate to sudo path."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        mock_sudo = mocker.patch("aegish.executor._execute_sudo_sandboxed")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("sudo ls")
+
+        mock_sudo.assert_not_called()
+
+    def test_no_delegation_for_non_sudo_command(self, mocker):
+        """Non-sudo commands in production + sysadmin do NOT delegate."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
+        mocker.patch("aegish.executor.get_role", return_value="sysadmin")
+        mock_sudo = mocker.patch("aegish.executor._execute_sudo_sandboxed")
+        mock_run = mocker.patch("subprocess.run")
+        mock_run.return_value = MagicMock(returncode=0)
+
+        execute_command("ls -la")
+
+        mock_sudo.assert_not_called()

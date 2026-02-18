@@ -10,6 +10,16 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _reset_session_model():
+    """Reset llm_client session model between tests."""
+    import aegish.llm_client as mod
+    old = mod._session_model
+    mod._session_model = None
+    yield
+    mod._session_model = old
+
+
 @pytest.fixture
 def mock_openai_provider():
     """Fixture that mocks OpenAI as the only available provider."""

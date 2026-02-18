@@ -470,6 +470,11 @@ Cache entries are keyed on full message content. The `envsubst` expansion (BYPAS
 | DD-16 | Shell scripts break in production mode | Acceptable for LLM agent wrapping; humans use dev mode |
 | DD-17 | Runner hardlink/copy (not symlink) for bash | Landlock resolves symlinks; hardlink has distinct path |
 | DD-18 | WARN for variable-in-command-position | False positives possible; WARN preserves user agency |
+| DD-19 | Post-elevation Landlock for sudo commands | Skip preexec_fn for sudo; sandboxer library sets NO_NEW_PRIVS + Landlock inside elevated process |
+
+---
+
+**Design Decision DD-19:** Post-elevation Landlock sandboxing for sysadmin sudo commands. **Rationale:** `PR_SET_NO_NEW_PRIVS` (required by Landlock) prevents SUID binaries like sudo from escalating privileges. For sysadmin users in production mode, the executor skips `preexec_fn` and lets sudo elevate first. The `LD_PRELOAD` sandboxer library then applies `NO_NEW_PRIVS` + Landlock inside the already-elevated process, blocking shell escapes even as root. Only `sudo <command>` is supported in v1; sudo flags like `-u`, `-E`, `-i` are not supported through this path (documented as known limitation). On pre-flight failure (invalid sudo binary or missing sandboxer), the executor falls back to running the stripped command without sudo.
 
 ---
 

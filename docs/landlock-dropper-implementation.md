@@ -266,8 +266,10 @@ Key design decisions:
   with `config.py` without hardcoding.
 - **`DENIED_SHELLS` hardcoded in C**: Must match `sandbox.py`. A discrepancy is a
   bug, but the list is stable (standard Unix shells).
-- **`prctl(PR_SET_NO_NEW_PRIVS)` is NOT called**: Already set by `preexec_fn` and
-  inherited across exec.
+- **`prctl(PR_SET_NO_NEW_PRIVS)` IS called in the constructor**: This makes the
+  library self-sufficient. For the normal path, Python's `preexec_fn` already set
+  it (idempotent, harmless to re-set). For the sudo post-elevation path (DD-19),
+  no `preexec_fn` runs, so the library must set it before `landlock_restrict_self()`.
 - **`__attribute__((constructor))`**: Runs during dynamic linking, before `main()`.
   This is the standard mechanism for LD_PRELOAD initialization.
 
@@ -547,3 +549,51 @@ def test_runner_in_command_substitution_blocked():
     result = run_in_aegish("echo $(/opt/aegish/bin/runner -c 'echo pwned')")
     assert "pwned" not in result.stdout
 ```
+
+## Sudo Post-Elevation Sandboxing (DD-19)
+
+In production mode, `preexec_fn` sets `PR_SET_NO_NEW_PRIVS` before `exec()`, which
+prevents SUID binaries like `sudo` from escalating privileges. Sysadmin users
+(`AEGISH_ROLE=sysadmin`) need sudo access while maintaining Landlock enforcement.
+
+### Solution: Skip preexec_fn, let sudo elevate first
+
+For sudo commands from sysadmin users, the executor skips `preexec_fn` entirely
+and builds a command that lets sudo elevate first:
+
+```
+sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> \
+    <runner> --norc --noprofile -c "<command>"
+```
+
+The sandboxer library's constructor now calls `prctl(PR_SET_NO_NEW_PRIVS)` itself
+(idempotent for the normal path where Python already set it). Inside the elevated
+process, the constructor applies `NO_NEW_PRIVS` + Landlock, blocking shell escapes
+even as root.
+
+### Execution flow (sudo path)
+
+```
+executor.py detects: production + sysadmin + sudo command
+  │
+  └─ subprocess.run(["sudo", "env", "LD_PRELOAD=...", runner, "-c", cmd])
+       │                                           (NO preexec_fn)
+       └─ sudo elevates to root
+            └─ env sets LD_PRELOAD and AEGISH_RUNNER_PATH
+                 └─ exec(runner -c CMD)
+                      │
+                      Dynamic linker loads LD_PRELOAD library:
+                      └─ constructor()
+                           ├─ prctl(PR_SET_NO_NEW_PRIVS)  ← set here, not by Python
+                           └─ landlock_restrict_self()     ← active in bash as root
+                      │
+                      └─ bash main() starts, evaluates CMD
+                           └─ CMD = "bash" → EPERM (Landlock denies even as root)
+```
+
+### Known limitations (v1)
+
+- Only `sudo <command>` supported. Sudo flags (`-u`, `-E`, `-i`) are not parsed.
+- Environment capture is not available (original env/cwd returned unchanged).
+- Pre-flight validates sudo binary (root-owned, SUID set) and sandboxer library.
+  On failure, falls back to running the stripped command without sudo.

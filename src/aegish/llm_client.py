@@ -21,7 +21,27 @@ import subprocess
 import time
 from pathlib import Path
 
+import litellm
 from litellm import completion
+
+# Suppress litellm's verbose "Provider List" URL printing
+litellm.suppress_debug_info = True
+
+# Sanitize API keys: strip leading/trailing whitespace (including \r from CRLF
+# line endings in .env files). litellm reads os.environ directly so dirty values
+# break HTTP headers before our get_api_key() ever sees them.
+from aegish.config import PROVIDER_ENV_VARS as _PROVIDER_ENV_VARS
+
+for _lookup in _PROVIDER_ENV_VARS.values():
+    _names = (_lookup,) if isinstance(_lookup, str) else _lookup
+    for _var in _names:
+        _val = os.environ.get(_var)
+        if _val and _val != _val.strip():
+            os.environ[_var] = _val.strip()
+
+# Bridge GOOGLE_API_KEY → GEMINI_API_KEY for litellm's gemini/ provider
+if not os.environ.get("GEMINI_API_KEY") and os.environ.get("GOOGLE_API_KEY"):
+    os.environ["GEMINI_API_KEY"] = os.environ["GOOGLE_API_KEY"]
 
 from aegish.json_utils import find_balanced_json
 
@@ -283,8 +303,78 @@ def _get_rate_limiter() -> _TokenBucket:
     return _rate_limiter
 
 
+def _friendly_error(model: str, exc: Exception) -> str:
+    """Extract a clean, one-line error message from a litellm exception.
+
+    Detects common root causes and returns actionable guidance instead of
+    raw tracebacks.
+
+    Args:
+        model: The model string that failed.
+        exc: The exception raised by litellm.
+
+    Returns:
+        A concise, human-readable error string.
+    """
+    msg = str(exc)
+    exc_type = type(exc).__name__
+
+    # Detect trailing \r in API keys (Windows line endings in .env files)
+    if "\\r" in msg or "\r" in msg or "Illegal header value" in msg:
+        provider = get_provider_from_model(model)
+        env_var_hints = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+        }
+        env_hint = env_var_hints.get(provider, "the API key")
+        return (
+            f"API key for '{provider}' has a trailing carriage return (\\r). "
+            f"This usually means your .env file has Windows-style (CRLF) line endings. "
+            f"Fix: run `sed -i 's/\\r$//' .env` or re-save with Unix (LF) line endings, "
+            f"then re-export {env_hint}."
+        )
+
+    # Detect invalid URL with \r (same root cause, different symptom)
+    if "Invalid non-printable ASCII character in URL" in msg:
+        provider = get_provider_from_model(model)
+        return (
+            f"API key for '{provider}' contains non-printable characters (likely \\r from CRLF line endings). "
+            f"Fix: run `sed -i 's/\\r$//' .env` and re-export the key."
+        )
+
+    # Detect connection errors
+    if "Connection error" in msg or "ConnectionError" in msg:
+        return f"Connection error — cannot reach {model}. Check network access and firewall rules."
+
+    # Detect missing provider
+    if "LLM Provider NOT provided" in msg:
+        return (
+            f"Unrecognized model format '{model}'. "
+            f"litellm could not determine the provider. "
+            f"Check the model string follows 'provider/model-name' format."
+        )
+
+    # Detect content filter / empty response
+    if "content_filter" in msg:
+        return f"Content filter activated for {model} — model refused to respond."
+
+    # Generic: extract just the first meaningful line, drop tracebacks
+    first_line = msg.split("\n")[0].strip()
+    # Strip nested litellm prefixes like "litellm.InternalServerError: InternalServerError:"
+    for prefix in ("litellm.InternalServerError: ", "litellm.BadRequestError: ",
+                    "litellm.APIConnectionError: ", "litellm.AuthenticationError: "):
+        if prefix in first_line:
+            first_line = first_line.split(prefix, 1)[-1]
+    return f"{exc_type}: {first_line}"
+
+
 # Health check timeout in seconds
 HEALTH_CHECK_TIMEOUT = 5
+
+# Session-pinned model: set by health_check(), used by query_llm()
+# to skip models that failed at startup.
+_session_model: str | None = None
 
 
 def health_check() -> tuple[bool, str, str | None]:
@@ -305,21 +395,31 @@ def health_check() -> tuple[bool, str, str | None]:
     if not model_chain:
         return (False, "No models configured", None)
 
-    last_error = ""
+    global _session_model
+
+    errors: dict[str, list[str]] = {}  # error_msg -> [model, ...]
     for model in model_chain:
         success, error = _health_check_model(model)
         if success:
+            _session_model = model
             if model != model_chain[0]:
                 logger.info(
                     "Health check: primary model failed, using fallback %s",
                     model,
                 )
             return (True, "", model)
-        last_error = error
+        errors.setdefault(error, []).append(model)
         logger.debug("Health check failed for %s: %s", model, error)
 
-    # All models failed; report last error
-    return (False, last_error, None)
+    # All models failed; build a deduplicated summary
+    parts = []
+    for error, models in errors.items():
+        if len(models) == 1:
+            parts.append(f"  {models[0]}: {error}")
+        else:
+            parts.append(f"  {', '.join(models)}: {error}")
+    summary = "Health check failed for all models:\n" + "\n".join(parts)
+    return (False, summary, None)
 
 
 def _health_check_model(model: str) -> tuple[bool, str]:
@@ -371,11 +471,9 @@ def _health_check_model(model: str) -> tuple[bool, str]:
         return (True, "")
 
     except Exception as e:
-        logger.warning(
-            "Health check failed for %s: %s: %s",
-            model, type(e).__name__, e,
-        )
-        return (False, f"{type(e).__name__}: {e}")
+        friendly = _friendly_error(model, e)
+        logger.warning("Health check failed for %s: %s", model, friendly)
+        return (False, friendly)
 
 
 def query_llm(command: str) -> dict:
@@ -418,8 +516,13 @@ def query_llm(command: str) -> dict:
     if waited > 0:
         logger.info("Rate limit: waited %.1f seconds", waited)
 
-    # Get the ordered model chain from config
+    # Get the ordered model chain from config.
+    # If health check pinned a session model, start from that model
+    # (skip models that failed at startup).
     model_chain = get_model_chain()
+    if _session_model and _session_model in model_chain:
+        idx = model_chain.index(_session_model)
+        model_chain = model_chain[idx:]
 
     # Resolve allowed providers once for the entire filtering pass
     allowed_providers = get_allowed_providers()
@@ -479,12 +582,12 @@ def query_llm(command: str) -> dict:
             logger.warning("Parsing failed for %s, trying next model", model)
 
         except Exception as e:
-            last_error = f"{model}: {type(e).__name__}: {str(e)}"
+            friendly = _friendly_error(model, e)
+            last_error = f"{model}: {friendly}"
             logger.warning(
-                "Model %s failed (%s: %s), trying next model",
+                "Model %s failed (%s), trying next model",
                 model,
-                type(e).__name__,
-                str(e),
+                friendly,
             )
             continue
 

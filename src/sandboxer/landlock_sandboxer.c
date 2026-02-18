@@ -11,8 +11,10 @@
  *   On failure, calls _exit(126) to abort the process before bash
  *   can run any user commands. This is fail-safe.
  *
- * prctl(PR_SET_NO_NEW_PRIVS) is NOT called here -- it is already set
- * by the Python preexec_fn and inherited across exec().
+ * prctl(PR_SET_NO_NEW_PRIVS) is called here to make the library
+ * self-sufficient. For the normal path, Python's preexec_fn already
+ * set it (idempotent). For the sudo path, no preexec_fn runs, so
+ * the library must set it before landlock_restrict_self().
  */
 
 #define _GNU_SOURCE
@@ -24,6 +26,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/prctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -160,7 +163,16 @@ static void apply_sandbox(void) {
     }
     free(path_copy);
 
-    /* 4. Activate Landlock */
+    /* 4. Ensure NO_NEW_PRIVS is set (required by landlock_restrict_self).
+     *    Idempotent: harmless if already set by Python preexec_fn.
+     *    Essential for the sudo path where no preexec_fn runs. */
+    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
+        perror("landlock_sandboxer: prctl(NO_NEW_PRIVS)");
+        close(ruleset_fd);
+        _exit(126);
+    }
+
+    /* 5. Activate Landlock */
     if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0) != 0) {
         perror("landlock_sandboxer: restrict_self");
         close(ruleset_fd);

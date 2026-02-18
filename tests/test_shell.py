@@ -319,7 +319,7 @@ class TestStartupModeBanner:
                     with pytest.raises(SystemExit):
                         run_shell()
                     captured = capsys.readouterr()
-                    assert "Mode: production (login shell + Landlock enforcement)" in captured.out
+                    assert "Mode:      production (login shell + Landlock)" in captured.out
 
     def test_development_mode_displayed_in_banner(self, capsys):
         """AC3: Development mode banner shows mode."""
@@ -327,7 +327,7 @@ class TestStartupModeBanner:
             with patch("builtins.input", side_effect=["exit"]):
                 run_shell()
                 captured = capsys.readouterr()
-                assert "Mode: development" in captured.out
+                assert "Mode:      development" in captured.out
 
 
 class TestStartupHealthCheck:
@@ -347,8 +347,7 @@ class TestStartupHealthCheck:
                 run_shell()
 
                 captured = capsys.readouterr()
-                assert "WARNING: Health check failed" in captured.out
-                assert "primary model did not respond correctly" in captured.out
+                assert "WARNING: All models unreachable" in captured.out
                 assert "degraded mode" in captured.out.lower()
 
     def test_startup_silent_on_health_check_success(self, capsys):
@@ -393,7 +392,7 @@ class TestStartupFailModeBanner:
                 with patch("builtins.input", side_effect=["exit"]):
                     run_shell()
                     captured = capsys.readouterr()
-                    assert "Fail mode: safe (block on validation failure)" in captured.out
+                    assert "Fail mode: safe (block on error)" in captured.out
 
     def test_open_mode_displayed_in_banner(self, capsys):
         """AC3: Open fail mode banner."""
@@ -402,7 +401,7 @@ class TestStartupFailModeBanner:
                 with patch("builtins.input", side_effect=["exit"]):
                     run_shell()
                     captured = capsys.readouterr()
-                    assert "Fail mode: open (warn on validation failure)" in captured.out
+                    assert "Fail mode: open (warn on error)" in captured.out
 
     def test_both_mode_and_fail_mode_displayed(self, capsys):
         """AC5: Production mode and fail mode shown independently."""
@@ -413,7 +412,7 @@ class TestStartupFailModeBanner:
                         with pytest.raises(SystemExit):
                             run_shell()
                         captured = capsys.readouterr()
-                        assert "Mode: production" in captured.out
+                        assert "production" in captured.out
                         assert "Fail mode: open" in captured.out
 
 
@@ -725,8 +724,8 @@ class TestLoginShellWarning:
                 with patch("builtins.input", side_effect=["exit"]):
                     run_shell()
                     captured = capsys.readouterr()
-                    assert "This is your login shell" in captured.out
-                    assert "API unreachable" in captured.out
+                    assert "login shell" in captured.out
+                    assert "commands may be blocked" in captured.out
 
     def test_non_login_shell_health_check_failure_message(self, capsys):
         """Health check failure uses standard message for non-login shell."""
@@ -735,5 +734,5 @@ class TestLoginShellWarning:
                 with patch("builtins.input", side_effect=["exit"]):
                     run_shell()
                     captured = capsys.readouterr()
-                    assert "This is your login shell" not in captured.out
-                    assert "Operating in degraded mode" in captured.out
+                    assert "login shell" not in captured.out
+                    assert "degraded mode" in captured.out.lower()

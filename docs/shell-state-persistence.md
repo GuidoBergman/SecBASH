@@ -143,6 +143,8 @@ The pipe-based env capture is compatible with the existing two-layer Landlock sa
 
 **Pipes are invisible to Landlock.** Landlock restricts path-based filesystem operations (`open`, `execve` on paths). `os.pipe()` creates kernel-level FDs with no filesystem path. `write(fd, ...)` on a pipe is not a path-based operation, so neither Landlock layer can block it.
 
+**Sudo commands skip env capture.** When a sysadmin user runs a `sudo` command in production mode, the executor uses a separate path (`_execute_sudo_sandboxed`) that does not create an env capture pipe. The original env and cwd are returned unchanged. This is a known limitation — sudo commands cannot update the shell's environment state.
+
 **`pass_fds` must include both the Landlock ruleset FD and the pipe FD.** CPython's `subprocess.run` defaults to `close_fds=True`, which closes all FDs not in `pass_fds`. Both FDs must be listed:
 
 ```

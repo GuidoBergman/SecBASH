@@ -1243,6 +1243,53 @@ So that **the counts stay accurate as datasets are updated**.
 
 ### Story 15.5: Update Stale .gitignore and .env.example
 
+---
+
+## Epic 16: Sudo Post-Elevation Sandboxing
+
+**Goal:** Enable sysadmin users in production mode to run `sudo` commands while maintaining Landlock sandboxing after privilege elevation.
+
+### Story 16.1: Sudo Post-Elevation Sandboxing
+
+**Addresses:** DD-19 (Post-elevation Landlock for sudo commands)
+**Depends on:** Story 14.2 (Landlock Dropper Implementation), Story 12.4 (Role-Based Trust Levels)
+
+As a **sysadmin user in production mode**,
+I want **to run `sudo` commands that are validated by the LLM**,
+So that **I can perform privileged operations while shell escapes are still blocked by Landlock even as root**.
+
+**Acceptance Criteria:**
+
+**Given** `AEGISH_ROLE=sysadmin` and `AEGISH_MODE=production`
+**When** a `sudo whoami` command is executed
+**Then** the command runs as root and outputs `root`
+**And** Landlock blocks shell escapes (bash, sh) even as root
+
+**Given** `AEGISH_ROLE=default` and `AEGISH_MODE=production`
+**When** a `sudo ls` command is executed
+**Then** the sudo path is NOT used (delegation does not occur)
+
+**Given** `AEGISH_MODE=development`
+**When** a `sudo ls` command is executed
+**Then** the sudo path is NOT used (normal execution)
+
+**Given** the sandboxer library is missing
+**When** a sysadmin runs `sudo ls` in production
+**Then** the command falls back to running `ls` without sudo (fail-safe)
+
+**Known Limitation (v1):** Only `sudo <command>` is supported. Sudo flags like `-u`, `-E`, `-i` are not supported through this path.
+
+**Tasks:**
+- [x] Add `prctl(PR_SET_NO_NEW_PRIVS)` to the C sandboxer library constructor (idempotent)
+- [x] Add `_is_sudo_command()`, `_strip_sudo_prefix()`, `_validate_sudo_binary()` helpers in `executor.py`
+- [x] Add `_execute_sudo_sandboxed()` function that builds the sudo + LD_PRELOAD command
+- [x] Add delegation check at the top of `execute_command()` for production + sysadmin + sudo
+- [x] Add sudo to Dockerfile and sudoers entry for testuser
+- [x] Add unit tests (~28 tests) for sudo detection, stripping, validation, execution, delegation
+- [x] Add Docker integration tests for sudo + Landlock sandboxing
+
+**Files:** `src/sandboxer/landlock_sandboxer.c`, `src/aegish/executor.py`, `tests/Dockerfile.production`, `tests/test_executor.py`, `tests/test_production_mode.py`
+
 **Addresses:** CV-44 (Stale .gitignore and .env.example References)
 
 As a **developer**,
