@@ -55,33 +55,38 @@ class TestEnvSubstExpansion:
             mock_sub.run.assert_not_called()
 
     def test_sensitive_var_filtered_from_expansion_env(self):
-        """Sensitive variables (API keys) not leaked into envsubst env."""
+        """Sensitive variables (API keys) not leaked when filtering enabled."""
         with patch.dict(
             os.environ,
             {"OPENAI_API_KEY": "sk-secret", "HOME": "/home/user"},
             clear=True,
         ):
-            safe = _get_safe_env()
-            assert "OPENAI_API_KEY" not in safe
-            assert safe["HOME"] == "/home/user"
+            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+                safe = _get_safe_env()
+                assert "OPENAI_API_KEY" not in safe
+                assert safe["HOME"] == "/home/user"
 
 
 class TestBashlexDetection:
     """Task 1.2: bashlex variable-in-command-position detection."""
 
-    def test_var_in_command_position_returns_warn(self):
-        """AC3: a=ba; b=sh; $a$b returns WARN with expected reason."""
+    def test_var_in_command_position_returns_block(self):
+        """AC3: a=ba; b=sh; $a$b returns BLOCK (default action since Story 10.1)."""
         result = validate_command("a=ba; b=sh; $a$b")
-        assert result["action"] == "warn"
+        assert result["action"] == "block"
         assert "Variable expansion in command position" in result["reason"]
         assert result["confidence"] == 1.0
 
     def test_safe_echo_var_passes_through(self):
-        """AC4: FOO=bar; echo $FOO passes through to LLM (returns None from bashlex)."""
+        """AC4: FOO=bar; echo $FOO passes through to LLM.
+
+        Note: compound commands are now decomposed (Story 10.4), so each
+        subcommand is validated independently via LLM.
+        """
         mock_result = {"action": "allow", "reason": "Safe echo", "confidence": 0.9}
         with patch("aegish.validator.query_llm", return_value=mock_result) as mock_q:
             result = validate_command("FOO=bar; echo $FOO")
-            mock_q.assert_called_once()
+            assert mock_q.call_count == 2  # Decomposed into 2 subcommands
             assert result["action"] == "allow"
 
     def test_unparseable_command_falls_through_to_llm(self):
@@ -93,11 +98,11 @@ class TestBashlexDetection:
             assert result["action"] == "allow"
 
     def test_bashlex_short_circuits_before_llm(self):
-        """Bashlex WARN prevents any LLM call."""
+        """Bashlex BLOCK (default since Story 10.1) prevents any LLM call."""
         with patch("aegish.validator.query_llm") as mock_q:
             result = validate_command("a=ba; b=sh; $a$b")
             mock_q.assert_not_called()
-            assert result["action"] == "warn"
+            assert result["action"] == "block"
 
 
 class TestCommandDelimiters:

@@ -4,30 +4,37 @@ import os
 from unittest.mock import MagicMock, sentinel
 
 from aegish.executor import (
-    DANGEROUS_ENV_VARS,
+    ALLOWED_ENV_PREFIXES,
+    ALLOWED_ENV_VARS,
+    DEFAULT_SANDBOXER_PATH,
     _build_safe_env,
+    _get_sandboxer_path,
     _get_shell_binary,
     _sandbox_kwargs,
     execute_command,
+    is_bare_cd,
+    parse_nul_env,
+    resolve_cd,
     run_bash_command,
+    sanitize_env,
 )
 
 
 def test_execute_command_exit_code_success():
     """Test that successful commands return 0."""
-    exit_code = execute_command("true")
+    exit_code, _, _ = execute_command("true")
     assert exit_code == 0
 
 
 def test_execute_command_exit_code_failure():
     """Test that failed commands return non-zero."""
-    exit_code = execute_command("false")
+    exit_code, _, _ = execute_command("false")
     assert exit_code == 1
 
 
 def test_execute_command_specific_exit_code():
     """Test that specific exit codes are preserved."""
-    exit_code = execute_command("exit 42")
+    exit_code, _, _ = execute_command("exit 42")
     assert exit_code == 42
 
 
@@ -47,13 +54,13 @@ def test_run_bash_command_captures_stderr():
 
 def test_execute_command_with_pipe():
     """Test that pipes work correctly."""
-    exit_code = execute_command("echo hello | grep hello")
+    exit_code, _, _ = execute_command("echo hello | grep hello")
     assert exit_code == 0
 
 
 def test_execute_command_with_failed_pipe():
     """Test that failed pipe commands return non-zero."""
-    exit_code = execute_command("echo hello | grep goodbye")
+    exit_code, _, _ = execute_command("echo hello | grep goodbye")
     assert exit_code == 1
 
 
@@ -66,7 +73,7 @@ def test_execute_command_last_exit_code():
 def test_execute_command_preserves_last_exit():
     """Test that execute_command sets $? correctly."""
     # First run fails
-    exit_code = execute_command("false")
+    exit_code, _, _ = execute_command("false")
     assert exit_code == 1
 
     # Check that $? is 1 in the next command
@@ -349,7 +356,7 @@ def test_exit_code_nonexistent_file():
 def test_exit_code_range():
     """Test various exit codes in valid range are preserved (AC3)."""
     for code in [0, 1, 2, 127, 128, 255]:
-        exit_code = execute_command(f"exit {code}")
+        exit_code, _, _ = execute_command(f"exit {code}")
         assert exit_code == code, f"Expected {code}, got {exit_code}"
 
 
@@ -426,7 +433,7 @@ def test_exit_code_command_not_found():
 
 
 class TestBuildSafeEnv:
-    """Tests for _build_safe_env() environment sanitization (AC1, AC2, AC3)."""
+    """Tests for _build_safe_env() allowlist-based environment sanitization."""
 
     # --- Edge case: empty environment ---
 
@@ -436,69 +443,134 @@ class TestBuildSafeEnv:
         env = _build_safe_env()
         assert env == {}
 
-    # --- Task 1.1: Each DANGEROUS_ENV_VARS member is stripped individually ---
+    # --- AC1: Allowlist replaces blocklist ---
 
-    def test_bash_env_stripped(self, mocker):
-        """AC1: BASH_ENV is stripped from environment."""
+    def test_allowed_env_vars_has_expected_entries(self):
+        """Verify ALLOWED_ENV_VARS constant has the expected entries."""
+        expected = {
+            "PATH", "HOME", "USER", "LOGNAME", "SHELL",
+            "PWD", "OLDPWD", "SHLVL",
+            "TERM", "COLORTERM", "TERM_PROGRAM",
+            "LANG", "LANGUAGE", "TZ", "TMPDIR",
+            "DISPLAY", "WAYLAND_DISPLAY",
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GPG_AGENT_INFO",
+            "DBUS_SESSION_BUS_ADDRESS", "HOSTNAME",
+        }
+        assert ALLOWED_ENV_VARS == expected
+
+    def test_allowed_env_prefixes(self):
+        """Verify ALLOWED_ENV_PREFIXES tuple."""
+        assert ALLOWED_ENV_PREFIXES == ("LC_", "XDG_", "AEGISH_")
+
+    # --- AC2: Standard variables preserved ---
+
+    def test_path_preserved(self, mocker):
+        """AC2: PATH is preserved."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin:/usr/local/bin"}, clear=True)
+        env = _build_safe_env()
+        assert env["PATH"] == "/usr/bin:/usr/local/bin"
+
+    def test_home_preserved(self, mocker):
+        """AC2: HOME is preserved."""
+        mocker.patch.dict(os.environ, {"HOME": "/home/user"}, clear=True)
+        env = _build_safe_env()
+        assert env["HOME"] == "/home/user"
+
+    def test_user_preserved(self, mocker):
+        """AC2: USER is preserved."""
+        mocker.patch.dict(os.environ, {"USER": "testuser"}, clear=True)
+        env = _build_safe_env()
+        assert env["USER"] == "testuser"
+
+    def test_term_preserved(self, mocker):
+        """AC2: TERM is preserved."""
+        mocker.patch.dict(os.environ, {"TERM": "xterm-256color"}, clear=True)
+        env = _build_safe_env()
+        assert env["TERM"] == "xterm-256color"
+
+    def test_all_allowed_vars_preserved(self, mocker):
+        """AC2: All ALLOWED_ENV_VARS are preserved when present."""
+        test_env = {var: f"value_{var}" for var in ALLOWED_ENV_VARS}
+        mocker.patch.dict(os.environ, test_env, clear=True)
+        env = _build_safe_env()
+        for var in ALLOWED_ENV_VARS:
+            assert env[var] == f"value_{var}", f"{var} should be preserved"
+
+    # --- AC3: Safe prefixes preserved ---
+
+    def test_lc_prefix_preserved(self, mocker):
+        """AC3: LC_* variables are preserved via prefix matching."""
+        mocker.patch.dict(os.environ, {"LC_ALL": "en_US.UTF-8", "LC_CTYPE": "en_US.UTF-8"}, clear=True)
+        env = _build_safe_env()
+        assert env["LC_ALL"] == "en_US.UTF-8"
+        assert env["LC_CTYPE"] == "en_US.UTF-8"
+
+    def test_xdg_prefix_preserved(self, mocker):
+        """AC3: XDG_* variables are preserved via prefix matching."""
+        mocker.patch.dict(os.environ, {"XDG_RUNTIME_DIR": "/run/user/1000"}, clear=True)
+        env = _build_safe_env()
+        assert env["XDG_RUNTIME_DIR"] == "/run/user/1000"
+
+    def test_aegish_prefix_preserved(self, mocker):
+        """AC3: AEGISH_* variables are preserved via prefix matching."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "production", "AEGISH_FAIL_MODE": "safe"}, clear=True)
+        env = _build_safe_env()
+        assert env["AEGISH_MODE"] == "production"
+        assert env["AEGISH_FAIL_MODE"] == "safe"
+
+    # --- AC4: Dangerous variables blocked ---
+
+    def test_ld_preload_blocked(self, mocker):
+        """AC4: LD_PRELOAD is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "LD_PRELOAD": "/tmp/evil.so"}, clear=True)
+        env = _build_safe_env()
+        assert "LD_PRELOAD" not in env
+        assert env["PATH"] == "/usr/bin"
+
+    def test_ld_library_path_blocked(self, mocker):
+        """AC4: LD_LIBRARY_PATH is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "LD_LIBRARY_PATH": "/tmp"}, clear=True)
+        env = _build_safe_env()
+        assert "LD_LIBRARY_PATH" not in env
+
+    def test_ld_audit_blocked(self, mocker):
+        """AC4: LD_AUDIT is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "LD_AUDIT": "/tmp/audit.so"}, clear=True)
+        env = _build_safe_env()
+        assert "LD_AUDIT" not in env
+
+    def test_bash_env_blocked(self, mocker):
+        """AC4: BASH_ENV is blocked (not on allowlist)."""
         mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "BASH_ENV": "/tmp/hook.sh"}, clear=True)
         env = _build_safe_env()
         assert "BASH_ENV" not in env
-        assert env["PATH"] == "/usr/bin"
 
-    def test_env_stripped(self, mocker):
-        """AC1: ENV is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "ENV": "/tmp/hook.sh"}, clear=True)
+    def test_bash_loadables_path_blocked(self, mocker):
+        """AC4: BASH_LOADABLES_PATH is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "BASH_LOADABLES_PATH": "/tmp"}, clear=True)
         env = _build_safe_env()
-        assert "ENV" not in env
+        assert "BASH_LOADABLES_PATH" not in env
 
-    def test_prompt_command_stripped(self, mocker):
-        """AC1: PROMPT_COMMAND is stripped from environment."""
+    def test_prompt_command_blocked(self, mocker):
+        """AC4: PROMPT_COMMAND is blocked (not on allowlist)."""
         mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PROMPT_COMMAND": "evil"}, clear=True)
         env = _build_safe_env()
         assert "PROMPT_COMMAND" not in env
 
-    def test_editor_stripped(self, mocker):
-        """AC1: EDITOR is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "EDITOR": "vim"}, clear=True)
+    def test_shellopts_blocked(self, mocker):
+        """AC4: SHELLOPTS is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "SHELLOPTS": "xtrace"}, clear=True)
         env = _build_safe_env()
-        assert "EDITOR" not in env
+        assert "SHELLOPTS" not in env
 
-    def test_visual_stripped(self, mocker):
-        """AC1: VISUAL is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "VISUAL": "vim"}, clear=True)
+    def test_pythonpath_blocked(self, mocker):
+        """AC4: PYTHONPATH is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PYTHONPATH": "/tmp"}, clear=True)
         env = _build_safe_env()
-        assert "VISUAL" not in env
+        assert "PYTHONPATH" not in env
 
-    def test_pager_stripped(self, mocker):
-        """AC1: PAGER is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PAGER": "less"}, clear=True)
-        env = _build_safe_env()
-        assert "PAGER" not in env
-
-    def test_git_pager_stripped(self, mocker):
-        """AC1: GIT_PAGER is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "GIT_PAGER": "less"}, clear=True)
-        env = _build_safe_env()
-        assert "GIT_PAGER" not in env
-
-    def test_manpager_stripped(self, mocker):
-        """AC1: MANPAGER is stripped from environment."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "MANPAGER": "less"}, clear=True)
-        env = _build_safe_env()
-        assert "MANPAGER" not in env
-
-    def test_dangerous_env_vars_has_exactly_eight_entries(self):
-        """Verify DANGEROUS_ENV_VARS constant has exactly 8 entries."""
-        assert len(DANGEROUS_ENV_VARS) == 8
-        assert DANGEROUS_ENV_VARS == {
-            "BASH_ENV", "ENV", "PROMPT_COMMAND",
-            "EDITOR", "VISUAL", "PAGER", "GIT_PAGER", "MANPAGER",
-        }
-
-    # --- Task 1.2: BASH_FUNC_* prefix variables stripped ---
-
-    def test_bash_func_prefix_stripped(self, mocker):
-        """AC2: BASH_FUNC_* variables are stripped."""
+    def test_bash_func_prefix_blocked(self, mocker):
+        """AC4: BASH_FUNC_* variables are blocked (not on allowlist)."""
         mocker.patch.dict(os.environ, {
             "PATH": "/usr/bin",
             "BASH_FUNC_myfunc%%": "() { echo pwned; }",
@@ -507,119 +579,71 @@ class TestBuildSafeEnv:
         assert "BASH_FUNC_myfunc%%" not in env
         assert env["PATH"] == "/usr/bin"
 
-    def test_multiple_bash_func_prefixes_stripped(self, mocker):
-        """AC2: Multiple BASH_FUNC_* variables are all stripped."""
-        mocker.patch.dict(os.environ, {
-            "PATH": "/usr/bin",
-            "BASH_FUNC_foo%%": "() { echo foo; }",
-            "BASH_FUNC_bar%%": "() { echo bar; }",
-            "BASH_FUNC_baz%%": "() { echo baz; }",
-        }, clear=True)
+    def test_env_var_blocked(self, mocker):
+        """AC4: ENV is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "ENV": "/tmp/hook.sh"}, clear=True)
         env = _build_safe_env()
-        bash_func_keys = [k for k in env if k.startswith("BASH_FUNC_")]
-        assert bash_func_keys == []
+        assert "ENV" not in env
 
-    def test_bash_func_without_percent_suffix_stripped(self, mocker):
-        """AC2: BASH_FUNC_ prefix without %% suffix is also stripped."""
-        mocker.patch.dict(os.environ, {
-            "PATH": "/usr/bin",
-            "BASH_FUNC_exploit": "malicious",
-        }, clear=True)
+    def test_ps4_blocked(self, mocker):
+        """AC4: PS4 is blocked (not on allowlist)."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin", "PS4": "$(evil)"}, clear=True)
         env = _build_safe_env()
-        assert "BASH_FUNC_exploit" not in env
-        assert env["PATH"] == "/usr/bin"
+        assert "PS4" not in env
 
-    # --- Task 1.3: PATH, HOME, USER preserved ---
+    # --- API keys no longer preserved (not on allowlist) ---
 
-    def test_path_preserved(self, mocker):
-        """AC3: PATH is preserved."""
-        mocker.patch.dict(os.environ, {"PATH": "/usr/bin:/usr/local/bin"}, clear=True)
-        env = _build_safe_env()
-        assert env["PATH"] == "/usr/bin:/usr/local/bin"
-
-    def test_home_preserved(self, mocker):
-        """AC3: HOME is preserved."""
-        mocker.patch.dict(os.environ, {"HOME": "/home/user"}, clear=True)
-        env = _build_safe_env()
-        assert env["HOME"] == "/home/user"
-
-    def test_user_preserved(self, mocker):
-        """AC3: USER is preserved."""
-        mocker.patch.dict(os.environ, {"USER": "testuser"}, clear=True)
-        env = _build_safe_env()
-        assert env["USER"] == "testuser"
-
-    # --- Task 1.4: API keys preserved ---
-
-    def test_openai_api_key_preserved(self, mocker):
-        """AC3: OPENAI_API_KEY is preserved."""
+    def test_openai_api_key_blocked(self, mocker):
+        """API keys are NOT on the allowlist (passed via AEGISH_ prefix instead)."""
         mocker.patch.dict(os.environ, {"OPENAI_API_KEY": "sk-test123"}, clear=True)
         env = _build_safe_env()
-        assert env["OPENAI_API_KEY"] == "sk-test123"
+        assert "OPENAI_API_KEY" not in env
 
-    def test_anthropic_api_key_preserved(self, mocker):
-        """AC3: ANTHROPIC_API_KEY is preserved."""
-        mocker.patch.dict(os.environ, {"ANTHROPIC_API_KEY": "sk-ant-test"}, clear=True)
+    def test_custom_vars_blocked(self, mocker):
+        """Custom variables like JAVA_HOME are not on the allowlist."""
+        mocker.patch.dict(os.environ, {"JAVA_HOME": "/usr/lib/jvm"}, clear=True)
         env = _build_safe_env()
-        assert env["ANTHROPIC_API_KEY"] == "sk-ant-test"
+        assert "JAVA_HOME" not in env
 
-    # --- Task 1.5: Custom user variables preserved ---
+    # --- Combined scenario ---
 
-    def test_java_home_preserved(self, mocker):
-        """AC3: Custom variable JAVA_HOME is preserved."""
-        mocker.patch.dict(os.environ, {"JAVA_HOME": "/usr/lib/jvm/java-17"}, clear=True)
-        env = _build_safe_env()
-        assert env["JAVA_HOME"] == "/usr/lib/jvm/java-17"
-
-    def test_gopath_preserved(self, mocker):
-        """AC3: Custom variable GOPATH is preserved."""
-        mocker.patch.dict(os.environ, {"GOPATH": "/home/user/go"}, clear=True)
-        env = _build_safe_env()
-        assert env["GOPATH"] == "/home/user/go"
-
-    def test_node_env_preserved(self, mocker):
-        """AC3: Custom variable NODE_ENV is preserved."""
-        mocker.patch.dict(os.environ, {"NODE_ENV": "production"}, clear=True)
-        env = _build_safe_env()
-        assert env["NODE_ENV"] == "production"
-
-    # --- Task 1.6: Combined scenario ---
-
-    def test_combined_dangerous_and_safe_vars(self, mocker):
-        """AC1+AC2+AC3: Only dangerous vars stripped, safe vars preserved in same env."""
+    def test_combined_allowed_and_blocked(self, mocker):
+        """Only allowlisted vars pass through; everything else is blocked."""
         mocker.patch.dict(os.environ, {
-            # Safe vars (5)
+            # Allowed by exact match
             "PATH": "/usr/bin",
             "HOME": "/home/user",
             "USER": "testuser",
+            # Allowed by prefix
+            "LC_ALL": "en_US.UTF-8",
+            "XDG_DATA_HOME": "/home/user/.local/share",
+            "AEGISH_MODE": "development",
+            # Blocked (not on allowlist)
+            "BASH_ENV": "/tmp/evil.sh",
+            "LD_PRELOAD": "/tmp/evil.so",
+            "PROMPT_COMMAND": "curl evil.com",
             "OPENAI_API_KEY": "sk-test",
             "JAVA_HOME": "/usr/lib/jvm",
-            # All 8 DANGEROUS_ENV_VARS
-            "BASH_ENV": "/tmp/evil.sh",
-            "ENV": "/tmp/evil.sh",
-            "PROMPT_COMMAND": "curl evil.com",
-            "EDITOR": "/tmp/evil",
-            "VISUAL": "/tmp/evil",
-            "PAGER": "/tmp/evil",
-            "GIT_PAGER": "/tmp/evil",
-            "MANPAGER": "/tmp/evil",
-            # BASH_FUNC_ prefix
             "BASH_FUNC_exploit%%": "() { echo pwned; }",
         }, clear=True)
         env = _build_safe_env()
 
-        # All 8 dangerous vars stripped
-        for var in DANGEROUS_ENV_VARS:
-            assert var not in env, f"{var} should be stripped"
-        assert "BASH_FUNC_exploit%%" not in env
-
-        # Safe vars preserved
+        # Allowed vars preserved
         assert env["PATH"] == "/usr/bin"
         assert env["HOME"] == "/home/user"
         assert env["USER"] == "testuser"
-        assert env["OPENAI_API_KEY"] == "sk-test"
-        assert env["JAVA_HOME"] == "/usr/lib/jvm"
-        assert len(env) == 5
+        assert env["LC_ALL"] == "en_US.UTF-8"
+        assert env["XDG_DATA_HOME"] == "/home/user/.local/share"
+        assert env["AEGISH_MODE"] == "development"
+
+        # Blocked vars absent
+        assert "BASH_ENV" not in env
+        assert "LD_PRELOAD" not in env
+        assert "PROMPT_COMMAND" not in env
+        assert "OPENAI_API_KEY" not in env
+        assert "JAVA_HOME" not in env
+        assert "BASH_FUNC_exploit%%" not in env
+        assert len(env) == 6
 
 
 class TestExecuteCommandHardening:
@@ -742,13 +766,15 @@ class TestGetShellBinary:
         result = _get_shell_binary()
         assert result == "/opt/aegish/bin/runner"
 
-    def test_production_mode_custom_runner_path(self, mocker):
-        """AC4: Production mode with custom AEGISH_RUNNER_PATH."""
+    def test_production_mode_ignores_custom_runner_path(self, mocker):
+        """Story 13.4: Production mode hardcodes runner path, ignores env var."""
         mocker.patch.dict(os.environ, {
             "AEGISH_MODE": "production",
             "AEGISH_RUNNER_PATH": "/custom/runner",
         }, clear=True)
-        assert _get_shell_binary() == "/custom/runner"
+        # In production, runner path is always the hardcoded production path
+        from aegish.config import PRODUCTION_RUNNER_PATH
+        assert _get_shell_binary() == PRODUCTION_RUNNER_PATH
 
 
 class TestExecuteCommandRunner:
@@ -792,49 +818,109 @@ class TestExecuteCommandRunner:
 
 
 # =============================================================================
-# Story 8.5: Landlock Sandbox Integration Tests
+# Story 14.2: LD_PRELOAD Sandboxer Integration Tests
 # =============================================================================
 
 
+class TestSandboxerPath:
+    """Tests for _get_sandboxer_path() helper."""
+
+    def test_default_path(self, mocker):
+        """Returns default path when env var not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert _get_sandboxer_path() == DEFAULT_SANDBOXER_PATH
+
+    def test_custom_path(self, mocker):
+        """Returns custom path from AEGISH_SANDBOXER_PATH."""
+        mocker.patch.dict(os.environ, {"AEGISH_SANDBOXER_PATH": "/custom/lib.so"}, clear=True)
+        assert _get_sandboxer_path() == "/custom/lib.so"
+
+
+class TestBuildSafeEnvLdPreload:
+    """Tests for LD_PRELOAD injection in _build_safe_env() (Story 14.2)."""
+
+    def test_dev_mode_no_ld_preload(self, mocker):
+        """Development mode does NOT inject LD_PRELOAD."""
+        mocker.patch.dict(os.environ, {"PATH": "/usr/bin"}, clear=True)
+        env = _build_safe_env()
+        assert "LD_PRELOAD" not in env
+
+    def test_prod_mode_injects_ld_preload(self, mocker):
+        """Production mode injects LD_PRELOAD with sandboxer path."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "AEGISH_MODE": "production",
+        }, clear=True)
+        env = _build_safe_env()
+        assert env["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
+
+    def test_prod_mode_injects_runner_path(self, mocker):
+        """Production mode injects AEGISH_RUNNER_PATH for the C library."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "AEGISH_MODE": "production",
+        }, clear=True)
+        env = _build_safe_env()
+        assert "AEGISH_RUNNER_PATH" in env
+
+    def test_prod_mode_custom_sandboxer_path(self, mocker):
+        """Production mode uses custom AEGISH_SANDBOXER_PATH."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "AEGISH_MODE": "production",
+            "AEGISH_SANDBOXER_PATH": "/custom/sandboxer.so",
+        }, clear=True)
+        env = _build_safe_env()
+        assert env["LD_PRELOAD"] == "/custom/sandboxer.so"
+
+    def test_user_ld_preload_blocked(self, mocker):
+        """User's LD_PRELOAD from os.environ is blocked by allowlist."""
+        mocker.patch.dict(os.environ, {
+            "PATH": "/usr/bin",
+            "LD_PRELOAD": "/tmp/evil.so",
+        }, clear=True)
+        env = _build_safe_env()
+        assert "LD_PRELOAD" not in env
+
+
 class TestSandboxKwargs:
-    """Tests for _sandbox_kwargs() helper."""
+    """Tests for _sandbox_kwargs() helper (Story 14.2: NO_NEW_PRIVS only)."""
 
     def test_dev_mode_returns_empty(self, mocker):
         """Development mode returns empty dict (no sandbox)."""
         mocker.patch.dict(os.environ, {}, clear=True)
         assert _sandbox_kwargs() == {}
 
-    def test_prod_mode_landlock_available(self, mocker):
-        """Production + Landlock: returns preexec_fn and pass_fds."""
+    def test_prod_mode_returns_preexec_fn(self, mocker):
+        """Production mode returns preexec_fn for NO_NEW_PRIVS."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mock_fd = 42
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
-        mock_preexec = sentinel.preexec
-        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
 
         result = _sandbox_kwargs()
 
         assert result["preexec_fn"] is mock_preexec
-        assert result["pass_fds"] == (mock_fd,)
+        assert "pass_fds" not in result
 
-    def test_prod_mode_landlock_unavailable(self, mocker):
-        """Production + no Landlock: returns empty dict (fallback)."""
+    def test_prod_mode_no_pass_fds(self, mocker):
+        """Production mode does not include pass_fds (no ruleset fd)."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
 
-        assert _sandbox_kwargs() == {}
+        result = _sandbox_kwargs()
+
+        assert "pass_fds" not in result
 
 
 class TestExecuteCommandLandlock:
-    """Tests for execute_command() with Landlock integration (Story 8.5)."""
+    """Tests for execute_command() with LD_PRELOAD sandboxing (Story 14.2)."""
 
-    def test_prod_landlock_passes_preexec_and_pass_fds(self, mocker):
-        """AC1: Production + Landlock: subprocess gets preexec_fn and pass_fds."""
+    def test_prod_mode_has_preexec_fn(self, mocker):
+        """Production mode: subprocess gets preexec_fn for NO_NEW_PRIVS."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mock_fd = 7
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
         mock_preexec = MagicMock()
-        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
 
@@ -842,26 +928,24 @@ class TestExecuteCommandLandlock:
 
         kwargs = mock_run.call_args.kwargs
         assert kwargs["preexec_fn"] is mock_preexec
-        assert kwargs["pass_fds"] == (mock_fd,)
-        # Also verify runner binary is used
         cmd_list = mock_run.call_args[0][0]
         assert cmd_list[0] == "/opt/aegish/bin/runner"
 
-    def test_prod_no_landlock_no_preexec(self, mocker):
-        """AC2: Production + no Landlock: no preexec_fn or pass_fds."""
+    def test_prod_mode_env_has_ld_preload(self, mocker):
+        """Production mode: env dict includes LD_PRELOAD with sandboxer."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
 
         execute_command("echo test")
 
-        kwargs = mock_run.call_args.kwargs
-        assert "preexec_fn" not in kwargs
-        assert "pass_fds" not in kwargs
+        env_dict = mock_run.call_args.kwargs["env"]
+        assert env_dict["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
 
     def test_dev_mode_no_preexec(self, mocker):
-        """AC3: Development mode: no preexec_fn or pass_fds."""
+        """Development mode: no preexec_fn."""
         mocker.patch.dict(os.environ, {}, clear=True)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
@@ -870,21 +954,18 @@ class TestExecuteCommandLandlock:
 
         kwargs = mock_run.call_args.kwargs
         assert "preexec_fn" not in kwargs
-        assert "pass_fds" not in kwargs
         cmd_list = mock_run.call_args[0][0]
         assert cmd_list[0] == "bash"
 
 
 class TestRunBashCommandLandlock:
-    """Tests for run_bash_command() with Landlock integration (Story 8.5)."""
+    """Tests for run_bash_command() with LD_PRELOAD sandboxing (Story 14.2)."""
 
-    def test_prod_landlock_passes_preexec_and_pass_fds(self, mocker):
-        """AC4: run_bash_command in production + Landlock gets sandbox kwargs."""
+    def test_prod_mode_has_preexec_fn(self, mocker):
+        """Production: run_bash_command gets preexec_fn."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mock_fd = 9
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=mock_fd)
         mock_preexec = MagicMock()
-        mocker.patch("aegish.executor.make_preexec_fn", return_value=mock_preexec)
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
@@ -892,23 +973,23 @@ class TestRunBashCommandLandlock:
 
         kwargs = mock_run.call_args.kwargs
         assert kwargs["preexec_fn"] is mock_preexec
-        assert kwargs["pass_fds"] == (mock_fd,)
+        assert "pass_fds" not in kwargs
 
-    def test_prod_no_landlock_no_preexec(self, mocker):
-        """AC4: run_bash_command in production without Landlock: no sandbox."""
+    def test_prod_mode_env_has_ld_preload(self, mocker):
+        """Production: env dict includes LD_PRELOAD."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
-        mocker.patch("aegish.executor.get_sandbox_ruleset", return_value=None)
+        mock_preexec = MagicMock()
+        mocker.patch("aegish.executor.make_no_new_privs_fn", return_value=mock_preexec)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
 
         run_bash_command("echo test")
 
-        kwargs = mock_run.call_args.kwargs
-        assert "preexec_fn" not in kwargs
-        assert "pass_fds" not in kwargs
+        env_dict = mock_run.call_args.kwargs["env"]
+        assert env_dict["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
 
     def test_dev_mode_no_preexec(self, mocker):
-        """AC4: run_bash_command in dev mode: no sandbox."""
+        """Development: run_bash_command has no sandbox."""
         mocker.patch.dict(os.environ, {}, clear=True)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0, stdout="", stderr="")
@@ -918,3 +999,283 @@ class TestRunBashCommandLandlock:
         kwargs = mock_run.call_args.kwargs
         assert "preexec_fn" not in kwargs
         assert "pass_fds" not in kwargs
+
+
+# =============================================================================
+# Story 14.1: Shell State Persistence Tests
+# =============================================================================
+
+
+class TestParseNulEnv:
+    """Tests for parse_nul_env() NUL-delimited environment parsing."""
+
+    def test_empty_bytes(self):
+        """Empty input returns empty dict."""
+        assert parse_nul_env(b"") == {}
+
+    def test_single_entry(self):
+        """Single KEY=VALUE entry."""
+        raw = b"HOME=/home/user\x00"
+        assert parse_nul_env(raw) == {"HOME": "/home/user"}
+
+    def test_multiple_entries(self):
+        """Multiple entries separated by NUL."""
+        raw = b"PATH=/usr/bin\x00HOME=/home/user\x00TERM=xterm\x00"
+        result = parse_nul_env(raw)
+        assert result == {"PATH": "/usr/bin", "HOME": "/home/user", "TERM": "xterm"}
+
+    def test_value_with_newline(self):
+        """Values containing newlines are parsed correctly."""
+        raw = b"MULTI=line1\nline2\x00PATH=/usr/bin\x00"
+        result = parse_nul_env(raw)
+        assert result["MULTI"] == "line1\nline2"
+        assert result["PATH"] == "/usr/bin"
+
+    def test_value_with_equals(self):
+        """Values containing = are parsed correctly."""
+        raw = b"FORMULA=a=b+c\x00"
+        result = parse_nul_env(raw)
+        assert result["FORMULA"] == "a=b+c"
+
+    def test_empty_value(self):
+        """Empty values are preserved."""
+        raw = b"EMPTY=\x00"
+        result = parse_nul_env(raw)
+        assert result["EMPTY"] == ""
+
+    def test_trailing_nul(self):
+        """Trailing NUL produces empty entry which is skipped."""
+        raw = b"A=1\x00B=2\x00"
+        result = parse_nul_env(raw)
+        assert len(result) == 2
+
+    def test_no_equals_skipped(self):
+        """Entries without = are skipped."""
+        raw = b"VALID=ok\x00INVALID\x00"
+        result = parse_nul_env(raw)
+        assert result == {"VALID": "ok"}
+
+
+class TestSanitizeEnv:
+    """Tests for sanitize_env() per-cycle sanitization."""
+
+    def test_allowed_vars_pass_through(self):
+        """Allowlisted variables pass through sanitize_env."""
+        captured = {"PATH": "/usr/bin", "HOME": "/home/user", "TERM": "xterm"}
+        result = sanitize_env(captured)
+        assert result == captured
+
+    def test_dangerous_vars_stripped(self):
+        """Non-allowlisted variables are stripped."""
+        captured = {
+            "PATH": "/usr/bin",
+            "LD_PRELOAD": "/tmp/evil.so",
+            "BASH_ENV": "/tmp/evil.sh",
+        }
+        result = sanitize_env(captured)
+        assert "LD_PRELOAD" not in result
+        assert "BASH_ENV" not in result
+        assert result["PATH"] == "/usr/bin"
+
+    def test_prefix_vars_pass_through(self):
+        """Variables with allowed prefixes pass through."""
+        captured = {"LC_ALL": "en_US.UTF-8", "AEGISH_MODE": "dev", "XDG_DATA": "/data"}
+        result = sanitize_env(captured)
+        assert result == captured
+
+    def test_export_ld_preload_blocked(self):
+        """Simulates user running 'export LD_PRELOAD=evil' -- blocked on next cycle."""
+        captured = {
+            "PATH": "/usr/bin",
+            "HOME": "/home/user",
+            "LD_PRELOAD": "/tmp/evil.so",
+            "LD_LIBRARY_PATH": "/tmp",
+            "SHELLOPTS": "xtrace",
+        }
+        result = sanitize_env(captured)
+        assert "LD_PRELOAD" not in result
+        assert "LD_LIBRARY_PATH" not in result
+        assert "SHELLOPTS" not in result
+
+
+class TestIsBareCd:
+    """Tests for is_bare_cd() command detection."""
+
+    def test_bare_cd(self):
+        assert is_bare_cd("cd") is True
+
+    def test_cd_home(self):
+        assert is_bare_cd("cd ~") is True
+
+    def test_cd_dash(self):
+        assert is_bare_cd("cd -") is True
+
+    def test_cd_absolute(self):
+        assert is_bare_cd("cd /tmp") is True
+
+    def test_cd_relative(self):
+        assert is_bare_cd("cd foo") is True
+
+    def test_cd_tilde_user(self):
+        assert is_bare_cd("cd ~root") is True
+
+    def test_cd_with_leading_spaces(self):
+        assert is_bare_cd("  cd /tmp") is True
+
+    def test_cd_with_trailing_spaces(self):
+        assert is_bare_cd("cd /tmp  ") is True
+
+    def test_cd_and_ls_rejected(self):
+        """Compound cd command is not bare cd."""
+        assert is_bare_cd("cd /tmp && ls") is False
+
+    def test_cd_semicolon_rejected(self):
+        assert is_bare_cd("cd /tmp; ls") is False
+
+    def test_cd_pipe_rejected(self):
+        assert is_bare_cd("cd /tmp | echo") is False
+
+    def test_cd_or_rejected(self):
+        assert is_bare_cd("cd /tmp || echo fail") is False
+
+    def test_cd_background_rejected(self):
+        assert is_bare_cd("cd /tmp &") is False
+
+    def test_not_cd(self):
+        assert is_bare_cd("ls -la") is False
+
+    def test_echo_cd(self):
+        assert is_bare_cd("echo cd") is False
+
+
+class TestResolveCd:
+    """Tests for resolve_cd() directory resolution."""
+
+    def test_bare_cd_to_home(self, tmp_path):
+        """cd with no args resolves to HOME."""
+        home = str(tmp_path)
+        env = {"HOME": home}
+        resolved, error = resolve_cd("", "/tmp", env)
+        assert error is None
+        assert resolved == os.path.realpath(home)
+
+    def test_cd_tilde_to_home(self, tmp_path):
+        """cd ~ resolves to HOME."""
+        home = str(tmp_path)
+        env = {"HOME": home}
+        resolved, error = resolve_cd("~", "/tmp", env)
+        assert error is None
+        assert resolved == os.path.realpath(home)
+
+    def test_cd_dash_to_oldpwd(self):
+        """cd - resolves to OLDPWD."""
+        env = {"OLDPWD": "/tmp"}
+        resolved, error = resolve_cd("-", "/home", env)
+        assert error is None
+        assert resolved == os.path.realpath("/tmp")
+
+    def test_cd_dash_no_oldpwd(self):
+        """cd - with no OLDPWD returns error."""
+        env = {}
+        resolved, error = resolve_cd("-", "/home", env)
+        assert resolved is None
+        assert "OLDPWD not set" in error
+
+    def test_cd_absolute_path(self):
+        """cd /tmp resolves to /tmp."""
+        resolved, error = resolve_cd("/tmp", "/home", {})
+        assert error is None
+        assert resolved == os.path.realpath("/tmp")
+
+    def test_cd_relative_path(self, tmp_path):
+        """cd relative resolves against current_dir."""
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+        resolved, error = resolve_cd("subdir", str(tmp_path), {})
+        assert error is None
+        assert resolved == os.path.realpath(str(subdir))
+
+    def test_cd_nonexistent_path(self):
+        """cd to nonexistent path returns error."""
+        resolved, error = resolve_cd("/nonexistent_path_xyz123", "/home", {})
+        assert resolved is None
+        assert "No such file or directory" in error
+
+
+class TestExecuteCommandStatePersistence:
+    """Tests for execute_command() environment capture and state persistence."""
+
+    def test_returns_tuple(self):
+        """execute_command returns (exit_code, env, cwd) tuple."""
+        result = execute_command("true")
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        exit_code, env, cwd = result
+        assert exit_code == 0
+        assert isinstance(env, dict)
+        assert isinstance(cwd, str)
+
+    def test_captures_env(self):
+        """Captured env contains expected variables."""
+        _, env, _ = execute_command("true")
+        # PATH should be in captured env
+        assert "PATH" in env
+
+    def test_env_export_persists(self):
+        """export VAR=value persists to returned env."""
+        _, env, _ = execute_command("export AEGISH_TEST_VAR=hello")
+        assert env.get("AEGISH_TEST_VAR") == "hello"
+
+    def test_env_export_dangerous_stripped(self):
+        """export of dangerous var is stripped by sanitize_env."""
+        _, env, _ = execute_command("export LD_PRELOAD=/tmp/evil.so")
+        assert "LD_PRELOAD" not in env
+
+    def test_cwd_from_cd(self, tmp_path):
+        """cd in command updates returned cwd."""
+        target = str(tmp_path)
+        _, _, cwd = execute_command(f"cd {target}")
+        assert cwd == os.path.realpath(target)
+
+    def test_passes_env_to_subprocess(self):
+        """Env dict is passed to subprocess and available."""
+        initial_env = _build_safe_env()
+        initial_env["AEGISH_TEST_PASS"] = "from_parent"
+        _, env, _ = execute_command(
+            "true", env=initial_env,
+        )
+        assert env.get("AEGISH_TEST_PASS") == "from_parent"
+
+    def test_passes_cwd_to_subprocess(self, tmp_path):
+        """cwd is passed to subprocess."""
+        exit_code, _, cwd = execute_command(
+            "pwd", cwd=str(tmp_path),
+        )
+        assert exit_code == 0
+        assert cwd == os.path.realpath(str(tmp_path))
+
+    def test_exit_code_preserved_through_env_capture(self):
+        """Exit code of user command preserved despite env -0 suffix."""
+        exit_code, _, _ = execute_command("exit 42")
+        assert exit_code == 42
+
+    def test_sequential_env_persistence(self):
+        """Env persists across sequential calls."""
+        _, env1, _ = execute_command("export AEGISH_SEQ_TEST=round1")
+        assert env1.get("AEGISH_SEQ_TEST") == "round1"
+
+        _, env2, _ = execute_command(
+            "export AEGISH_SEQ_TEST=round2", env=env1,
+        )
+        assert env2.get("AEGISH_SEQ_TEST") == "round2"
+
+    def test_sequential_cwd_persistence(self, tmp_path):
+        """cwd persists across sequential calls."""
+        target = str(tmp_path)
+        _, _, cwd1 = execute_command(f"cd {target}")
+        assert cwd1 == os.path.realpath(target)
+
+        # Next command uses cwd from previous
+        exit_code, _, cwd2 = execute_command("pwd", cwd=cwd1)
+        assert exit_code == 0
+        assert cwd2 == os.path.realpath(target)

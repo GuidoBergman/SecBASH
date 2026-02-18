@@ -40,17 +40,51 @@ At least one API key must be configured for aegish to operate.
 Models are tried in order: primary model first, then fallbacks.
 """
 
+import hashlib
 import logging
 import os
+import stat
+import sys
 
 logger = logging.getLogger(__name__)
 
-# Default model configuration
-DEFAULT_PRIMARY_MODEL = "openai/gpt-4"
-DEFAULT_FALLBACK_MODELS = ["anthropic/claude-3-haiku-20240307"]
+# Path to the production config file (root-owned, not world-writable)
+CONFIG_FILE_PATH = "/etc/aegish/config"
+
+# Security-critical keys that must come from config file in production mode.
+# In production, env vars are ignored for these settings.
+SECURITY_CRITICAL_KEYS = frozenset({
+    "AEGISH_FAIL_MODE",
+    "AEGISH_ALLOWED_PROVIDERS",
+    "AEGISH_RUNNER_PATH",
+    "AEGISH_MODE",
+    "AEGISH_ROLE",
+    "AEGISH_VAR_CMD_ACTION",
+})
+
+# Module-level cache for config file contents (loaded once)
+_config_file_cache: dict[str, str] | None = None
+_config_file_loaded: bool = False
+
+# Default model configuration (Story 12.3: benchmark-recommended models)
+DEFAULT_PRIMARY_MODEL = "google/gemini-3-flash-preview"
+DEFAULT_FALLBACK_MODELS = [
+    "hf-inference-providers/trendmicro-ailab/Llama-Primus-Reasoning:featherless-ai",
+    "openai/gpt-5-mini",
+    "anthropic/claude-haiku-4-5-20251001",
+    "anthropic/claude-sonnet-4-5-20250929",
+    "openai/gpt-5.1",
+    "anthropic/claude-opus-4-6",
+    "openai/gpt-5-nano",
+    "hf-inference-providers/fdtn-ai/Foundation-Sec-8B-Instruct:featherless-ai",
+]
 
 # Default allowed providers (DD-10: provider allowlist, not model allowlist)
-DEFAULT_ALLOWED_PROVIDERS = {"openai", "anthropic", "groq", "together_ai", "ollama"}
+# Story 12.3: added google and hf-inference-providers for benchmark models
+DEFAULT_ALLOWED_PROVIDERS = {
+    "openai", "anthropic", "groq", "together_ai", "ollama",
+    "google", "hf-inference-providers",
+}
 
 # Mode configuration (DD-14: production/development modes)
 DEFAULT_MODE = "development"
@@ -60,11 +94,204 @@ VALID_MODES = {"production", "development"}
 DEFAULT_FAIL_MODE = "safe"
 VALID_FAIL_MODES = {"safe", "open"}
 
+# Role/trust level configuration (Story 12.4)
+DEFAULT_ROLE = "default"
+VALID_ROLES = {"default", "sysadmin", "restricted"}
+
+# Variable-in-command-position action (Story 10.1)
+DEFAULT_VAR_CMD_ACTION = "block"
+VALID_VAR_CMD_ACTIONS = {"block", "warn"}
+
 # Runner binary configuration (DD-17: Landlock bypass via hardlink)
 DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"
+# Production runner path is hardcoded (Story 13.4)
+PRODUCTION_RUNNER_PATH = "/opt/aegish/bin/runner"
+
+# Expected SHA-256 hash of the runner binary for integrity verification.
+# Set via AEGISH_RUNNER_HASH env var at build time, or hardcode here.
+# Only checked in production mode.
+EXPECTED_RUNNER_HASH = os.environ.get("AEGISH_RUNNER_HASH", "")
+
+# Sandboxer library configuration (Story 14.2: LD_PRELOAD Landlock enforcement)
+DEFAULT_SANDBOXER_PATH = "/opt/aegish/lib/landlock_sandboxer.so"
+
+# Default LLM query timeout in seconds
+DEFAULT_LLM_TIMEOUT = 30
+
+# Default max LLM queries per minute (Story 11.3: client-side rate limiting)
+DEFAULT_MAX_QUERIES_PER_MINUTE = 30
+
+# Default: do not filter sensitive variables (full env expansion)
+DEFAULT_FILTER_SENSITIVE_VARS = False
 
 # Providers that run locally and don't require API keys
 LOCAL_PROVIDERS = {"ollama"}
+
+
+def _validate_config_file_permissions(path: str) -> tuple[bool, str]:
+    """Validate that the config file has secure ownership and permissions.
+
+    The config file must be:
+    - Owned by root (uid 0)
+    - Not world-writable
+
+    Args:
+        path: Path to the config file.
+
+    Returns:
+        Tuple of (is_valid, error_message). If valid, error_message is empty.
+    """
+    try:
+        file_stat = os.stat(path)
+    except OSError as e:
+        return (False, f"Cannot stat config file {path}: {e}")
+
+    # Check root ownership
+    if file_stat.st_uid != 0:
+        return (False, f"Config file {path} is not owned by root "
+                f"(owned by uid {file_stat.st_uid}). "
+                f"Fix with: sudo chown root:root {path}")
+
+    # Check not world-writable
+    if file_stat.st_mode & stat.S_IWOTH:
+        return (False, f"Config file {path} is world-writable. "
+                f"Fix with: sudo chmod o-w {path}")
+
+    return (True, "")
+
+
+def _load_config_file(path: str | None = None) -> dict[str, str]:
+    """Load configuration from the config file.
+
+    Parses a simple KEY=VALUE format file with # comments.
+    Values can optionally be quoted (single or double quotes are stripped).
+
+    Args:
+        path: Path to config file. Defaults to CONFIG_FILE_PATH.
+
+    Returns:
+        Dictionary of key-value pairs from the config file.
+        Empty dict if file doesn't exist or can't be read.
+    """
+    global _config_file_cache, _config_file_loaded
+
+    if path is None:
+        path = CONFIG_FILE_PATH
+
+    # Use cache for default path
+    if path == CONFIG_FILE_PATH and _config_file_loaded:
+        return _config_file_cache if _config_file_cache is not None else {}
+
+    config: dict[str, str] = {}
+
+    if not os.path.exists(path):
+        if path == CONFIG_FILE_PATH:
+            _config_file_cache = config
+            _config_file_loaded = True
+        return config
+
+    # Validate permissions in production
+    is_valid, err = _validate_config_file_permissions(path)
+    if not is_valid:
+        logger.warning("Config file permission check failed: %s", err)
+        if path == CONFIG_FILE_PATH:
+            _config_file_cache = config
+            _config_file_loaded = True
+        return config
+
+    try:
+        with open(path) as f:
+            for line_num, line in enumerate(f, 1):
+                line = line.strip()
+                # Skip empty lines and comments
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    logger.debug("Skipping malformed line %d in %s", line_num, path)
+                    continue
+                key, _, value = line.partition("=")
+                key = key.strip()
+                value = value.strip()
+                # Strip surrounding quotes
+                if len(value) >= 2 and value[0] == value[-1] and value[0] in ('"', "'"):
+                    value = value[1:-1]
+                config[key] = value
+    except OSError as e:
+        logger.warning("Failed to read config file %s: %s", path, e)
+
+    if path == CONFIG_FILE_PATH:
+        _config_file_cache = config
+        _config_file_loaded = True
+
+    return config
+
+
+def _reset_config_cache() -> None:
+    """Reset the config file cache. For testing only."""
+    global _config_file_cache, _config_file_loaded
+    _config_file_cache = None
+    _config_file_loaded = False
+
+
+def _is_production_mode() -> bool:
+    """Check if running in production mode without full get_mode() logic.
+
+    Reads AEGISH_MODE directly from the config file first (if present),
+    then falls back to env var. This avoids circular dependency with
+    get_mode() which itself uses _get_security_config().
+
+    Returns:
+        True if mode is "production".
+    """
+    # Check config file first
+    config = _load_config_file()
+    mode_from_file = config.get("AEGISH_MODE", "").strip().lower()
+    if mode_from_file in VALID_MODES:
+        return mode_from_file == "production"
+
+    # Fall back to env var
+    mode_from_env = os.environ.get("AEGISH_MODE", "").strip().lower()
+    return mode_from_env == "production"
+
+
+def _get_security_config(key: str, default: str = "") -> str:
+    """Get a security-critical configuration value.
+
+    In production mode: reads from config file only, ignores env vars.
+    In development mode: reads from env vars (existing behavior).
+
+    AEGISH_MODE is special: it's the bootstrap setting that determines
+    whether we're in production mode. The config file can override it,
+    but env var is always consulted as fallback for mode detection.
+
+    Args:
+        key: The configuration key (e.g., "AEGISH_FAIL_MODE").
+        default: Default value if not found in any source.
+
+    Returns:
+        The configuration value string.
+    """
+    if _is_production_mode() and key in SECURITY_CRITICAL_KEYS:
+        config = _load_config_file()
+        value = config.get(key)
+        if value is not None:
+            return value
+
+        # AEGISH_MODE is the bootstrap key: fall through to env var
+        # so that AEGISH_MODE=production works without a config file
+        if key == "AEGISH_MODE":
+            return os.environ.get(key, default)
+
+        # Other security keys: use secure default with warning
+        logger.warning(
+            "Security setting %s not found in config file; "
+            "using secure default '%s'",
+            key, default,
+        )
+        return default
+
+    # Development mode: use env var
+    return os.environ.get(key, default)
 
 
 def get_api_key(provider: str) -> str | None:
@@ -72,7 +299,7 @@ def get_api_key(provider: str) -> str | None:
 
     Args:
         provider: Provider name (e.g., "openai", "anthropic", "groq",
-                  "together_ai", "ollama").
+                  "together_ai", "ollama", "google", "hf-inference-providers").
 
     Returns:
         The API key string, "local" for local providers, or None if not set.
@@ -86,6 +313,8 @@ def get_api_key(provider: str) -> str | None:
         "anthropic": "ANTHROPIC_API_KEY",
         "groq": "GROQ_API_KEY",
         "together_ai": "TOGETHERAI_API_KEY",
+        "google": "GOOGLE_API_KEY",
+        "hf-inference-providers": "HF_TOKEN",
     }
     env_var = env_vars.get(provider.lower())
     if env_var:
@@ -98,39 +327,168 @@ def get_api_key(provider: str) -> str | None:
 def get_mode() -> str:
     """Get the operational mode for aegish.
 
-    Reads from AEGISH_MODE environment variable.
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_MODE env var.
     Default: development (normal shell behavior).
     Production: login shell + Landlock enforcement.
+
+    If AEGISH_MODE is explicitly set to an invalid value, prints an
+    error and calls sys.exit(1). Unset or empty values default to
+    development mode silently.
 
     Returns:
         Mode string: "production" or "development".
     """
-    raw = os.environ.get("AEGISH_MODE", "")
+    raw = _get_security_config("AEGISH_MODE", "")
     mode = raw.strip().lower()
     if mode in VALID_MODES:
         return mode
     if mode:
-        logger.debug("Invalid AEGISH_MODE '%s', falling back to '%s'", raw, DEFAULT_MODE)
+        # Explicitly set to invalid value: hard error (Story 12.2)
+        print(
+            f"aegish: fatal: invalid AEGISH_MODE '{raw}'. "
+            f"Valid modes: {', '.join(sorted(VALID_MODES))}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     return DEFAULT_MODE
 
 
 def get_fail_mode() -> str:
     """Get the fail mode for validation failures.
 
-    Reads from AEGISH_FAIL_MODE environment variable.
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_FAIL_MODE env var.
     Default: safe (block on validation failure).
     Open: warn on validation failure (user can confirm to proceed).
 
     Returns:
         Fail mode string: "safe" or "open".
     """
-    raw = os.environ.get("AEGISH_FAIL_MODE", "")
+    raw = _get_security_config("AEGISH_FAIL_MODE", "")
     mode = raw.strip().lower()
     if mode in VALID_FAIL_MODES:
         return mode
     if mode:
         logger.debug("Invalid AEGISH_FAIL_MODE '%s', falling back to '%s'", raw, DEFAULT_FAIL_MODE)
     return DEFAULT_FAIL_MODE
+
+
+def get_var_cmd_action() -> str:
+    """Get the action for variable-in-command-position detection.
+
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_VAR_CMD_ACTION env var.
+    Default: block (block commands with variable expansion in command position).
+    Warn: warn instead of blocking.
+
+    Returns:
+        Action string: "block" or "warn".
+    """
+    raw = _get_security_config("AEGISH_VAR_CMD_ACTION", "")
+    action = raw.strip().lower()
+    if action in VALID_VAR_CMD_ACTIONS:
+        return action
+    if action:
+        logger.debug(
+            "Invalid AEGISH_VAR_CMD_ACTION '%s', falling back to '%s'",
+            raw,
+            DEFAULT_VAR_CMD_ACTION,
+        )
+    return DEFAULT_VAR_CMD_ACTION
+
+
+def get_role() -> str:
+    """Get the trust level role for the current session.
+
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_ROLE env var.
+    Default: default (standard validation rules).
+
+    Valid roles: default, sysadmin, restricted.
+    Invalid roles fall back to default with a warning.
+
+    Returns:
+        Role string: "default", "sysadmin", or "restricted".
+    """
+    raw = _get_security_config("AEGISH_ROLE", "")
+    role = raw.strip().lower()
+    if role in VALID_ROLES:
+        return role
+    if role:
+        logger.warning(
+            "Invalid AEGISH_ROLE '%s', falling back to '%s'",
+            raw,
+            DEFAULT_ROLE,
+        )
+    return DEFAULT_ROLE
+
+
+def get_llm_timeout() -> int:
+    """Get the LLM query timeout in seconds.
+
+    Reads from AEGISH_LLM_TIMEOUT environment variable.
+    Default: 30 seconds.
+
+    Returns:
+        Timeout in integer seconds.
+    """
+    raw = os.environ.get("AEGISH_LLM_TIMEOUT", "")
+    if raw and raw.strip():
+        try:
+            value = int(raw.strip())
+            if value > 0:
+                return value
+            logger.debug(
+                "Invalid AEGISH_LLM_TIMEOUT '%s' (must be positive), "
+                "falling back to %d",
+                raw,
+                DEFAULT_LLM_TIMEOUT,
+            )
+        except ValueError:
+            logger.debug(
+                "Invalid AEGISH_LLM_TIMEOUT '%s' (not an integer), "
+                "falling back to %d",
+                raw,
+                DEFAULT_LLM_TIMEOUT,
+            )
+    return DEFAULT_LLM_TIMEOUT
+
+
+def get_max_queries_per_minute() -> int:
+    """Get the max LLM queries per minute rate limit.
+
+    Reads from AEGISH_MAX_QUERIES_PER_MINUTE environment variable.
+    Default: 30 queries per minute.
+
+    Returns:
+        Max queries per minute as integer.
+    """
+    raw = os.environ.get("AEGISH_MAX_QUERIES_PER_MINUTE", "")
+    if raw and raw.strip():
+        try:
+            value = int(raw.strip())
+            if value > 0:
+                return value
+        except ValueError:
+            pass
+    return DEFAULT_MAX_QUERIES_PER_MINUTE
+
+
+def get_filter_sensitive_vars() -> bool:
+    """Get whether sensitive variable filtering is enabled for env expansion.
+
+    Reads from AEGISH_FILTER_SENSITIVE_VARS environment variable.
+    Default: false (full expansion, no filtering).
+    When enabled: pattern-based filtering removes API keys, secrets, tokens.
+
+    Returns:
+        True if filtering should be applied, False otherwise.
+    """
+    raw = os.environ.get("AEGISH_FILTER_SENSITIVE_VARS", "")
+    if raw and raw.strip():
+        return raw.strip().lower() in ("true", "1", "yes")
+    return DEFAULT_FILTER_SENSITIVE_VARS
 
 
 def get_available_providers() -> list[str]:
@@ -258,27 +616,30 @@ def is_valid_model_string(model: str) -> bool:
     Returns:
         True if the format is valid, False otherwise.
     """
-    return "/" in model and len(model.split("/")[0]) > 0
+    if "/" not in model:
+        return False
+    parts = model.split("/", 1)
+    return len(parts[0]) > 0 and len(parts[1]) > 0
 
 
 def get_allowed_providers() -> set[str]:
     """Get the set of allowed LLM providers.
 
-    Reads from AEGISH_ALLOWED_PROVIDERS environment variable.
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_ALLOWED_PROVIDERS env var.
     If not set or empty, returns the default allowlist.
-    Follows the same parsing pattern as get_fallback_models().
 
     Returns:
         Set of allowed provider name strings (lowercase).
     """
-    env_value = os.environ.get("AEGISH_ALLOWED_PROVIDERS")
+    raw_value = _get_security_config("AEGISH_ALLOWED_PROVIDERS", "")
 
     # Not set or empty/whitespace - use defaults
-    if env_value is None or not env_value.strip():
+    if not raw_value or not raw_value.strip():
         return DEFAULT_ALLOWED_PROVIDERS.copy()
 
     # Parse comma-separated list, trimming whitespace, lowercase
-    providers = {p.strip().lower() for p in env_value.split(",") if p.strip()}
+    providers = {p.strip().lower() for p in raw_value.split(",") if p.strip()}
     return providers if providers else DEFAULT_ALLOWED_PROVIDERS.copy()
 
 
@@ -328,20 +689,44 @@ def has_fallback_models() -> bool:
 def get_runner_path() -> str:
     """Get the path to the runner binary.
 
-    Reads from AEGISH_RUNNER_PATH environment variable.
+    In production: hardcoded to PRODUCTION_RUNNER_PATH, ignores all config.
+    In development: reads from AEGISH_RUNNER_PATH env var.
     Falls back to DEFAULT_RUNNER_PATH if not set or empty.
 
     Returns:
         Path to the runner binary.
     """
-    path = os.environ.get("AEGISH_RUNNER_PATH", "")
-    if path and path.strip():
-        return path.strip()
+    if _is_production_mode():
+        return PRODUCTION_RUNNER_PATH
+
+    raw = _get_security_config("AEGISH_RUNNER_PATH", "")
+    if raw and raw.strip():
+        return raw.strip()
     return DEFAULT_RUNNER_PATH
+
+
+def _compute_file_sha256(path: str) -> str:
+    """Compute the SHA-256 hash of a file.
+
+    Args:
+        path: Path to the file.
+
+    Returns:
+        Hex-encoded SHA-256 hash string.
+    """
+    sha256 = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            sha256.update(chunk)
+    return sha256.hexdigest()
 
 
 def validate_runner_binary() -> tuple[bool, str]:
     """Validate that the runner binary exists and is executable.
+
+    In production mode: also verifies SHA-256 hash integrity.
+    If EXPECTED_RUNNER_HASH is set, the binary's hash must match.
+    Refuses to start on hash mismatch or missing binary in production.
 
     Returns:
         Tuple of (is_valid, message).
@@ -359,5 +744,58 @@ def validate_runner_binary() -> tuple[bool, str]:
         return (False, f"Runner binary at {path} is not executable.\n"
                 f"Fix with: sudo chmod +x {path}")
 
+    # SHA-256 hash verification in production mode (Story 13.4)
+    if _is_production_mode() and EXPECTED_RUNNER_HASH:
+        try:
+            actual_hash = _compute_file_sha256(path)
+            if actual_hash != EXPECTED_RUNNER_HASH:
+                return (False,
+                        f"Runner binary hash mismatch at {path}.\n"
+                        f"Expected: {EXPECTED_RUNNER_HASH}\n"
+                        f"Actual:   {actual_hash}\n"
+                        f"The runner binary may have been tampered with.")
+        except OSError as e:
+            return (False, f"Cannot read runner binary for hash verification: {e}")
+
     return (True, f"Runner binary ready at {path}")
+
+
+def get_sandboxer_path() -> str:
+    """Get the path to the sandboxer shared library.
+
+    Reads from AEGISH_SANDBOXER_PATH environment variable.
+    Falls back to DEFAULT_SANDBOXER_PATH if not set or empty.
+
+    Returns:
+        Path to the sandboxer library.
+    """
+    path = os.environ.get("AEGISH_SANDBOXER_PATH", "")
+    if path and path.strip():
+        return path.strip()
+    return DEFAULT_SANDBOXER_PATH
+
+
+def validate_sandboxer_library() -> tuple[bool, str]:
+    """Validate that the sandboxer shared library exists and is readable.
+
+    The sandboxer library (landlock_sandboxer.so) is an LD_PRELOAD library
+    that applies Landlock restrictions inside the runner process. It must
+    exist and be readable for production mode to work.
+
+    Returns:
+        Tuple of (is_valid, message).
+        If valid: (True, "sandboxer library ready message")
+        If invalid: (False, "error message with build instructions")
+    """
+    path = get_sandboxer_path()
+
+    if not os.path.exists(path):
+        return (False, f"Sandboxer library not found at {path}.\n"
+                f"Build it with: cd src/sandboxer && make && sudo make install")
+
+    if not os.access(path, os.R_OK):
+        return (False, f"Sandboxer library at {path} is not readable.\n"
+                f"Fix with: sudo chmod +r {path}")
+
+    return (True, f"Sandboxer library ready at {path}")
 

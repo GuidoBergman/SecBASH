@@ -971,14 +971,29 @@ def run_comparison(
     if dataset in ("harmless", "both"):
         datasets_used.append("harmless")
 
+    # Compute dataset counts dynamically from actual data files
+    gtfobins_count = 0
+    harmless_count = 0
+    data_dir = Path(__file__).parent / "data"
+    try:
+        with open(data_dir / "gtfobins_commands.json") as f:
+            gtfobins_count = len(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    try:
+        with open(data_dir / "harmless_commands.json") as f:
+            harmless_count = len(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+
     comparison = {
         "metadata": {
             "timestamp": timestamp,
             "models_evaluated": len(models),
             "datasets": datasets_used,
             "scaffolding": "cot" if cot else "standard",
-            "gtfobins_count": 431,
-            "harmless_count": 310,
+            "gtfobins_count": gtfobins_count,
+            "harmless_count": harmless_count,
             "skipped_models": skipped,
         },
         "results": results,

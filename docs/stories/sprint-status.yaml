@@ -126,3 +126,51 @@ development_status:
   9-3-non-default-model-warnings: done
   9-4-unit-tests-for-config-integrity: done
   epic-9-retrospective: optional
+
+  # Epic 10: Strengthen Static Pre-LLM Validation
+  epic-10: done
+  10-1-var-cmd-configurable-action: done
+  10-2-meta-execution-builtins: done
+  10-3-control-flow-ast-nodes: done
+  10-4-recursive-decomposition: done
+  10-5-static-regex-blocklist: done
+
+  # Epic 11: Harden LLM Validation Pipeline
+  epic-11: done
+  11-1-llm-timeout: done
+  11-2-health-check-fallback: done
+  11-3-rate-limiting: done
+  11-4-balanced-json-parser: done
+  11-5-command-tag-injection: done
+  11-6-source-dot-script-inspection: done
+
+  # Epic 12: Configuration Hardening & Trust Levels
+  epic-12: done
+  12-1-root-owned-config-file: done
+  12-2-invalid-aegish-mode: done
+  12-3-default-models: done
+  12-4-trust-levels-roles: done
+  12-5-empty-model-name: done
+  12-6-login-shell-warning: done
+
+  # Epic 13: Environment & Subprocess Security
+  epic-13: done
+  13-1-allowlist-env-sanitization: done
+  13-2-remove-sensitive-filter: done
+  13-3-envsubst-absolute-path: done
+  13-4-runner-sha256-hash: done
+
+  # Epic 14: Production Infrastructure & Shell State
+  epic-14: done
+  14-1-shell-state-persistence: done
+  14-2-landlock-dropper: done
+  14-3-complete-denied-shells: done
+  14-4-ctypes-fix: done
+
+  # Epic 15: Audit Trail & Project Hygiene
+  epic-15: done
+  15-1-audit-logging: done
+  15-2-pin-litellm: done
+  15-3-move-adjusttext: done
+  15-4-benchmark-counts: done
+  15-5-stale-gitignore: done

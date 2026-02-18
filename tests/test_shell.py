@@ -1,9 +1,20 @@
 """Tests for shell module."""
 
+import os
 import pytest
 from unittest.mock import patch, MagicMock, call
 
-from aegish.shell import get_prompt, run_shell
+from aegish.shell import get_prompt, run_shell, _handle_cd, _execute_and_update, _is_login_shell
+
+
+# Default mock return value for execute_command (exit_code, env, cwd)
+_MOCK_EXEC_OK = (0, {"PATH": "/usr/bin"}, "/tmp")
+_MOCK_EXEC_FAIL = (1, {"PATH": "/usr/bin"}, "/tmp")
+
+
+def _mock_exec_return(exit_code=0):
+    """Create a mock return tuple for execute_command."""
+    return (exit_code, {"PATH": "/usr/bin"}, "/tmp")
 
 
 def test_get_prompt():
@@ -16,8 +27,6 @@ def test_get_prompt_ends_with_space():
     """Test that prompt ends with a space for readability."""
     prompt = get_prompt()
     assert prompt.endswith(" ")
-
-
 
 
 class TestShellValidation:
@@ -53,11 +62,13 @@ class TestShellValidation:
         """AC3: Shell executes allowed commands normally."""
         mock_validation = {"action": "allow", "reason": "Safe", "confidence": 0.95}
         with patch("aegish.shell.validate_command", return_value=mock_validation):
-            with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+            with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                 with patch("builtins.input", side_effect=["ls -la", "exit"]):
                     run_shell()
 
-                    mock_execute.assert_called_once_with("ls -la", 0)
+                    mock_execute.assert_called_once()
+                    assert mock_execute.call_args[0][0] == "ls -la"
+                    assert mock_execute.call_args[0][1] == 0  # last_exit_code
 
     def test_blocked_command_displays_reason(self, capsys):
         """AC4: Blocked message includes LLM reason."""
@@ -88,7 +99,7 @@ class TestShellValidation:
                 {"action": "block", "reason": "Blocked", "confidence": 0.9},
                 {"action": "allow", "reason": "Safe", "confidence": 0.95}
             ]):
-                with patch("aegish.shell.execute_command", return_value=0) as mock_exec:
+                with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_exec:
                     run_shell()
                     # The second command should be called with last_exit_code=1
                     mock_exec.assert_called_once()
@@ -112,7 +123,7 @@ class TestShellValidation:
         """Unknown action allows user to proceed if they confirm."""
         mock_validation = {"action": "invalid", "reason": "Test", "confidence": 0.5}
         with patch("aegish.shell.validate_command", return_value=mock_validation):
-            with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+            with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                 with patch("builtins.input", side_effect=["some-cmd", "y", "exit"]):
                     run_shell()
 
@@ -125,7 +136,7 @@ class TestShellValidation:
                 {"action": "warn", "reason": "Warning", "confidence": 0.7},
                 {"action": "allow", "reason": "Safe", "confidence": 0.95}
             ]):
-                with patch("aegish.shell.execute_command", return_value=0) as mock_exec:
+                with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_exec:
                     run_shell()
                     # The second command should be called with last_exit_code=2 (EXIT_CANCELLED)
                     mock_exec.assert_called_once()
@@ -140,7 +151,7 @@ class TestWarnConfirmation:
         """AC3: User confirms with 'y', command executes."""
         mock_validation = {"action": "warn", "reason": "Risky operation", "confidence": 0.7}
         with patch("aegish.shell.validate_command", return_value=mock_validation):
-            with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+            with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                 with patch("builtins.input", side_effect=["risky-command", "y", "exit"]):
                     run_shell()
 
@@ -153,7 +164,7 @@ class TestWarnConfirmation:
         """AC3: User confirms with 'yes', command executes."""
         mock_validation = {"action": "warn", "reason": "Risky operation", "confidence": 0.7}
         with patch("aegish.shell.validate_command", return_value=mock_validation):
-            with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+            with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                 with patch("builtins.input", side_effect=["risky-command", "yes", "exit"]):
                     run_shell()
 
@@ -163,7 +174,7 @@ class TestWarnConfirmation:
         """User confirms with uppercase 'Y', command executes."""
         mock_validation = {"action": "warn", "reason": "Risky operation", "confidence": 0.7}
         with patch("aegish.shell.validate_command", return_value=mock_validation):
-            with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+            with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                 with patch("builtins.input", side_effect=["risky-command", "Y", "exit"]):
                     run_shell()
 
@@ -246,10 +257,11 @@ class TestWarnConfirmation:
                 {"action": "warn", "reason": "Risky", "confidence": 0.7},
                 {"action": "allow", "reason": "Safe", "confidence": 0.95}
             ]):
-                with patch("aegish.shell.execute_command", side_effect=[42, 0]) as mock_exec:
+                with patch("aegish.shell.execute_command", side_effect=[
+                    (42, {"PATH": "/usr/bin"}, "/tmp"),
+                    _MOCK_EXEC_OK,
+                ]) as mock_exec:
                     run_shell()
-                    # First call is the confirmed warn command
-                    # Second call should have last_exit_code=42 from first command
                     assert mock_exec.call_count == 2
                     second_call = mock_exec.call_args_list[1]
                     assert second_call[0][1] == 42  # last_exit_code should be 42
@@ -261,7 +273,7 @@ class TestWarnConfirmation:
                 {"action": "warn", "reason": "Risky", "confidence": 0.7},
                 {"action": "allow", "reason": "Safe", "confidence": 0.95}
             ]):
-                with patch("aegish.shell.execute_command", return_value=0) as mock_exec:
+                with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_exec:
                     run_shell()
                     # Only the second command (ls) should execute
                     mock_exec.assert_called_once()
@@ -280,7 +292,7 @@ class TestWarnConfirmation:
                 {"action": "warn", "reason": "Risky", "confidence": 0.7},
                 {"action": "allow", "reason": "Safe", "confidence": 0.95}
             ]):
-                with patch("aegish.shell.execute_command", return_value=0) as mock_exec:
+                with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_exec:
                     run_shell()
                     # Only the second command (ls) should execute
                     mock_exec.assert_called_once()
@@ -296,7 +308,7 @@ class TestStartupModeBanner:
         """Mock model chain, API key, and health check to isolate tests."""
         with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
             with patch("aegish.shell.get_api_key", return_value="test-key"):
-                with patch("aegish.shell.health_check", return_value=(True, "")):
+                with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
                     yield
 
     def test_production_mode_displayed_in_banner(self, capsys):
@@ -330,7 +342,7 @@ class TestStartupHealthCheck:
 
     def test_startup_displays_warning_on_health_check_failure(self, capsys):
         """AC2: Warning printed when health check fails."""
-        with patch("aegish.shell.health_check", return_value=(False, "primary model did not respond correctly")):
+        with patch("aegish.shell.health_check", return_value=(False, "primary model did not respond correctly", None)):
             with patch("builtins.input", side_effect=["exit"]):
                 run_shell()
 
@@ -341,7 +353,7 @@ class TestStartupHealthCheck:
 
     def test_startup_silent_on_health_check_success(self, capsys):
         """AC1: No health check output when primary model responds correctly."""
-        with patch("aegish.shell.health_check", return_value=(True, "")):
+        with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
             with patch("builtins.input", side_effect=["exit"]):
                 run_shell()
 
@@ -352,14 +364,15 @@ class TestStartupHealthCheck:
     def test_shell_continues_after_health_check_failure(self):
         """AC2: Shell loop runs normally after health check failure."""
         mock_validation = {"action": "allow", "reason": "Safe", "confidence": 0.95}
-        with patch("aegish.shell.health_check", return_value=(False, "API unreachable")):
+        with patch("aegish.shell.health_check", return_value=(False, "API unreachable", None)):
             with patch("aegish.shell.validate_command", return_value=mock_validation):
-                with patch("aegish.shell.execute_command", return_value=0) as mock_execute:
+                with patch("aegish.shell.execute_command", return_value=_MOCK_EXEC_OK) as mock_execute:
                     with patch("builtins.input", side_effect=["ls -la", "exit"]):
                         run_shell()
 
                         # Shell loop still works - command was executed
-                        mock_execute.assert_called_once_with("ls -la", 0)
+                        mock_execute.assert_called_once()
+                        assert mock_execute.call_args[0][0] == "ls -la"
 
 
 class TestStartupFailModeBanner:
@@ -370,7 +383,7 @@ class TestStartupFailModeBanner:
         """Mock model chain and health check to isolate tests."""
         with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
             with patch("aegish.shell.get_api_key", return_value="test-key"):
-                with patch("aegish.shell.health_check", return_value=(True, "")):
+                with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
                     yield
 
     def test_safe_mode_displayed_in_banner(self, capsys):
@@ -410,21 +423,23 @@ class TestStartupModelWarnings:
     @pytest.fixture(autouse=True)
     def mock_banner(self):
         """Mock model chain, API key, health check, and default config for isolation."""
-        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+        from aegish.config import DEFAULT_FALLBACK_MODELS, DEFAULT_PRIMARY_MODEL
+        with patch("aegish.shell.get_model_chain", return_value=[DEFAULT_PRIMARY_MODEL]):
             with patch("aegish.shell.get_api_key", return_value="test-key"):
-                with patch("aegish.shell.health_check", return_value=(True, "")):
-                    with patch("aegish.shell.get_primary_model", return_value="openai/gpt-4"):
-                        with patch("aegish.shell.get_fallback_models", return_value=["anthropic/claude-3-haiku-20240307"]):
+                with patch("aegish.shell.health_check", return_value=(True, "", DEFAULT_PRIMARY_MODEL)):
+                    with patch("aegish.shell.get_primary_model", return_value=DEFAULT_PRIMARY_MODEL):
+                        with patch("aegish.shell.get_fallback_models", return_value=DEFAULT_FALLBACK_MODELS):
                             yield
 
     def test_non_default_primary_model_warning(self, capsys):
         """AC1: Warning shown for non-default primary model."""
+        from aegish.config import DEFAULT_PRIMARY_MODEL
         with patch("aegish.shell.get_primary_model", return_value="anthropic/claude-sonnet-4-5-20250929"):
             with patch("builtins.input", side_effect=["exit"]):
                 run_shell()
                 captured = capsys.readouterr()
                 assert "WARNING: Using non-default primary model: anthropic/claude-sonnet-4-5-20250929" in captured.out
-                assert "Default is: openai/gpt-4" in captured.out
+                assert f"Default is: {DEFAULT_PRIMARY_MODEL}" in captured.out
 
     def test_no_fallback_warning(self, capsys):
         """AC2: Warning shown when no fallbacks configured."""
@@ -444,12 +459,13 @@ class TestStartupModelWarnings:
 
     def test_non_default_fallback_warning(self, capsys):
         """AC4: Warning shown for non-default fallback models."""
+        from aegish.config import DEFAULT_FALLBACK_MODELS
         with patch("aegish.shell.get_fallback_models", return_value=["openai/gpt-3.5-turbo"]):
             with patch("builtins.input", side_effect=["exit"]):
                 run_shell()
                 captured = capsys.readouterr()
                 assert "WARNING: Using non-default fallback models: openai/gpt-3.5-turbo" in captured.out
-                assert "Default is: anthropic/claude-3-haiku-20240307" in captured.out
+                assert f"Default is: {DEFAULT_FALLBACK_MODELS[0]}" in captured.out
 
 
 class TestExitBehavior:
@@ -460,7 +476,7 @@ class TestExitBehavior:
         """Mock startup dependencies to isolate exit behavior tests."""
         with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
             with patch("aegish.shell.get_api_key", return_value="test-key"):
-                with patch("aegish.shell.health_check", return_value=(True, "")):
+                with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
                     with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
                         yield
 
@@ -501,3 +517,223 @@ class TestExitBehavior:
                 assert result == 0
                 captured = capsys.readouterr()
                 assert "WARNING: Leaving aegish. The parent shell is NOT security-monitored." in captured.out
+
+
+# =============================================================================
+# Story 14.1: Shell State Persistence Integration Tests
+# =============================================================================
+
+
+class TestCdFastPath:
+    """Tests for bare cd fast-path interception in shell loop."""
+
+    def test_cd_bypasses_validation(self):
+        """Bare cd does not trigger LLM validation."""
+        with patch("aegish.shell.validate_command") as mock_validate:
+            with patch("aegish.shell.execute_command") as mock_execute:
+                with patch("builtins.input", side_effect=["cd /tmp", "exit"]):
+                    run_shell()
+                    mock_validate.assert_not_called()
+                    mock_execute.assert_not_called()
+
+    def test_cd_updates_state(self, tmp_path):
+        """cd /path updates current_dir state."""
+        target = str(tmp_path)
+        with patch("aegish.shell.validate_command") as mock_validate:
+            with patch("aegish.shell.execute_command", return_value=(0, {"PATH": "/usr/bin", "PWD": target}, target)) as mock_execute:
+                # cd /tmp then pwd (which goes through validation)
+                mock_validation = {"action": "allow", "reason": "Safe", "confidence": 0.95}
+                mock_validate.return_value = mock_validation
+                with patch("builtins.input", side_effect=[f"cd {target}", "pwd", "exit"]):
+                    run_shell()
+                    # pwd should execute with cwd set to target
+                    mock_execute.assert_called_once()
+                    assert mock_execute.call_args.kwargs["cwd"] == os.path.realpath(target)
+
+    def test_cd_nonexistent_prints_error(self, capsys):
+        """cd to nonexistent path prints error."""
+        with patch("aegish.shell.validate_command") as mock_validate:
+            with patch("aegish.shell.execute_command") as mock_execute:
+                with patch("builtins.input", side_effect=["cd /nonexistent_xyz123", "exit"]):
+                    run_shell()
+                    mock_validate.assert_not_called()
+                    mock_execute.assert_not_called()
+                    captured = capsys.readouterr()
+                    assert "No such file or directory" in captured.out
+
+    def test_cd_dash_prints_dir(self, tmp_path, capsys):
+        """cd - prints the target directory."""
+        target = str(tmp_path)
+        with patch("aegish.shell.validate_command"):
+            with patch("aegish.shell.execute_command"):
+                with patch("builtins.input", side_effect=[f"cd {target}", "cd -", "exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    # cd - should print the previous dir (initial cwd)
+                    assert os.getcwd() in captured.out or os.path.realpath(os.getcwd()) in captured.out
+
+
+class TestHandleCd:
+    """Unit tests for _handle_cd helper."""
+
+    def test_cd_to_tmp(self):
+        """cd /tmp updates state correctly."""
+        exit_code, new_cur, new_prev, new_env = _handle_cd(
+            "cd /tmp", "/home", "/home", {"HOME": "/home"},
+        )
+        assert exit_code == 0
+        assert new_cur == os.path.realpath("/tmp")
+        assert new_prev == "/home"
+        assert new_env["PWD"] == os.path.realpath("/tmp")
+        assert new_env["OLDPWD"] == "/home"
+
+    def test_cd_failure(self):
+        """cd to nonexistent returns exit code 1."""
+        exit_code, new_cur, new_prev, _ = _handle_cd(
+            "cd /nonexistent_xyz", "/home", "/home", {},
+        )
+        assert exit_code == 1
+        assert new_cur == "/home"  # unchanged
+
+    def test_bare_cd_to_home(self, tmp_path):
+        """cd with no args goes to HOME."""
+        home = str(tmp_path)
+        exit_code, new_cur, _, _ = _handle_cd(
+            "cd", "/tmp", "/tmp", {"HOME": home},
+        )
+        assert exit_code == 0
+        assert new_cur == os.path.realpath(home)
+
+
+class TestExecuteAndUpdate:
+    """Unit tests for _execute_and_update helper."""
+
+    def test_returns_updated_state(self):
+        """_execute_and_update returns state from execute_command."""
+        new_env = {"PATH": "/usr/bin", "PWD": "/tmp"}
+        with patch("aegish.shell.execute_command", return_value=(0, new_env, "/tmp")):
+            exit_code, cwd, prev, env = _execute_and_update(
+                "ls", 0, "/home", "/home", {"PATH": "/usr/bin"},
+            )
+            assert exit_code == 0
+            assert cwd == "/tmp"
+            assert prev == "/home"  # previous updated because cwd changed
+            assert env == new_env
+
+    def test_previous_dir_unchanged_when_cwd_same(self):
+        """previous_dir unchanged when cwd doesn't change."""
+        with patch("aegish.shell.execute_command", return_value=(0, {}, "/home")):
+            _, _, prev, _ = _execute_and_update(
+                "ls", 0, "/home", "/old", {},
+            )
+            assert prev == "/old"  # unchanged
+
+    def test_previous_dir_updated_when_cwd_changes(self):
+        """previous_dir = old current_dir when cwd changes."""
+        with patch("aegish.shell.execute_command", return_value=(0, {}, "/new")):
+            _, _, prev, _ = _execute_and_update(
+                "cd /new", 0, "/home", "/old", {},
+            )
+            assert prev == "/home"
+
+
+# =============================================================================
+# Story 12.6: Login Shell Lockout Warning Tests
+# =============================================================================
+
+
+class TestIsLoginShell:
+    """Tests for _is_login_shell() detection."""
+
+    def test_argv0_starts_with_dash(self):
+        """Login shell detected via argv[0] starting with '-'."""
+        with patch("aegish.shell.sys") as mock_sys:
+            mock_sys.argv = ["-aegish"]
+            mock_sys.executable = "/usr/bin/python"
+            with patch.dict(os.environ, {}, clear=False):
+                assert _is_login_shell() is True
+
+    def test_shell_env_points_to_aegish(self):
+        """Login shell detected via $SHELL containing aegish."""
+        with patch("aegish.shell.sys") as mock_sys:
+            mock_sys.argv = ["aegish"]
+            with patch.dict(os.environ, {"SHELL": "/usr/local/bin/aegish"}, clear=False):
+                assert _is_login_shell() is True
+
+    def test_not_login_shell(self):
+        """Normal invocation is not a login shell."""
+        with patch("aegish.shell.sys") as mock_sys:
+            mock_sys.argv = ["aegish"]
+            with patch.dict(os.environ, {"SHELL": "/bin/bash"}, clear=False):
+                # Mock /etc/shells to not contain aegish
+                with patch("builtins.open", side_effect=FileNotFoundError):
+                    assert _is_login_shell() is False
+
+    def test_etc_shells_contains_aegish(self):
+        """Login shell detected via /etc/shells containing aegish."""
+        from unittest.mock import mock_open
+        shells_content = "/bin/bash\n/usr/local/bin/aegish\n/bin/zsh\n"
+        with patch("aegish.shell.sys") as mock_sys:
+            mock_sys.argv = ["aegish"]
+            with patch.dict(os.environ, {"SHELL": "/bin/bash"}, clear=False):
+                with patch("builtins.open", mock_open(read_data=shells_content)):
+                    assert _is_login_shell() is True
+
+    def test_etc_shells_no_aegish(self):
+        """Not login shell when /etc/shells has no aegish."""
+        from unittest.mock import mock_open
+        shells_content = "/bin/bash\n/bin/zsh\n"
+        with patch("aegish.shell.sys") as mock_sys:
+            mock_sys.argv = ["aegish"]
+            with patch.dict(os.environ, {"SHELL": "/bin/bash"}, clear=False):
+                with patch("builtins.open", mock_open(read_data=shells_content)):
+                    assert _is_login_shell() is False
+
+
+class TestLoginShellWarning:
+    """Tests for login shell warning in startup banner."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock startup dependencies."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
+                    yield
+
+    def test_login_shell_warning_displayed(self, capsys):
+        """Warning displayed when login shell detected."""
+        with patch("aegish.shell._is_login_shell", return_value=True):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "aegish is configured as login shell" in captured.out
+                assert "unable to execute commands" in captured.out
+
+    def test_no_warning_when_not_login_shell(self, capsys):
+        """No warning when not a login shell."""
+        with patch("aegish.shell._is_login_shell", return_value=False):
+            with patch("builtins.input", side_effect=["exit"]):
+                run_shell()
+                captured = capsys.readouterr()
+                assert "configured as login shell" not in captured.out
+
+    def test_login_shell_health_check_failure_message(self, capsys):
+        """Health check failure has customized message for login shell."""
+        with patch("aegish.shell._is_login_shell", return_value=True):
+            with patch("aegish.shell.health_check", return_value=(False, "API unreachable", None)):
+                with patch("builtins.input", side_effect=["exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    assert "This is your login shell" in captured.out
+                    assert "API unreachable" in captured.out
+
+    def test_non_login_shell_health_check_failure_message(self, capsys):
+        """Health check failure uses standard message for non-login shell."""
+        with patch("aegish.shell._is_login_shell", return_value=False):
+            with patch("aegish.shell.health_check", return_value=(False, "API unreachable", None)):
+                with patch("builtins.input", side_effect=["exit"]):
+                    run_shell()
+                    captured = capsys.readouterr()
+                    assert "This is your login shell" not in captured.out
+                    assert "Operating in degraded mode" in captured.out

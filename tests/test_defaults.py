@@ -37,25 +37,24 @@ class TestDefaultModelConfiguration:
     """Tests for default model configuration."""
 
     def test_default_primary_model(self, mocker):
-        """AC2: Default primary model is openai/gpt-4."""
+        """AC2: Default primary model is google/gemini-3-flash-preview."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_primary_model() == "openai/gpt-4"
+        assert get_primary_model() == "google/gemini-3-flash-preview"
 
     def test_default_fallback_models(self, mocker):
-        """AC2: Default fallback is anthropic/claude-3-haiku."""
+        """AC2: Default fallback chain has 8 models (Story 12.3)."""
         mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_fallback_models() == [
-            "anthropic/claude-3-haiku-20240307",
-        ]
+        fallbacks = get_fallback_models()
+        assert len(fallbacks) == 8
+        assert fallbacks[0].startswith("hf-inference-providers/")
+        assert "openai/gpt-5-mini" in fallbacks
 
     def test_default_model_chain_order(self, mocker):
-        """AC2: Model chain order is openai, anthropic."""
+        """AC2: Model chain starts with primary, then 8 fallbacks."""
         mocker.patch.dict(os.environ, {}, clear=True)
         model_chain = get_model_chain()
-        assert model_chain == [
-            "openai/gpt-4",
-            "anthropic/claude-3-haiku-20240307",
-        ]
+        assert model_chain[0] == "google/gemini-3-flash-preview"
+        assert len(model_chain) == 9
 
 
 class TestWorksWithOneApiKey:
@@ -154,8 +153,8 @@ class TestStartupShowsModelChain:
 
         # Should show model chain format with active/inactive status
         assert "model chain:" in output.lower()
-        assert "openai/gpt-4 (active)" in output.lower()
-        assert "anthropic/claude-3-haiku-20240307 (active)" in output.lower()
+        # Primary model should be shown
+        assert "google/gemini-3-flash-preview" in output.lower()
         # Verify priority order indicator
         assert ">" in output
 
@@ -175,9 +174,10 @@ class TestStartupShowsModelChain:
         captured = capsys.readouterr()
         output = captured.out
 
-        # Only anthropic model should be active
-        assert "anthropic/claude-3-haiku-20240307 (active)" in output.lower()
-        assert "openai/gpt-4 (--)" in output.lower()
+        # Primary google model should be inactive (no GOOGLE_API_KEY)
+        assert "google/gemini-3-flash-preview (--)" in output.lower()
+        # Anthropic models should be active
+        assert "(active)" in output.lower()
 
 
 class TestDefaultShell:
@@ -195,7 +195,13 @@ class TestDefaultShell:
         # (-c must come last before the command string)
         call_args = mock_run.call_args
         cmd_list = call_args[0][0]
-        assert cmd_list == ["bash", "--norc", "--noprofile", "-c", "(exit 0); echo hello"]
+        assert cmd_list[0] == "bash"
+        assert "--norc" in cmd_list
+        assert "--noprofile" in cmd_list
+        assert "-c" in cmd_list
+        # The command string starts with exit code prefix and contains the user command
+        cmd_string = cmd_list[-1]
+        assert "(exit 0); echo hello" in cmd_string
 
         # Verify env sanitization is applied (AC1: env=safe_env)
         assert "env" in call_args.kwargs

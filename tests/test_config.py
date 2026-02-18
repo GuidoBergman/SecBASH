@@ -4,14 +4,23 @@ Tests credential validation and model configuration functionality.
 """
 
 import os
+import stat
 
 import pytest
 
 from aegish.config import (
+    CONFIG_FILE_PATH,
     DEFAULT_ALLOWED_PROVIDERS,
     DEFAULT_FALLBACK_MODELS,
     DEFAULT_PRIMARY_MODEL,
+    DEFAULT_ROLE,
     DEFAULT_RUNNER_PATH,
+    SECURITY_CRITICAL_KEYS,
+    VALID_ROLES,
+    _get_security_config,
+    _load_config_file,
+    _reset_config_cache,
+    _validate_config_file_permissions,
     get_allowed_providers,
     get_api_key,
     get_available_providers,
@@ -21,6 +30,7 @@ from aegish.config import (
     get_model_chain,
     get_primary_model,
     get_provider_from_model,
+    get_role,
     get_runner_path,
     has_fallback_models,
     is_default_fallback_models,
@@ -30,6 +40,14 @@ from aegish.config import (
     validate_model_provider,
     validate_runner_binary,
 )
+
+
+@pytest.fixture(autouse=True)
+def reset_config_cache():
+    """Reset the config file cache before each test."""
+    _reset_config_cache()
+    yield
+    _reset_config_cache()
 
 
 class TestGetApiKey:
@@ -104,6 +122,26 @@ class TestGetApiKeyExtendedProviders:
         """Groq without GROQ_API_KEY returns None."""
         mocker.patch.dict(os.environ, {}, clear=True)
         assert get_api_key("groq") is None
+
+    def test_google_api_key(self, mocker):
+        """Story 12.3: Google provider reads GOOGLE_API_KEY."""
+        mocker.patch.dict(os.environ, {"GOOGLE_API_KEY": "google-key"}, clear=True)
+        assert get_api_key("google") == "google-key"
+
+    def test_google_missing_key_returns_none(self, mocker):
+        """Google without GOOGLE_API_KEY returns None."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_api_key("google") is None
+
+    def test_hf_inference_providers_api_key(self, mocker):
+        """Story 12.3: HF Inference Providers reads HF_TOKEN."""
+        mocker.patch.dict(os.environ, {"HF_TOKEN": "hf-token"}, clear=True)
+        assert get_api_key("hf-inference-providers") == "hf-token"
+
+    def test_hf_inference_providers_missing_key_returns_none(self, mocker):
+        """HF Inference Providers without HF_TOKEN returns None."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_api_key("hf-inference-providers") is None
 
 
 class TestGetApiKeyEmptyString:
@@ -246,27 +284,33 @@ class TestGetMode:
         assert get_mode() == "development"
 
     @pytest.mark.parametrize("invalid_value", ["staging", "test", "prod", "Production123"])
-    def test_invalid_mode_falls_back_to_development(self, mocker, invalid_value):
-        """AC4: Invalid value falls back to development."""
+    def test_invalid_mode_exits_with_error(self, mocker, invalid_value):
+        """Story 12.2: Invalid AEGISH_MODE causes sys.exit(1)."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": invalid_value}, clear=True)
+        with pytest.raises(SystemExit) as exc_info:
+            get_mode()
+        assert exc_info.value.code == 1
+
+    def test_invalid_mode_prints_error_message(self, mocker, capsys):
+        """Story 12.2: Error message includes the invalid value and valid modes."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": "staging"}, clear=True)
+        with pytest.raises(SystemExit):
+            get_mode()
+        captured = capsys.readouterr()
+        assert "staging" in captured.err
+        assert "production" in captured.err
+        assert "development" in captured.err
+
+    def test_empty_mode_does_not_exit(self, mocker):
+        """Story 12.2: Empty/unset AEGISH_MODE silently defaults, no exit."""
+        mocker.patch.dict(os.environ, {"AEGISH_MODE": ""}, clear=True)
+        # Should NOT raise SystemExit
         assert get_mode() == "development"
 
-    def test_invalid_mode_logs_debug_warning(self, mocker, caplog):
-        """AC4: Invalid value logs a debug-level warning."""
-        mocker.patch.dict(os.environ, {"AEGISH_MODE": "staging"}, clear=True)
-        import logging
-        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
-            get_mode()
-        assert "Invalid AEGISH_MODE" in caplog.text
-        assert "staging" in caplog.text
-
-    def test_empty_mode_does_not_log(self, mocker, caplog):
-        """Empty/unset AEGISH_MODE should not produce a debug log."""
-        mocker.patch.dict(os.environ, {"AEGISH_MODE": ""}, clear=True)
-        import logging
-        with caplog.at_level(logging.DEBUG, logger="aegish.config"):
-            get_mode()
-        assert "Invalid AEGISH_MODE" not in caplog.text
+    def test_unset_mode_does_not_exit(self, mocker):
+        """Story 12.2: Unset AEGISH_MODE silently defaults, no exit."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_mode() == "development"
 
     def test_mode_normalized_whitespace_and_case(self, mocker):
         """AC5: Whitespace and mixed case are normalized."""
@@ -288,7 +332,8 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openai/gpt-4"
+        assert result == DEFAULT_PRIMARY_MODEL
+        assert result == "google/gemini-3-flash-preview"
 
     def test_custom_primary_model_from_env_var(self, mocker):
         """AC1: Custom primary model via env var."""
@@ -312,7 +357,7 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openai/gpt-4"
+        assert result == DEFAULT_PRIMARY_MODEL
 
     def test_whitespace_primary_model_uses_default(self, mocker):
         """AC3: Whitespace-only env var uses default."""
@@ -324,7 +369,7 @@ class TestGetPrimaryModel:
 
         result = get_primary_model()
 
-        assert result == "openai/gpt-4"
+        assert result == DEFAULT_PRIMARY_MODEL
 
 
 class TestGetFallbackModels:
@@ -336,7 +381,8 @@ class TestGetFallbackModels:
 
         result = get_fallback_models()
 
-        assert result == ["anthropic/claude-3-haiku-20240307"]
+        assert result == DEFAULT_FALLBACK_MODELS
+        assert len(result) == 8  # Story 12.3: full 8-model chain
 
     def test_custom_fallback_models_from_env_var(self, mocker):
         """AC2: Custom fallback models via env var."""
@@ -408,10 +454,8 @@ class TestGetModelChain:
 
         result = get_model_chain()
 
-        assert result == [
-            "openai/gpt-4",
-            "anthropic/claude-3-haiku-20240307",
-        ]
+        assert result[0] == DEFAULT_PRIMARY_MODEL
+        assert len(result) == 9  # 1 primary + 8 fallbacks
 
     def test_custom_model_chain(self, mocker):
         """Custom primary and fallback models form correct chain."""
@@ -532,6 +576,8 @@ class TestGetAllowedProviders:
         assert "groq" in result
         assert "together_ai" in result
         assert "ollama" in result
+        assert "google" in result
+        assert "hf-inference-providers" in result
 
     def test_custom_allowed_providers(self, mocker):
         """Custom providers from env var."""
@@ -747,7 +793,7 @@ class TestIsDefaultPrimaryModel:
 
     def test_default_when_env_set_to_default(self, mocker):
         """Returns True when env var matches default."""
-        mocker.patch.dict(os.environ, {"AEGISH_PRIMARY_MODEL": "openai/gpt-4"}, clear=True)
+        mocker.patch.dict(os.environ, {"AEGISH_PRIMARY_MODEL": DEFAULT_PRIMARY_MODEL}, clear=True)
         assert is_default_primary_model() is True
 
     def test_default_when_env_empty(self, mocker):
@@ -860,3 +906,410 @@ class TestValidateRunnerBinary:
         assert is_valid is False
         assert "not executable" in msg
         assert "chmod" in msg
+
+
+class TestLoadConfigFile:
+    """Tests for _load_config_file function (Story 12.1)."""
+
+    def test_load_simple_key_value(self, tmp_path, mocker):
+        """Parses KEY=VALUE format correctly."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_FAIL_MODE=open\nAEGISH_MODE=production\n")
+        # Make root-owned check pass by mocking os.stat
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        result = _load_config_file(str(config_file))
+
+        assert result["AEGISH_FAIL_MODE"] == "open"
+        assert result["AEGISH_MODE"] == "production"
+
+    def test_load_with_comments_and_blank_lines(self, tmp_path, mocker):
+        """Comments and blank lines are skipped."""
+        config_file = tmp_path / "config"
+        config_file.write_text("# Comment\n\nAEGISH_MODE=production\n# Another\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        result = _load_config_file(str(config_file))
+
+        assert len(result) == 1
+        assert result["AEGISH_MODE"] == "production"
+
+    def test_load_strips_quotes(self, tmp_path, mocker):
+        """Quoted values have quotes stripped."""
+        config_file = tmp_path / "config"
+        config_file.write_text('AEGISH_FAIL_MODE="safe"\nAEGISH_MODE=\'production\'\n')
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        result = _load_config_file(str(config_file))
+
+        assert result["AEGISH_FAIL_MODE"] == "safe"
+        assert result["AEGISH_MODE"] == "production"
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        """Missing config file returns empty dict."""
+        result = _load_config_file(str(tmp_path / "nonexistent"))
+        assert result == {}
+
+    def test_malformed_line_skipped(self, tmp_path, mocker):
+        """Lines without = are skipped."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_MODE=production\nBAD LINE\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        result = _load_config_file(str(config_file))
+
+        assert len(result) == 1
+        assert result["AEGISH_MODE"] == "production"
+
+
+class TestValidateConfigFilePermissions:
+    """Tests for _validate_config_file_permissions (Story 12.1)."""
+
+    def test_root_owned_not_world_writable_passes(self, mocker):
+        """Root-owned, non-world-writable file passes validation."""
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        is_valid, msg = _validate_config_file_permissions("/etc/aegish/config")
+
+        assert is_valid is True
+        assert msg == ""
+
+    def test_non_root_owned_fails(self, mocker):
+        """Non-root-owned file fails validation."""
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 1000
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        is_valid, msg = _validate_config_file_permissions("/etc/aegish/config")
+
+        assert is_valid is False
+        assert "not owned by root" in msg
+
+    def test_world_writable_fails(self, mocker):
+        """World-writable file fails validation."""
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o646  # world-writable
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+
+        is_valid, msg = _validate_config_file_permissions("/etc/aegish/config")
+
+        assert is_valid is False
+        assert "world-writable" in msg
+
+    def test_stat_error_fails(self, mocker):
+        """OSError from stat fails gracefully."""
+        mocker.patch("aegish.config.os.stat", side_effect=OSError("No such file"))
+
+        is_valid, msg = _validate_config_file_permissions("/etc/aegish/config")
+
+        assert is_valid is False
+        assert "Cannot stat" in msg
+
+
+class TestGetSecurityConfigProductionMode:
+    """Tests for _get_security_config in production mode (Story 12.1)."""
+
+    def test_production_reads_from_config_file(self, tmp_path, mocker):
+        """In production, security settings come from config file, not env."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_FAIL_MODE=open\nAEGISH_MODE=production\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        # Env var says "safe" but config file says "open"
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_FAIL_MODE": "safe",
+        }, clear=True)
+
+        result = _get_security_config("AEGISH_FAIL_MODE", "safe")
+
+        assert result == "open"
+
+    def test_production_ignores_env_var_for_security_keys(self, tmp_path, mocker):
+        """In production, env var is ignored for security-critical keys."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_MODE=production\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_FAIL_MODE": "open",
+        }, clear=True)
+
+        # AEGISH_FAIL_MODE not in config file, so secure default used
+        result = _get_security_config("AEGISH_FAIL_MODE", "safe")
+
+        assert result == "safe"  # default, not env var "open"
+
+    def test_development_reads_from_env_var(self, mocker):
+        """In development, security settings come from env vars."""
+        mocker.patch.dict(os.environ, {
+            "AEGISH_FAIL_MODE": "open",
+        }, clear=True)
+
+        result = _get_security_config("AEGISH_FAIL_MODE", "safe")
+
+        assert result == "open"
+
+    def test_production_missing_config_file_uses_defaults(self, mocker):
+        """In production with missing config file, secure defaults are used."""
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", "/nonexistent/config")
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_FAIL_MODE": "open",  # should be ignored
+        }, clear=True)
+
+        result = _get_security_config("AEGISH_FAIL_MODE", "safe")
+
+        assert result == "safe"  # secure default
+
+
+class TestProductionModeIntegration:
+    """Integration tests: production mode ignores env vars for security settings."""
+
+    def test_get_fail_mode_production_uses_config_file(self, tmp_path, mocker):
+        """get_fail_mode() reads from config file in production."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_FAIL_MODE=open\nAEGISH_MODE=production\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_FAIL_MODE": "safe",  # should be ignored
+        }, clear=True)
+
+        assert get_fail_mode() == "open"
+
+    def test_get_allowed_providers_production_uses_config_file(self, tmp_path, mocker):
+        """get_allowed_providers() reads from config file in production."""
+        config_file = tmp_path / "config"
+        config_file.write_text(
+            "AEGISH_ALLOWED_PROVIDERS=openai,anthropic\n"
+            "AEGISH_MODE=production\n"
+        )
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_ALLOWED_PROVIDERS": "evil-corp",  # should be ignored
+        }, clear=True)
+
+        result = get_allowed_providers()
+        assert result == {"openai", "anthropic"}
+
+    def test_development_mode_preserves_env_var_behavior(self, mocker):
+        """Development mode still reads from env vars."""
+        mocker.patch.dict(os.environ, {
+            "AEGISH_FAIL_MODE": "open",
+        }, clear=True)
+
+        assert get_fail_mode() == "open"
+
+
+class TestRunnerPathProduction:
+    """Tests for get_runner_path in production mode (Story 13.4)."""
+
+    def test_production_hardcodes_runner_path(self, tmp_path, mocker):
+        """In production, runner path is always PRODUCTION_RUNNER_PATH."""
+        config_file = tmp_path / "config"
+        config_file.write_text("AEGISH_MODE=production\n")
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_RUNNER_PATH": "/evil/path/runner",
+        }, clear=True)
+
+        from aegish.config import PRODUCTION_RUNNER_PATH
+        assert get_runner_path() == PRODUCTION_RUNNER_PATH
+
+    def test_production_ignores_env_var_runner_path(self, mocker):
+        """In production, AEGISH_RUNNER_PATH env var is ignored."""
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch.dict(os.environ, {
+            "AEGISH_RUNNER_PATH": "/custom/runner",
+        }, clear=True)
+
+        from aegish.config import PRODUCTION_RUNNER_PATH
+        assert get_runner_path() == PRODUCTION_RUNNER_PATH
+
+    def test_development_allows_custom_runner_path(self, mocker):
+        """In development, AEGISH_RUNNER_PATH env var is respected."""
+        mocker.patch.dict(os.environ, {
+            "AEGISH_RUNNER_PATH": "/custom/runner",
+        }, clear=True)
+
+        assert get_runner_path() == "/custom/runner"
+
+
+class TestRunnerHashVerification:
+    """Tests for SHA-256 hash verification of runner binary (Story 13.4)."""
+
+    def test_production_valid_hash_passes(self, tmp_path, mocker):
+        """Production: matching hash passes validation."""
+        runner = tmp_path / "runner"
+        runner.write_bytes(b"#!/bin/bash\necho hello\n")
+        runner.chmod(0o755)
+
+        import hashlib
+        expected_hash = hashlib.sha256(b"#!/bin/bash\necho hello\n").hexdigest()
+
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
+        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", expected_hash)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is True
+        assert "ready" in msg
+
+    def test_production_invalid_hash_fails(self, tmp_path, mocker):
+        """Production: mismatched hash fails validation."""
+        runner = tmp_path / "runner"
+        runner.write_bytes(b"#!/bin/bash\necho hello\n")
+        runner.chmod(0o755)
+
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
+        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "deadbeef" * 8)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is False
+        assert "hash mismatch" in msg
+        assert "tampered" in msg
+
+    def test_production_no_hash_configured_skips_check(self, tmp_path, mocker):
+        """Production with no expected hash: skip hash check, just verify exists."""
+        runner = tmp_path / "runner"
+        runner.write_bytes(b"#!/bin/bash\n")
+        runner.chmod(0o755)
+
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
+        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "")
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is True
+
+    def test_development_no_hash_check(self, tmp_path, mocker):
+        """Development mode: no hash check even if hash is set."""
+        runner = tmp_path / "runner"
+        runner.write_bytes(b"#!/bin/bash\n")
+        runner.chmod(0o755)
+
+        mocker.patch.dict(os.environ, {
+            "AEGISH_RUNNER_PATH": str(runner),
+        }, clear=True)
+        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "deadbeef" * 8)
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is True  # No hash check in development
+
+    def test_production_missing_runner_fails(self, mocker):
+        """Production: missing runner binary fails."""
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", "/nonexistent/runner")
+
+        is_valid, msg = validate_runner_binary()
+
+        assert is_valid is False
+        assert "not found" in msg
+
+
+class TestGetRole:
+    """Tests for get_role function (Story 12.4)."""
+
+    def test_default_role_when_no_env_var(self, mocker):
+        """Default role is 'default' when AEGISH_ROLE not set."""
+        mocker.patch.dict(os.environ, {}, clear=True)
+        assert get_role() == "default"
+
+    def test_default_role_when_empty(self, mocker):
+        """Empty AEGISH_ROLE falls back to default."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": ""}, clear=True)
+        assert get_role() == "default"
+
+    @pytest.mark.parametrize("role", ["default", "sysadmin", "restricted"])
+    def test_valid_roles_accepted(self, mocker, role):
+        """All valid roles are accepted."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": role}, clear=True)
+        assert get_role() == role
+
+    def test_role_normalized_case(self, mocker):
+        """Mixed case is normalized to lowercase."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": "SysAdmin"}, clear=True)
+        assert get_role() == "sysadmin"
+
+    def test_role_normalized_whitespace(self, mocker):
+        """Whitespace is stripped."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": " restricted "}, clear=True)
+        assert get_role() == "restricted"
+
+    def test_invalid_role_falls_back_to_default(self, mocker):
+        """Invalid role falls back to default."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": "superuser"}, clear=True)
+        assert get_role() == "default"
+
+    def test_invalid_role_logs_warning(self, mocker, caplog):
+        """Invalid role logs a warning."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": "superuser"}, clear=True)
+        import logging
+        with caplog.at_level(logging.WARNING, logger="aegish.config"):
+            get_role()
+        assert "Invalid AEGISH_ROLE" in caplog.text
+        assert "superuser" in caplog.text
+
+    def test_empty_role_does_not_log(self, mocker, caplog):
+        """Empty/unset AEGISH_ROLE should not produce a warning."""
+        mocker.patch.dict(os.environ, {"AEGISH_ROLE": ""}, clear=True)
+        import logging
+        with caplog.at_level(logging.WARNING, logger="aegish.config"):
+            get_role()
+        assert "Invalid AEGISH_ROLE" not in caplog.text
+
+    def test_role_in_security_critical_keys(self):
+        """AEGISH_ROLE is in the security-critical keys set."""
+        assert "AEGISH_ROLE" in SECURITY_CRITICAL_KEYS
+
+    def test_valid_roles_constant(self):
+        """VALID_ROLES contains exactly the expected roles."""
+        assert VALID_ROLES == {"default", "sysadmin", "restricted"}
+
+    def test_default_role_constant(self):
+        """DEFAULT_ROLE is 'default'."""
+        assert DEFAULT_ROLE == "default"
