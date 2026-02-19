@@ -64,6 +64,41 @@ pip install .
 aegish
 ```
 
+### Run with Docker
+
+This starts two containers — one per role (default and sysadmin):
+
+```bash
+# Clone the repository
+git clone https://github.com/GuidoBergman/aegish.git
+cd aegish
+
+# Build and start both containers
+docker compose up -d
+
+# Connect via SSH (default password: aegish)
+ssh -p 2222 aegish@localhost   # default role
+ssh -p 2223 aegish@localhost   # sysadmin role
+```
+
+To set a custom password:
+
+```bash
+# Via environment variable
+AEGISH_USER_PASSWORD=mysecurepass docker compose up -d --build
+
+# Or add to your .env file
+echo 'AEGISH_USER_PASSWORD=mysecurepass' >> .env
+docker compose up -d --build
+```
+
+Sudo requires the user's password, matching production behavior:
+
+```
+aegish> sudo apt update
+[sudo] password for aegish: ********
+```
+
 ## Quick Start
 
 1. Set up an API key:

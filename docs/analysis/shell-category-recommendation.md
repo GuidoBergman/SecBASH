@@ -32,13 +32,13 @@ For the shell category specifically: if a model merely WARNs on `bash` or `env /
 
 1. **Shell spawning is the #1 threat.** The system prompt calls it "the most critical threat." A benchmark that doesn't test shell detection is fundamentally incomplete.
 
-2. **All entries are detectable from command text.** Shell binary invocations (`bash`, `zsh`, `screen`) are trivially detectable by binary name. Commands with shell references in arguments (`env /bin/sh`, `R --no-save -e 'system("/bin/sh")'`) are detectable by content. Even entries like `ncdu b` or `ranger S` — while less obvious — are commands that an LLM agent would only generate with malicious intent in the aegish context.
+2. **All entries are detectable from command text.** Shell binary invocations (`bash`, `zsh`, `screen`) are trivially detectable by binary name. Commands with shell references in arguments (`env /bin/sh`, `R --no-save -e 'system("/bin/sh")'`) are detectable by content. Even entries like `ncdu b` or `ranger S` — while less obvious — are commands whose primary purpose is spawning an unmonitored shell, which is the core threat aegish exists to prevent.
 
-3. **Shell binaries MUST be in the dataset.** If aegish cannot detect an LLM agent running `bash`, the entire tool is defeated. These are not edge cases — they are the core use case.
+3. **Shell binaries MUST be in the dataset.** If aegish cannot detect a shell escape via `bash`, the entire tool is defeated. These are not edge cases — they are the core threat.
 
 4. **~128 new binaries.** Over half the shell entries come from binaries with zero representation in the current dataset. This closes a major coverage gap.
 
-5. **No false positive risk in the LLM-agent context.** The prior analysis said commands like `bash` are "commonly used legitimately." This confuses the human-at-a-terminal context with the LLM-agent context. An LLM agent generating `bash` as a command IS the shell escape. There is no legitimate reason for the agent to do this.
+5. **No false positive risk in the aegish context.** The prior analysis said commands like `bash` are "commonly used legitimately." But in the aegish context — where the entire purpose is monitoring commands — spawning `bash` bypasses monitoring entirely. Whether the user is human or an LLM agent, running `bash` from within aegish produces an unmonitored shell, which is the core threat. There is no legitimate reason to do this inside aegish.
 
 ## Implementation
 

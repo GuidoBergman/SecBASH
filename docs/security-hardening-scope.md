@@ -107,7 +107,7 @@ When aegish is set as the user's login shell (via `chsh`), there is no parent sh
 
 **Design Decision DD-13:** Use login shell approach rather than trapping/blocking `exit`. **Rationale:** Blocking `exit` in a non-login shell is futile — the user can still `kill` the process, close the terminal, or `Ctrl+Z` and operate from the parent shell. The login shell approach eliminates the parent shell entirely, which is the only structural fix. This is the standard approach used by `lshell`, `rbash`, and other restricted shells.
 
-**Design Decision DD-14:** Two modes (production/development) controlled by `AEGISH_MODE` env var. **Rationale:** Developers need to be able to exit aegish during development and testing. Production deployments (wrapping LLM agents, securing servers) need the login shell constraint. The env var follows the existing config pattern and cannot be changed mid-session by the confined user.
+**Design Decision DD-14:** Two modes (production/development) controlled by `AEGISH_MODE` env var. **Rationale:** Development mode is for testing and development of aegish itself, where developers need to exit freely. Production mode is the intended deployment mode for both human sysadmins and LLM agent wrapping — it enforces the login shell constraint so there is no parent shell to escape to. The env var follows the existing config pattern and cannot be changed mid-session by the confined user.
 
 ---
 
@@ -193,7 +193,7 @@ def execute_command(command: str, last_exit_code: int = 0) -> int:
 | `python3 script.py` | calls `execve("/usr/bin/python3")` → allowed |
 | `git status` | calls `execve("/usr/bin/git")` → allowed |
 
-**Known limitation in production mode:** Shell scripts with `#!/bin/bash` shebangs will fail because the kernel translates `./script.sh` into `execve("/bin/bash", ["bash", "./script.sh"])`, which is denied. This is acceptable for the primary production use case (wrapping an LLM agent that shouldn't spawn sub-shells). Human sysadmins should use development mode.
+**Known limitation in production mode:** Shell scripts with `#!/bin/bash` shebangs cannot be executed via `./script.sh` because the kernel translates this into `execve("/bin/bash", ["bash", "./script.sh"])`, which Landlock denies. **Workaround:** Use `source script.sh` or `. script.sh` instead — these are bash builtins that read and evaluate the file within the current process without calling `execve()`, so Landlock does not block them. The shebang line is treated as a comment when sourcing. This applies to all production mode users (both human sysadmins and LLM agent wrapping).
 
 **Graceful degradation:** If the host kernel doesn't support Landlock (< 5.13), production mode falls back to development mode behavior with a visible warning at startup: "WARNING: Landlock not available on this kernel. Shell spawning restrictions are NOT enforced."
 
@@ -205,7 +205,7 @@ def execute_command(command: str, last_exit_code: int = 0) -> int:
 - AppArmor requires root setup and is platform-dependent (Ubuntu only)
 - Landlock is kernel-enforced, unprivileged, inherited by children, irrevocable, and implementable in pure Python via ctypes
 
-**Design Decision DD-16:** Accept that shell scripts break in production mode rather than trying to distinguish interactive vs non-interactive bash. **Rationale:** Landlock operates on file paths, not invocation arguments. The kernel sees the same `execve("/bin/bash")` for both `vim :!bash` and `./script.sh`. Trying to distinguish them would require ptrace (too slow) or seccomp USER_NOTIF (TOCTTOU-vulnerable). The production mode target audience (LLM agents) doesn't need shell scripts. Human users use development mode.
+**Design Decision DD-16:** Accept that `./script.sh` shebang execution breaks in production mode rather than trying to distinguish interactive vs non-interactive bash. **Rationale:** Landlock operates on file paths, not invocation arguments. The kernel sees the same `execve("/bin/bash")` for both `vim :!bash` and `./script.sh`. Trying to distinguish them would require ptrace (too slow) or seccomp USER_NOTIF (TOCTTOU-vulnerable). The workaround for all production mode users (human sysadmins and LLM agents alike) is to use `source script.sh` or `. script.sh`, which bypasses `execve()` entirely.
 
 **Design Decision DD-17:** Runner symlink (`/opt/aegish/bin/runner → /bin/bash`) instead of a compiled wrapper binary. **Rationale:** A symlink is zero-maintenance — it automatically picks up bash updates. A compiled wrapper would need to be rebuilt when bash is updated. The symlink's security comes from Landlock allowing execute on the symlink path while denying the real bash path. Landlock resolves symlinks, so we need to verify this works correctly (if Landlock resolves the symlink to `/bin/bash` and denies it, we'd need a hardlink or a copy instead).
 
@@ -320,7 +320,7 @@ Update `_validation_failed_response()` and the startup banner to display current
 
 **Concrete Solution:** Change `query_llm()` to return `block` with `confidence=1.0` for oversized commands.
 
-**Design Decision DD-07:** Block unconditionally. **Rationale:** No legitimate use case for 4KB+ interactive commands. Scripts should be run via `bash script.sh`.
+**Design Decision DD-07:** Block unconditionally. **Rationale:** No legitimate use case for 4KB+ interactive commands. Scripts should be run via `source script.sh`.
 
 ---
 
@@ -465,9 +465,9 @@ Cache entries are keyed on full message content. The `envsubst` expansion (BYPAS
 | DD-09 | `bashlex` + `envsubst` over regex heuristics | AST parsing is structurally correct |
 | DD-10 | Provider allowlist, not model allowlist | New models within trusted providers |
 | DD-13 | Login shell over exit-trapping | Only structural fix; no parent shell to escape to |
-| DD-14 | Production/development modes via `AEGISH_MODE` | Developers need exit; production needs confinement |
+| DD-14 | Production/development modes via `AEGISH_MODE` | Development is for testing; production is the deployment mode for humans and agents |
 | DD-15 | Landlock over seccomp/ptrace/LD_PRELOAD/rbash/AppArmor | Kernel-enforced, unprivileged, irrevocable, pure Python |
-| DD-16 | Shell scripts break in production mode | Acceptable for LLM agent wrapping; humans use dev mode |
+| DD-16 | `./script.sh` shebangs break in production mode | Use `source script.sh` instead; applies to all users |
 | DD-17 | Runner hardlink/copy (not symlink) for bash | Landlock resolves symlinks; hardlink has distinct path |
 | DD-18 | WARN for variable-in-command-position | False positives possible; WARN preserves user agency |
 | DD-19 | Post-elevation Landlock for sudo commands | Skip preexec_fn for sudo; sandboxer library sets NO_NEW_PRIVS + Landlock inside elevated process |

@@ -1992,3 +1992,232 @@ class TestRateLimiterInQueryLLM:
                     mock_bucket.acquire.assert_not_called()
         finally:
             mod._rate_limiter = old_limiter
+
+
+class TestScriptFileDetection:
+    """Tests for script file detection across interpreters, direct exec, and redirection."""
+
+    def test_interpreter_file_detected(self, tmp_path):
+        """python3 script.py reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.py"
+        script.write_text("import os\nos.system('/bin/sh')\n")
+        result = _detect_script_files(f"python3 {script}")
+        assert len(result) == 1
+        assert "os.system" in result[0][1]
+
+    def test_ruby_interpreter(self, tmp_path):
+        """ruby script.rb reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.rb"
+        script.write_text("puts 'hello'\n")
+        result = _detect_script_files(f"ruby {script}")
+        assert len(result) == 1
+        assert "puts" in result[0][1]
+
+    def test_node_interpreter(self, tmp_path):
+        """node script.js reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.js"
+        script.write_text("console.log('hello');\n")
+        result = _detect_script_files(f"node {script}")
+        assert len(result) == 1
+        assert "console.log" in result[0][1]
+
+    def test_bash_interpreter(self, tmp_path):
+        """bash script.sh reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.sh"
+        script.write_text("#!/bin/bash\necho hello\n")
+        result = _detect_script_files(f"bash {script}")
+        assert len(result) == 1
+        assert "echo hello" in result[0][1]
+
+    def test_versioned_python(self, tmp_path):
+        """python3.11 script.py reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.py"
+        script.write_text("print('hello')\n")
+        result = _detect_script_files(f"python3.11 {script}")
+        assert len(result) == 1
+        assert "print" in result[0][1]
+
+    def test_direct_execution_dot_slash(self, tmp_path):
+        """./script.sh reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.sh"
+        script.write_text("#!/bin/bash\nrm -rf /\n")
+        result = _detect_script_files(f"./{script}")
+        # Direct path with ./ prefix triggers detection
+        assert len(result) == 1
+
+    def test_direct_execution_absolute_path(self, tmp_path):
+        """Absolute path /tmp/script.sh reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.sh"
+        script.write_text("#!/bin/bash\nwhoami\n")
+        result = _detect_script_files(str(script))
+        assert len(result) == 1
+        assert "whoami" in result[0][1]
+
+    def test_c_flag_returns_no_refs(self):
+        """python3 -c 'print(1)' returns no script refs (inline code)."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("python3 -c 'print(1)'")
+        assert result == []
+
+    def test_m_flag_returns_no_refs(self):
+        """python3 -m pytest returns no script refs."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("python3 -m pytest")
+        assert result == []
+
+    def test_e_flag_returns_no_refs(self):
+        """perl -e 'print 1' returns no script refs."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("perl -e 'print 1'")
+        assert result == []
+
+    def test_f_flag_awk(self, tmp_path):
+        """awk -f script.awk reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.awk"
+        script.write_text('BEGIN { system("/bin/sh") }\n')
+        result = _detect_script_files(f"awk -f {script}")
+        assert len(result) == 1
+        assert "system" in result[0][1]
+
+    def test_f_flag_sed(self, tmp_path):
+        """sed -f script.sed reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.sed"
+        script.write_text("s/foo/bar/g\n")
+        result = _detect_script_files(f"sed -f {script}")
+        assert len(result) == 1
+        assert "s/foo/bar/g" in result[0][1]
+
+    def test_input_redirection(self, tmp_path):
+        """bash < script.sh reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.sh"
+        script.write_text("echo pwned\n")
+        result = _detect_script_files(f"bash < {script}")
+        assert len(result) == 1
+        assert "echo pwned" in result[0][1]
+
+    def test_input_redirection_python(self, tmp_path):
+        """python3 < malicious.py reads script content."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "malicious.py"
+        script.write_text("import os; os.system('rm -rf /')\n")
+        result = _detect_script_files(f"python3 < {script}")
+        assert len(result) == 1
+        assert "os.system" in result[0][1]
+
+    def test_env_prefix(self, tmp_path):
+        """env python3 script.py still detects the script."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.py"
+        script.write_text("print('hello')\n")
+        result = _detect_script_files(f"env python3 {script}")
+        assert len(result) == 1
+        assert "print" in result[0][1]
+
+    def test_nohup_prefix(self, tmp_path):
+        """nohup python3 script.py detects the script."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.py"
+        script.write_text("print('hello')\n")
+        result = _detect_script_files(f"nohup python3 {script}")
+        assert len(result) == 1
+
+    def test_nice_prefix_with_flag(self, tmp_path):
+        """nice -n 10 python3 script.py detects the script."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "script.py"
+        script.write_text("print('hello')\n")
+        result = _detect_script_files(f"nice -n 10 python3 {script}")
+        assert len(result) == 1
+
+    def test_binary_file_detected(self, tmp_path):
+        """Binary files return a [binary file] note."""
+        from aegish.llm_client import _detect_script_files
+        script = tmp_path / "binary.py"
+        script.write_bytes(b"\x00\x01\x02\x03ELF")
+        result = _detect_script_files(f"python3 {script}")
+        assert len(result) == 1
+        assert "binary file" in result[0][1].lower()
+
+    def test_missing_file_returns_note(self):
+        """Missing file returns [file not found] note."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("python3 /nonexistent/script.py")
+        assert len(result) == 1
+        assert "file not found" in result[0][1].lower()
+
+    def test_sensitive_path_blocked(self):
+        """Sensitive paths return [sensitive path blocked] note."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("python3 /etc/shadow")
+        assert len(result) == 1
+        assert "sensitive path blocked" in result[0][1].lower()
+
+    def test_script_contents_in_messages(self, tmp_path):
+        """Script contents appear in SCRIPT_CONTENTS tags in messages."""
+        script = tmp_path / "evil.py"
+        script.write_text("import os; os.system('/bin/sh')\n")
+        with patch("aegish.llm_client._expand_env_vars") as mock_expand:
+            mock_expand.return_value = f"python3 {script}"
+            messages = _get_messages_for_model(f"python3 {script}")
+            user_content = messages[1]["content"]
+            assert "<SCRIPT_CONTENTS>" in user_content
+            assert "os.system" in user_content
+            assert "</SCRIPT_CONTENTS>" in user_content
+
+    def test_source_dot_not_double_reported(self, tmp_path):
+        """source/dot commands are NOT double-reported by _detect_script_files."""
+        script = tmp_path / "setup.sh"
+        script.write_text("export FOO=bar\n")
+        with patch("aegish.llm_client._expand_env_vars") as mock_expand:
+            mock_expand.return_value = f"source {script}"
+            messages = _get_messages_for_model(f"source {script}")
+            user_content = messages[1]["content"]
+            # Should have exactly one SCRIPT_CONTENTS block (from source, not from detect)
+            assert user_content.count("<SCRIPT_CONTENTS>") == 1
+
+    def test_plain_commands_no_script_refs(self):
+        """Commands with no script ref: ls -la, echo hello return empty list."""
+        from aegish.llm_client import _detect_script_files
+        assert _detect_script_files("ls -la") == []
+        assert _detect_script_files("echo hello") == []
+        assert _detect_script_files("git status") == []
+        assert _detect_script_files("grep pattern file.txt") == []
+
+    def test_no_script_contents_for_plain_commands(self):
+        """Plain commands don't get SCRIPT_CONTENTS tags."""
+        with patch("aegish.llm_client._expand_env_vars") as mock_expand:
+            mock_expand.return_value = "ls -la"
+            messages = _get_messages_for_model("ls -la")
+            user_content = messages[1]["content"]
+            assert "SCRIPT_CONTENTS" not in user_content
+
+    def test_awk_without_f_flag_no_refs(self):
+        """awk 'BEGIN {print}' without -f returns no script refs."""
+        from aegish.llm_client import _detect_script_files
+        result = _detect_script_files("awk 'BEGIN {print}'")
+        assert result == []
+
+    def test_large_file_returns_note(self, tmp_path):
+        """Files exceeding MAX_SOURCE_SCRIPT_SIZE return a size note."""
+        from aegish.llm_client import _detect_script_files, MAX_SOURCE_SCRIPT_SIZE
+        script = tmp_path / "huge.py"
+        script.write_text("x" * (MAX_SOURCE_SCRIPT_SIZE + 100))
+        result = _detect_script_files(f"python3 {script}")
+        assert len(result) == 1
+        assert "too large" in result[0][1].lower()
+
+    def test_system_prompt_has_script_execution_guidance(self):
+        """System prompt includes script execution analysis guidance."""
+        from aegish.llm_client import SYSTEM_PROMPT
+        assert "Script execution" in SYSTEM_PROMPT
+        assert "SCRIPT_CONTENTS" in SYSTEM_PROMPT

@@ -69,7 +69,7 @@ if len(command) > MAX_COMMAND_LENGTH:
 
 ### Why Block Instead of Warn
 
-**DD-07 (Design Decision):** Block unconditionally. No legitimate use case for 4KB+ single-line interactive commands. Scripts should be run via `bash script.sh`, not pasted as one-liners. An attacker could pad a malicious command with whitespace/comments to exceed the LLM's context window, causing a validation failure that currently defaults to warn → user confirms → command executes. [Source: docs/security-hardening-scope.md#DD-07, BYPASS-05]
+**DD-07 (Design Decision):** Block unconditionally. No legitimate use case for 4KB+ single-line interactive commands. Scripts should be run via `source script.sh`, not pasted as one-liners. An attacker could pad a malicious command with whitespace/comments to exceed the LLM's context window, causing a validation failure that currently defaults to warn → user confirms → command executes. [Source: docs/security-hardening-scope.md#DD-07, BYPASS-05]
 
 ### Why Not Use _validation_failed_response()
 

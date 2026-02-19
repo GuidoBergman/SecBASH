@@ -292,7 +292,7 @@ subprocess.run(
 | DD-13 | Login shell over exit-trapping | Story 8.2 (not this story) |
 | DD-14 | Production/development modes | sandbox.py is used ONLY in production mode; caller checks mode |
 | DD-15 | Landlock over seccomp/ptrace/LD_PRELOAD/rbash/AppArmor | This story implements the Landlock approach |
-| DD-16 | Shell scripts break in production mode | Accepted -- `#!/bin/bash` shebangs trigger `execve("/bin/bash")` which Landlock denies |
+| DD-16 | `./script.sh` shebangs break in production mode | Accepted -- `#!/bin/bash` shebangs trigger `execve("/bin/bash")` which Landlock denies; use `source script.sh` instead |
 | DD-17 | Runner hardlink (not symlink) | Runner binary at `/opt/aegish/bin/runner` is a hardlink; its path gets an explicit EXECUTE rule |
 
 ### WSL2 + Docker Compatibility Note

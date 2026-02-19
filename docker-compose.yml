@@ -1,0 +1,61 @@
+# Docker Compose for aegish production deployment
+# Usage: docker compose up -d
+#
+# Two containers are created:
+#   - aegish-default  (port 2222) — default role
+#   - aegish-sysadmin (port 2223) — sysadmin role
+#
+# Connect via SSH:
+#   ssh -p 2222 aegish@localhost   # default role
+#   ssh -p 2223 aegish@localhost   # sysadmin role
+#   Password: aegish (change via AEGISH_USER_PASSWORD build arg)
+#
+# Sudo requires the user's password (production behavior).
+#
+# Landlock compatibility:
+#   Docker's default seccomp profile includes Landlock syscalls (moby/moby PR #43199).
+#   No special flags are needed on modern Docker (20.10+).
+
+x-common: &common
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      AEGISH_USER_PASSWORD: ${AEGISH_USER_PASSWORD:-aegish}
+  restart: unless-stopped
+  env_file:
+    - path: .env
+      required: false
+  healthcheck:
+    test: ["CMD", "nc", "-z", "localhost", "22"]
+    interval: 5s
+    timeout: 3s
+    retries: 5
+    start_period: 5s
+
+services:
+  aegish-default:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AEGISH_USER_PASSWORD: ${AEGISH_USER_PASSWORD:-aegish}
+        AEGISH_ROLE: default
+    image: aegish:default
+    container_name: aegish-default
+    ports:
+      - "2222:22"
+
+  aegish-sysadmin:
+    <<: *common
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AEGISH_USER_PASSWORD: ${AEGISH_USER_PASSWORD:-aegish}
+        AEGISH_ROLE: sysadmin
+    image: aegish:sysadmin
+    container_name: aegish-sysadmin
+    ports:
+      - "2223:22"

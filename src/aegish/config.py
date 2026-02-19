@@ -57,6 +57,7 @@ SECURITY_CRITICAL_KEYS = frozenset({
     "AEGISH_FAIL_MODE",
     "AEGISH_ALLOWED_PROVIDERS",
     "AEGISH_RUNNER_PATH",
+    "AEGISH_RUNNER_HASH",
     "AEGISH_MODE",
     "AEGISH_ROLE",
     "AEGISH_VAR_CMD_ACTION",
@@ -108,10 +109,6 @@ DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"
 # Production runner path is hardcoded (Story 13.4)
 PRODUCTION_RUNNER_PATH = "/opt/aegish/bin/runner"
 
-# Expected SHA-256 hash of the runner binary for integrity verification.
-# Set via AEGISH_RUNNER_HASH env var at build time, or hardcode here.
-# Only checked in production mode.
-EXPECTED_RUNNER_HASH = os.environ.get("AEGISH_RUNNER_HASH", "")
 
 # Sandboxer library configuration (Story 14.2: LD_PRELOAD Landlock enforcement)
 DEFAULT_SANDBOXER_PATH = "/opt/aegish/lib/landlock_sandboxer.so"
@@ -733,8 +730,9 @@ def validate_runner_binary() -> tuple[bool, str]:
     """Validate that the runner binary exists and is executable.
 
     In production mode: also verifies SHA-256 hash integrity.
-    If EXPECTED_RUNNER_HASH is set, the binary's hash must match.
-    Refuses to start on hash mismatch or missing binary in production.
+    Expected hash is read from config file via _get_security_config()
+    (never from env vars in production — prevents env var poisoning).
+    Refuses to start on hash mismatch or missing hash in production.
 
     Returns:
         Tuple of (is_valid, message).
@@ -753,13 +751,18 @@ def validate_runner_binary() -> tuple[bool, str]:
                 f"Fix with: sudo chmod +x {path}")
 
     # SHA-256 hash verification in production mode (Story 13.4)
-    if _is_production_mode() and EXPECTED_RUNNER_HASH:
+    if _is_production_mode():
+        expected_hash = _get_security_config("AEGISH_RUNNER_HASH", "")
+        if not expected_hash:
+            return (False,
+                    "No runner hash configured in /etc/aegish/config. "
+                    "Rebuild the container to embed AEGISH_RUNNER_HASH.")
         try:
             actual_hash = _compute_file_sha256(path)
-            if actual_hash != EXPECTED_RUNNER_HASH:
+            if actual_hash != expected_hash:
                 return (False,
                         f"Runner binary hash mismatch at {path}.\n"
-                        f"Expected: {EXPECTED_RUNNER_HASH}\n"
+                        f"Expected: {expected_hash}\n"
                         f"Actual:   {actual_hash}\n"
                         f"The runner binary may have been tampered with.")
         except OSError as e:

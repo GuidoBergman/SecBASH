@@ -1191,7 +1191,11 @@ class TestRunnerPathProduction:
 
 
 class TestRunnerHashVerification:
-    """Tests for SHA-256 hash verification of runner binary (Story 13.4)."""
+    """Tests for SHA-256 hash verification of runner binary (Story 13.4).
+
+    Hash is read from config file via _get_security_config() — never from
+    env vars in production (prevents env var poisoning).
+    """
 
     def test_production_valid_hash_passes(self, tmp_path, mocker):
         """Production: matching hash passes validation."""
@@ -1204,7 +1208,10 @@ class TestRunnerHashVerification:
 
         mocker.patch("aegish.config._is_production_mode", return_value=True)
         mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", expected_hash)
+        mocker.patch(
+            "aegish.config._get_security_config",
+            side_effect=lambda key, default="": expected_hash if key == "AEGISH_RUNNER_HASH" else default,
+        )
 
         is_valid, msg = validate_runner_binary()
 
@@ -1219,7 +1226,10 @@ class TestRunnerHashVerification:
 
         mocker.patch("aegish.config._is_production_mode", return_value=True)
         mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "deadbeef" * 8)
+        mocker.patch(
+            "aegish.config._get_security_config",
+            side_effect=lambda key, default="": "deadbeef" * 8 if key == "AEGISH_RUNNER_HASH" else default,
+        )
 
         is_valid, msg = validate_runner_binary()
 
@@ -1227,22 +1237,26 @@ class TestRunnerHashVerification:
         assert "hash mismatch" in msg
         assert "tampered" in msg
 
-    def test_production_no_hash_configured_skips_check(self, tmp_path, mocker):
-        """Production with no expected hash: skip hash check, just verify exists."""
+    def test_production_no_hash_configured_fails_closed(self, tmp_path, mocker):
+        """Production with no expected hash: fail-closed (refuse to start)."""
         runner = tmp_path / "runner"
         runner.write_bytes(b"#!/bin/bash\n")
         runner.chmod(0o755)
 
         mocker.patch("aegish.config._is_production_mode", return_value=True)
         mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "")
+        mocker.patch(
+            "aegish.config._get_security_config",
+            side_effect=lambda key, default="": "" if key == "AEGISH_RUNNER_HASH" else default,
+        )
 
         is_valid, msg = validate_runner_binary()
 
-        assert is_valid is True
+        assert is_valid is False
+        assert "No runner hash configured" in msg
 
     def test_development_no_hash_check(self, tmp_path, mocker):
-        """Development mode: no hash check even if hash is set."""
+        """Development mode: no hash check regardless of config."""
         runner = tmp_path / "runner"
         runner.write_bytes(b"#!/bin/bash\n")
         runner.chmod(0o755)
@@ -1250,7 +1264,6 @@ class TestRunnerHashVerification:
         mocker.patch.dict(os.environ, {
             "AEGISH_RUNNER_PATH": str(runner),
         }, clear=True)
-        mocker.patch("aegish.config.EXPECTED_RUNNER_HASH", "deadbeef" * 8)
 
         is_valid, msg = validate_runner_binary()
 
@@ -1265,6 +1278,10 @@ class TestRunnerHashVerification:
 
         assert is_valid is False
         assert "not found" in msg
+
+    def test_runner_hash_in_security_critical_keys(self):
+        """AEGISH_RUNNER_HASH is in SECURITY_CRITICAL_KEYS (prevents env var poisoning)."""
+        assert "AEGISH_RUNNER_HASH" in SECURITY_CRITICAL_KEYS
 
 
 class TestGetRole:

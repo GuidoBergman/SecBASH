@@ -12,8 +12,8 @@ inputDocuments:
 workflowType: 'epics-stories'
 status: 'in-progress'
 completedAt: '2026-01-28'
-lastRevised: '2026-02-13'
-revisionNote: 'Adding Epics 6-9 from NFR security bypass assessment (docs/security-hardening-scope.md)'
+lastRevised: '2026-02-19'
+revisionNote: 'Adding Epic 17: Remove runner binary, use /bin/bash directly'
 project_name: 'aegish'
 user_name: 'guido'
 ---
@@ -178,11 +178,13 @@ This document provides the complete epic and story breakdown for aegish, decompo
 | FR43 | Epic 8 | Production mode (login shell + Landlock) |
 | FR44 | Epic 8 | Development mode (normal exit + no Landlock) |
 | FR45 | Epic 8 | Landlock denies shell execution |
-| FR46 | Epic 8 | Runner binary for production mode |
+| FR46 | ~~Epic 8~~ | ~~Runner binary for production mode~~ *(retired — Epic 17)* |
 | FR47 | Epic 8 | Graceful Landlock fallback |
 | FR48 | Epic 9 | Provider allowlist |
 | FR49 | Epic 9 | Startup health check |
 | FR50 | Epic 9 | Non-default model warning |
+| FR80 | Epic 17 | Production uses /bin/bash directly with hash verification |
+| FR81 | Epic 17 | Sandboxer library SHA-256 verified at startup; path hardcoded in production |
 
 ## Epic List
 
@@ -250,6 +252,13 @@ Model configuration is validated against a provider allowlist, verified with a h
 **FRs covered:** FR48, FR49, FR50
 **NFR Assessment:** BYPASS-04 (environment variable poisoning)
 **Design decisions:** DD-10 (see docs/security-hardening-scope.md)
+
+### Epic 17: Remove Runner Binary — Use /bin/bash Directly
+The separate runner binary (`/opt/aegish/bin/runner`, a hardlink of bash) is removed. Production mode uses `/bin/bash` directly. Landlock denies `/bin/bash` for future `execve()` calls after the process is already running — the mechanism is identical. This simplifies deployment, eliminates stale-binary risk, and reduces attack surface.
+
+**FRs affected:** FR46 (retired), FR71 (simplified), FR73 (updated), FR80 (new), FR81 (new — sandboxer hash verification)
+**Design decisions retired:** DD-17
+**Supersedes:** Story 8.4 (Runner Binary Setup)
 
 ## Epic 1: Working Shell Foundation
 
@@ -1953,3 +1962,342 @@ So that **configuration integrity features are verified against regressions**.
 
 **Files to create:**
 - `tests/test_config_integrity.py`
+
+## Epic 17: Remove Runner Binary — Use /bin/bash Directly
+
+The separate runner binary at `/opt/aegish/bin/runner` (a hardlink of `/bin/bash`) is unnecessary for the Landlock sandbox mechanism. Landlock only governs future `execve()` calls — it does not affect the already-running process. This means aegish can exec `/bin/bash` directly, have the LD_PRELOAD sandboxer deny `/bin/bash` going forward, and the result is identical: bash is running, but no child process can spawn a new shell.
+
+Removing the runner simplifies deployment (no hardlink creation step, no runner hash verification, no `/opt/aegish/bin/` directory), reduces attack surface (one fewer file to protect), and improves security on bare-metal installs (system bash updates force hash revalidation instead of silently running a stale binary behind a still-valid hash).
+
+**Motivation:**
+
+1. **Landlock doesn't need it.** The sandbox denies future `execve()` calls. The process that's already loaded into memory is unaffected. Both the runner and `/bin/bash` are denied after activation — the pattern is "exec it, then deny it going forward" regardless.
+
+2. **The runner creates a stale-binary risk.** Package managers update `/bin/bash` via atomic rename (new inode). The hardlink at `/opt/aegish/bin/runner` still points to the old inode. The hash check passes, but you're running an unpatched bash. Using `/bin/bash` directly means system updates break the hash, forcing acknowledgment and recomputation — fail-loud is more secure than silently stale.
+
+3. **Smaller attack surface.** The runner at a fixed, well-known path is an additional file requiring protection. `/bin/bash` is already hardened by OS-level permissions.
+
+4. **In containers, it's neutral.** Nothing auto-updates inside a container. Both approaches are frozen at build time.
+
+**FRs affected:** FR46 (retired), FR71 (simplified), FR73 (updated)
+**New FR:** FR80: Production mode uses `/bin/bash` directly; SHA-256 hash verification applies to `/bin/bash`
+**Design decisions retired:** DD-17 (runner hardlink vs symlink — no longer relevant)
+**Dependencies:** None (self-contained refactor)
+
+### Story 17.1: Remove Runner Binary from Executor and Config
+
+As a **developer**,
+I want **production mode to use `/bin/bash` directly instead of the runner binary**,
+So that **the deployment is simpler and the Landlock mechanism works the same way without a separate binary**.
+
+**Acceptance Criteria:**
+
+**Given** production mode is active
+**When** `execute_command()` runs a user command
+**Then** the command executes via `["/bin/bash", "--norc", "--noprofile", "-c", command]`
+**And** the LD_PRELOAD sandboxer denies `/bin/bash` for child processes (Landlock still works)
+
+**Given** `_get_shell_binary()` in executor.py
+**When** called in production mode
+**Then** it returns `"/bin/bash"` (not `get_runner_path()`)
+
+**Given** config.py
+**When** the runner-related code is removed
+**Then** the following are deleted:
+- `DEFAULT_RUNNER_PATH` constant
+- `PRODUCTION_RUNNER_PATH` constant
+- `get_runner_path()` function
+- `validate_runner_binary()` function
+- `AEGISH_RUNNER_PATH` env var handling
+
+**Given** the `_build_safe_env()` function in executor.py
+**When** building the production environment
+**Then** `AEGISH_RUNNER_PATH` is no longer injected into the env dict
+
+**Given** the sandboxer C library (`landlock_sandboxer.c`)
+**When** it reads the runner path
+**Then** it now reads `AEGISH_BASH_PATH` (defaulting to `/bin/bash`) instead of `AEGISH_RUNNER_PATH`
+**And** it denies `/bin/bash` along with all other shells (which it already does via `DENIED_SHELLS`)
+
+**Given** the `sanitize_env()` function in executor.py
+**When** re-injecting production variables
+**Then** `AEGISH_RUNNER_PATH` is no longer re-injected
+
+**Files to modify:**
+- `src/aegish/config.py`: Remove `DEFAULT_RUNNER_PATH`, `PRODUCTION_RUNNER_PATH`, `get_runner_path()`, `validate_runner_binary()`, runner hash logic
+- `src/aegish/executor.py`: Simplify `_get_shell_binary()` to always return `"/bin/bash"`, remove `AEGISH_RUNNER_PATH` from `_build_safe_env()` and `sanitize_env()`, update `_execute_sudo_sandboxed()` to use `/bin/bash`
+- `src/aegish/sandbox.py`: Remove `DEFAULT_RUNNER_PATH` constant
+- `src/sandboxer/landlock_sandboxer.c`: Replace `AEGISH_RUNNER_PATH` with `AEGISH_BASH_PATH` (or remove the runner-specific deny logic entirely since `/bin/bash` is already in `DENIED_SHELLS`)
+
+**Implementation Notes:**
+- The C sandboxer's `is_denied()` function has explicit runner path checks (lines 70-77). Since `/bin/bash` is already in `DENIED_SHELLS`, the runner-specific deny logic can be removed entirely. However, consider keeping a generic "deny the binary we were exec'd as" check using `/proc/self/exe` for defense-in-depth.
+- `_get_shell_binary()` can be simplified to always return `"/bin/bash"` in both modes, or removed entirely if the caller just inlines the path.
+
+### Story 17.2: Update Hash Verification to Target /bin/bash
+
+As a **developer**,
+I want **the SHA-256 integrity check to verify `/bin/bash` instead of the runner binary**,
+So that **system bash updates are detected and the operator must acknowledge them**.
+
+**Acceptance Criteria:**
+
+**Given** production mode startup
+**When** hash verification runs
+**Then** it computes SHA-256 of `/bin/bash` (not `/opt/aegish/bin/runner`)
+**And** compares against `AEGISH_BASH_HASH` in `/etc/aegish/config`
+
+**Given** the system bash is updated by the package manager
+**When** aegish starts after the update
+**Then** the hash check fails with an actionable message that includes the exact fix command:
+```
+FATAL: /bin/bash hash mismatch.
+  Expected: abc123...
+  Actual:   def456...
+If this is a legitimate system update, verify and update the hash:
+  sudo sed -i 's/^AEGISH_BASH_HASH=.*/AEGISH_BASH_HASH=def456.../' /etc/aegish/config
+```
+**And** the `Actual` hash and the hash in the `sed` command are the real computed value (not a placeholder)
+**And** aegish refuses to start (fail-closed)
+
+**Given** the Dockerfile
+**When** the image is built
+**Then** the hash is computed against `/bin/bash` directly: `BASH_HASH=$(sha256sum /bin/bash | cut -d' ' -f1)`
+**And** the hash is embedded as `AEGISH_BASH_HASH` (not `AEGISH_RUNNER_HASH`)
+
+**Files to modify:**
+- `src/aegish/config.py`: Rename hash config key from `AEGISH_RUNNER_HASH` to `AEGISH_BASH_HASH`, update `_compute_file_sha256()` target path
+- `Dockerfile`: Remove runner hardlink creation, compute hash of `/bin/bash` directly
+- `tests/Dockerfile.production`: Same changes as Dockerfile
+
+**Implementation Notes:**
+- The behavioral difference: on bare metal, system updates to bash will now break the hash and force a restart/reconfig. This is intentional — it prevents silently running stale bash.
+- In Docker, nothing changes functionally — the hash is frozen at build time regardless.
+
+### Story 17.3: Update C Sandboxer to Remove Runner Logic
+
+As a **developer**,
+I want **the C sandboxer library cleaned of runner-specific code**,
+So that **the sandboxer is simpler and `/bin/bash` denial relies solely on `DENIED_SHELLS`**.
+
+**Acceptance Criteria:**
+
+**Given** the `apply_sandbox()` constructor in `landlock_sandboxer.c`
+**When** the runner logic is removed
+**Then** the `AEGISH_RUNNER_PATH` env var is no longer read
+**And** the `runner` and `runner_resolved` variables are removed
+**And** the `is_denied()` function only checks against `DENIED_SHELLS` (runner-specific comparisons at lines 70-77 removed)
+
+**Given** the sandboxer is compiled and loaded via LD_PRELOAD
+**When** bash runs a user command
+**Then** `/bin/bash` is denied (via `DENIED_SHELLS`) and non-shell binaries are allowed — same behavior as before
+
+**Files to modify:**
+- `src/sandboxer/landlock_sandboxer.c`: Remove `runner`/`runner_resolved` variables, simplify `is_denied()` to only check `DENIED_SHELLS`, remove `AEGISH_RUNNER_PATH` getenv call
+
+**Implementation Notes:**
+- The `is_denied()` function simplifies to just the `DENIED_SHELLS` loop (lines 64-67). The runner-specific block (lines 70-77) is deleted.
+- Consider adding a defense-in-depth check: read `/proc/self/exe` to get the resolved path of the current process and deny that too. This catches edge cases where bash is installed at a non-standard path not in `DENIED_SHELLS`.
+
+### Story 17.4: Remove Runner from Dockerfiles and Infrastructure
+
+As a **developer**,
+I want **all Docker and infrastructure files updated to remove runner binary creation**,
+So that **the deployment pipeline is simpler and doesn't create unnecessary artifacts**.
+
+**Acceptance Criteria:**
+
+**Given** the production Dockerfile
+**When** the runner steps are removed
+**Then** `mkdir -p /opt/aegish/bin && ln /bin/bash /opt/aegish/bin/runner` is deleted
+**And** the hash computation uses `/bin/bash` directly
+**And** `AEGISH_RUNNER_HASH` becomes `AEGISH_BASH_HASH` in the config embed step
+**And** the `/opt/aegish/bin/` directory is no longer created (unless needed for other artifacts)
+
+**Given** `tests/Dockerfile.production`
+**When** updated
+**Then** same changes as the production Dockerfile
+
+**Given** `docker-compose.yml` and `tests/docker-compose.production.yml`
+**When** checked for runner references
+**Then** any runner-related environment variables or volume mounts are removed
+
+**Files to modify:**
+- `Dockerfile`: Remove runner hardlink step, update hash computation
+- `tests/Dockerfile.production`: Same changes
+- `docker-compose.yml`: Remove any runner-related config (if present)
+- `tests/docker-compose.production.yml`: Same (if present)
+
+### Story 17.5: Update Shell Startup Validation
+
+As a **developer**,
+I want **the shell startup sequence updated to validate `/bin/bash` instead of the runner binary**,
+So that **startup checks are accurate and don't reference a nonexistent runner**.
+
+**Acceptance Criteria:**
+
+**Given** aegish starts in production mode
+**When** the startup validation runs
+**Then** it does NOT call `validate_runner_binary()`
+**And** it validates `/bin/bash` exists and is executable (which it always will on a Linux system)
+**And** in production mode, it verifies the SHA-256 hash of `/bin/bash` against `AEGISH_BASH_HASH`
+
+**Given** the startup banner
+**When** displayed in production mode
+**Then** it does NOT mention "runner binary" anywhere
+**And** hash verification status is reported (e.g., "bash integrity: verified")
+
+**Files to modify:**
+- `src/aegish/shell.py`: Remove `validate_runner_binary()` call, add `/bin/bash` hash verification
+
+### Story 17.6: Update Tests
+
+As a **developer**,
+I want **all unit and integration tests updated to reflect the runner removal**,
+So that **tests verify the new behavior and don't reference removed code**.
+
+**Acceptance Criteria:**
+
+**Given** `tests/test_config.py`
+**When** runner-related tests are updated
+**Then** tests for `get_runner_path()` and `validate_runner_binary()` are removed
+**And** tests for `/bin/bash` hash verification are added
+
+**Given** `tests/test_executor.py`
+**When** runner-related tests are updated
+**Then** tests that assert `_get_shell_binary()` returns the runner path in production mode are updated to assert `/bin/bash`
+**And** tests that check `AEGISH_RUNNER_PATH` in env are removed
+
+**Given** `tests/test_sandbox.py`
+**When** runner references are updated
+**Then** `DEFAULT_RUNNER_PATH` references are removed
+
+**Given** `tests/test_production_mode.py` (integration tests)
+**When** updated
+**Then** Docker-based tests no longer check for runner binary existence
+**And** tests verify `/bin/bash` is denied by Landlock for child processes (same as before)
+
+**Files to modify:**
+- `tests/test_config.py`
+- `tests/test_executor.py`
+- `tests/test_sandbox.py`
+- `tests/test_production_mode.py` (if exists)
+- `tests/test_llm_client.py` (if runner references exist)
+
+### Story 17.8: SHA-256 Hash Verification for Sandboxer Library
+
+As a **security engineer**,
+I want **the sandboxer shared library (`landlock_sandboxer.so`) verified via SHA-256 hash at startup, with its path hardcoded in production mode**,
+So that **a tampered or substituted `.so` cannot bypass Landlock enforcement, matching the integrity guarantees already applied to the runner binary**.
+
+**Context:**
+
+Two gaps exist in the current sandboxer handling:
+
+1. **No hash verification.** The runner binary gets SHA-256 verified at startup (`validate_runner_binary()` compares against `AEGISH_RUNNER_HASH` from `/etc/aegish/config`). The sandboxer library has no such check — `validate_sandboxer_library()` only checks existence and readability.
+
+2. **Path read from env vars in production.** `get_sandboxer_path()` reads from `os.environ.get("AEGISH_SANDBOXER_PATH")` directly. In production, an attacker who can set env vars could redirect this to a malicious `.so`. Compare with `get_runner_path()`, which returns the hardcoded `PRODUCTION_RUNNER_PATH` in production mode and ignores env vars entirely.
+
+All changes follow the existing runner binary pattern — no new abstractions or mechanisms, just parity.
+
+**Acceptance Criteria:**
+
+**Given** `SECURITY_CRITICAL_KEYS` in config.py
+**When** updated
+**Then** `"AEGISH_SANDBOXER_HASH"` is in the set
+**And** the hash is always read from `/etc/aegish/config` in production, never from env vars
+
+**Given** `get_sandboxer_path()` in config.py
+**When** called in production mode
+**Then** it returns the hardcoded `DEFAULT_SANDBOXER_PATH` directly (ignores env vars)
+**And** in non-production mode, it reads from `_get_security_config("AEGISH_SANDBOXER_PATH")` instead of raw `os.environ`
+
+**Given** `validate_sandboxer_library()` in config.py
+**When** called in production mode
+**Then** it reads the expected hash via `_get_security_config("AEGISH_SANDBOXER_HASH")`
+**And** computes the actual hash with the existing `_compute_file_sha256()`
+**And** returns failure on hash mismatch with an actionable message including the exact fix command (same pattern as Story 17.2):
+```
+FATAL: Sandboxer library hash mismatch at /opt/aegish/lib/landlock_sandboxer.so.
+  Expected: abc123...
+  Actual:   def456...
+If this is a legitimate rebuild, verify and update the hash:
+  sudo sed -i 's/^AEGISH_SANDBOXER_HASH=.*/AEGISH_SANDBOXER_HASH=def456.../' /etc/aegish/config
+```
+**And** returns failure if no hash is configured: `"No sandboxer hash configured in /etc/aegish/config. Rebuild the container to embed AEGISH_SANDBOXER_HASH."`
+
+**Given** the Dockerfile
+**When** the image is built
+**Then** after `make install` (line 71), the sandboxer hash is computed and appended to `/etc/aegish/config`:
+```dockerfile
+RUN SANDBOXER_HASH=$(sha256sum /opt/aegish/lib/landlock_sandboxer.so | cut -d' ' -f1) && \
+    echo "AEGISH_SANDBOXER_HASH=${SANDBOXER_HASH}" >> /etc/aegish/config
+```
+
+**Given** the shell startup validation in shell.py (lines 270-276)
+**When** `validate_sandboxer_library()` fails in production mode
+**Then** aegish exits with `sys.exit(1)` and prints `FATAL: {message}` to stderr
+**And** it does NOT fall back to development mode (a tampered `.so` is fatal, same as runner hash mismatch)
+
+**Files to modify:**
+- `src/aegish/config.py`: Add `AEGISH_SANDBOXER_HASH` to `SECURITY_CRITICAL_KEYS`; harden `get_sandboxer_path()` to return hardcoded path in production; add SHA-256 verification to `validate_sandboxer_library()`
+- `Dockerfile`: Compute and embed sandboxer hash after `make install`
+- `tests/Dockerfile.production`: Same Dockerfile change
+- `src/aegish/shell.py`: Change sandboxer validation failure from fallback to `sys.exit(1)`
+- `tests/test_config.py`: Add sandboxer hash verification tests (match passes, mismatch fails, missing hash fails in production, `AEGISH_SANDBOXER_HASH` in `SECURITY_CRITICAL_KEYS`)
+
+**Implementation Notes:**
+- `validate_sandboxer_library()` mirrors `validate_runner_binary()` exactly — same hash logic, same error message structure, same fail-closed behavior.
+- `get_sandboxer_path()` mirrors `get_runner_path()` — hardcoded in production, `_get_security_config()` otherwise.
+- The shell.py change is a one-line fix: replace the fallback block (lines 273-276) with the same `sys.exit(1)` pattern used for runner validation (lines 267-268).
+
+### Story 17.7: Update All Documentation
+
+As a **developer**,
+I want **all documentation updated to reflect that aegish uses `/bin/bash` directly**,
+So that **docs are accurate and don't reference the removed runner binary**.
+
+**Acceptance Criteria:**
+
+**Given** `docs/prd.md`
+**When** updated
+**Then** FR46 is marked as retired with a note: "Superseded by FR80 — runner binary removed in Epic 17"
+**And** FR71 is updated: "SHA-256 hash verification applies to `/bin/bash` in production mode"
+**And** FR73 is updated to remove runner-specific language
+**And** FR80 is added: "Production mode uses `/bin/bash` directly; SHA-256 hash verification applies to `/bin/bash`"
+
+**Given** `docs/architecture.md`
+**When** runner references are removed
+**Then** the sudo command structure is updated: `sudo env LD_PRELOAD=<sandboxer> /bin/bash --norc --noprofile -c "<command>"`
+**And** any references to `/opt/aegish/bin/runner` are replaced with `/bin/bash`
+
+**Given** `docs/security-hardening-scope.md`
+**When** DD-17 is updated
+**Then** DD-17 is marked as retired: "Runner binary removed in Epic 17. aegish now uses /bin/bash directly. Landlock denies /bin/bash for future execve() calls after the process is already running."
+**And** the BYPASS-13 section is updated to reflect the simplified architecture
+**And** the example code is updated to use `/bin/bash`
+
+**Given** `docs/epics.md`
+**When** Epic 8 references are annotated
+**Then** Story 8.4 (Runner Binary Setup) is annotated: "Superseded by Epic 17 — runner binary removed"
+**And** FR46 in the FR Coverage Map is annotated as retired
+
+**Given** `docs/stories/8-4-runner-binary-setup.md`
+**When** updated
+**Then** Status is changed to "superseded" with a note referencing Epic 17
+
+**Given** `docs/stories/8-3-landlock-sandbox-implementation.md`
+**When** runner references are updated
+**Then** References to the runner binary in dev notes are updated to explain the `/bin/bash` approach
+
+**Given** `docs/stories/8-5-integrate-landlock-into-executor.md`
+**When** runner references are updated
+**Then** References to runner binary and `get_runner_path()` are updated
+
+**Files to modify:**
+- `docs/prd.md`: Retire FR46, update FR71/FR73, add FR80
+- `docs/architecture.md`: Remove runner references
+- `docs/security-hardening-scope.md`: Retire DD-17, update BYPASS-13 section
+- `docs/epics.md`: Annotate Story 8.4 and FR46 as superseded
+- `docs/stories/8-4-runner-binary-setup.md`: Mark as superseded
+- `docs/stories/8-3-landlock-sandbox-implementation.md`: Update runner references
+- `docs/stories/8-5-integrate-landlock-into-executor.md`: Update runner references

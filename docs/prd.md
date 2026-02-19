@@ -13,8 +13,8 @@ lastStep: 2
 project_name: 'aegish'
 user_name: 'guido'
 date: '2026-01-23'
-lastRevised: '2026-02-08'
-revisionNote: 'Updated scoring methodology (WARN=ALLOW, Balanced Accuracy), added Shell category, removed LlamaGuard, added FR19-FR34 from analysis files'
+lastRevised: '2026-02-19'
+revisionNote: 'Added FR36-FR81 (46 new FRs) and NFR8-NFR12 covering Epics 6-16: security hardening, advanced static validation, LLM pipeline hardening, configuration hardening, trust levels, shell state persistence, audit logging, sudo sandboxing'
 ---
 
 # Product Requirements Document - aegish
@@ -50,12 +50,23 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - Basic dangerous command detection
 - Minimal configuration setup
 
-**Roadmap (Post-MVP):**
+**Phase 2 — Security Hardening (Completed):**
+- Subprocess environment sanitization (allowlist-based)
+- Validation pipeline hardening (fail-mode, oversized command blocking, prompt injection defense)
+- Production mode with Landlock enforcement and login shell behavior
+- Advanced static pre-LLM validation (AST traversal, regex blocklist, meta-exec detection)
+- LLM pipeline hardening (timeouts, rate limiting, balanced JSON parser)
+- Configuration hardening (immutable production config, role-based trust levels)
+- Shell state persistence (cwd, env vars, exit code across commands)
+- Persistent structured audit logging
+- Sudo post-elevation sandboxing
+
+**Roadmap (Post-Phase 2):**
 - Vulnerability list scanning
 - Configuration loophole detection
 - Semantic caching for performance
 - Offline mode (Ollama fallback)
-- Enterprise features (logging, audit trails)
+- Enterprise features (SIEM integration, multi-user audit dashboards)
 
 ## Success Criteria
 
@@ -101,20 +112,36 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 
 ## Product Scope
 
-### MVP - Proof of Concept
+### Phase 1 — MVP (Completed)
 
 - Full shell compatibility (interactive + scripts)
 - LLM-based command validation (block/allow/warn)
 - GTFOBins-level threat detection
 - Minimal configuration
+- Benchmark evaluation framework with multi-model comparison
 
-### Roadmap (Post-MVP)
+### Phase 2 — Security Hardening (Completed)
+
+- Subprocess environment sanitization (allowlist-based)
+- Validation pipeline hardening (fail-mode, command delimiters, oversized command blocking, envsubst expansion, bashlex AST analysis)
+- Production mode with Landlock sandbox and login shell behavior
+- Environment variable integrity (provider allowlist, health check, model warnings)
+- Advanced static pre-LLM validation (control-flow AST traversal, regex blocklist, meta-exec builtins, compound command decomposition)
+- LLM pipeline hardening (timeouts, rate limiting, markdown JSON parsing, COMMAND tag injection prevention, source/dot script inspection)
+- Configuration hardening (immutable production config file, invalid mode rejection, role-based trust levels, empty model rejection)
+- Allowlist-based environment sanitization, absolute envsubst path, runner binary SHA-256 integrity verification
+- Shell state persistence (cwd, exported env vars, exit code across commands)
+- Landlock dropper (LD_PRELOAD C library) and complete DENIED_SHELLS list
+- Persistent structured audit logging (JSON format, root-owned in production)
+- Sudo post-elevation sandboxing with Landlock
+
+### Roadmap (Post-Phase 2)
 
 - CIS compliance checking
 - Vulnerability list scanning
 - Semantic caching for performance
 - Offline mode (Ollama fallback)
-- Enterprise features (logging, audit trails)
+- Enterprise features (SIEM integration, multi-user audit dashboards)
 
 ## User Journeys
 
@@ -164,17 +191,32 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 | Shell completion | Out of scope |
 | JSON logging | Out of scope |
 
-### Phase 2 (Post-MVP)
+### Phase 2 — Security Hardening (Completed)
+
+- Subprocess environment sanitization (allowlist-based)
+- Validation pipeline hardening (fail-mode, command delimiters, oversized command blocking)
+- Production mode with Landlock sandbox and login shell behavior
+- Environment variable integrity (provider allowlist, health check, model warnings)
+- Advanced static pre-LLM validation (AST traversal, regex blocklist, meta-exec builtins, compound command decomposition)
+- LLM pipeline hardening (timeouts, rate limiting, markdown JSON parsing, COMMAND tag injection prevention, source/dot script inspection)
+- Configuration hardening (immutable production config, invalid mode rejection, role-based trust levels)
+- Environment & subprocess security (allowlist sanitization, absolute envsubst path, runner binary integrity verification)
+- Shell state persistence (cwd, exported env vars, exit code across commands)
+- Landlock dropper and complete DENIED_SHELLS list
+- Persistent structured audit logging
+- Sudo post-elevation sandboxing with Landlock
+
+### Phase 3 (Roadmap)
 
 - System-wide benchmark (Docker-based with SUID, sudo, capabilities testing)
 - Semantic caching for performance
 - CIS compliance checking
 
-### Phase 3 (Expansion)
+### Phase 4 (Expansion)
 
 - Vulnerability list scanning
 - Offline mode (Ollama fallback)
-- Enterprise features (logging, audit trails)
+- Enterprise features (SIEM integration, multi-user audit dashboards)
 
 ### Risk Mitigation
 
@@ -242,6 +284,82 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - FR34: Harmless dataset extended to 500+ commands via LLM-generated commands
 - FR35: Benchmark evaluation code lives in top-level `benchmark/` directory, not inside `tests/`
 
+### Subprocess & Environment Hardening
+
+- FR36: Subprocess execution environment sanitized (BASH_ENV, ENV, BASH_FUNC_* stripped; bash runs with --norc --noprofile)
+- FR37: Validation failure behavior configurable: fail-safe (block) or fail-open (warn) via AEGISH_FAIL_MODE
+- FR38: Commands exceeding MAX_COMMAND_LENGTH are blocked (not warned)
+- FR39: ~~Low-confidence "allow" responses treated as "warn"~~ *(deferred)*
+- FR40: Environment variables expanded via envsubst before LLM validation so LLM sees resolved values
+- FR41: bashlex AST parsing detects variable expansion in command position and returns configurable action (default: BLOCK)
+- FR42: User commands wrapped in `<COMMAND>` delimiters in LLM user message to resist prompt injection
+
+### Production Mode & Landlock
+
+- FR43: Production mode (AEGISH_MODE=production): exit terminates session (login shell), Landlock enforces shell execution denial
+- FR44: Development mode (AEGISH_MODE=development): exit works normally with warning, no Landlock enforcement
+- FR45: Landlock sandbox denies execve of shell binaries for child processes in production mode
+- FR46: Runner binary (hardlink/copy of bash) at /opt/aegish/bin/runner used for command execution in production mode
+- FR47: Graceful Landlock fallback: if kernel < 5.13, production mode warns and falls back to development behavior
+
+### Environment Variable Integrity
+
+- FR48: Provider allowlist validates configured models against known-good providers
+- FR49: Startup health check verifies primary model responds correctly before entering shell loop
+- FR50: Non-default model configuration triggers visible warning at startup
+
+### Advanced Static Pre-LLM Validation
+
+- FR51: Variable-in-command-position detection action is configurable via AEGISH_VAR_CMD_ACTION (default: BLOCK)
+- FR52: Meta-execution builtins (eval, source, .) with variable arguments are detected and blocked by default (configurable via AEGISH_VAR_CMD_ACTION)
+- FR53: AST walker traverses control-flow nodes (for, if, while, until, function) to detect variable-in-command patterns
+- FR54: Compound commands are recursively decomposed and each subcommand validated independently; command substitutions in execution position (e.g., `$(cat file)`) are detected and blocked
+- FR55: Static regex blocklist catches known-dangerous patterns (reverse shells, rm -rf /, fork bombs) before LLM validation
+
+### LLM Pipeline Hardening
+
+- FR56: Health check timeout triggers automatic fallback: iterates through the full fallback chain, pins the first responsive model as the active session model
+- FR57: LLM validation queries have a configurable timeout via AEGISH_LLM_TIMEOUT (default: 30 seconds)
+- FR58: Client-side rate limiting prevents denial-of-wallet attacks on LLM API via AEGISH_MAX_QUERIES_PER_MINUTE (default: 30)
+- FR59: JSON response parser handles markdown-wrapped LLM output (code fences, double braces)
+- FR60: User commands are delimited to prevent COMMAND tag injection in LLM prompts (escaping `</COMMAND>` in user input)
+- FR61: Source/dot commands trigger script content inspection before LLM validation (with size limits, sensitive path blocking, symlink resolution)
+
+### Configuration Hardening & Trust Levels
+
+- FR62: Security-critical configuration values cannot be overridden via environment variables in production mode (read from /etc/aegish/config)
+- FR63: Invalid AEGISH_MODE value prevents aegish from starting (no silent fallback to development mode)
+- FR64: Default production models match benchmark-recommended models (Gemini Flash primary, full 8-model fallback chain)
+- FR65: Role-based trust level configuration adjusts validation rules (sysadmin, restricted, default) via AEGISH_ROLE
+- FR66: Empty model names are rejected during validation (e.g., `openai/` is invalid)
+- FR67: Login shell mode prints lockout warning at startup and clear error when health check fails
+
+### Environment & Subprocess Security (Phase 2)
+
+- FR68: Environment sanitization uses an allowlist instead of blocklist (unknown variables blocked by default)
+- FR69: Full variable expansion to LLM by default; sensitive variable filter is opt-in via AEGISH_FILTER_SENSITIVE_VARS
+- FR70: envsubst is invoked via absolute path resolved at startup (prevents PATH poisoning)
+- FR71: Runner binary path is hardcoded in production mode and verified via SHA-256 hash at startup
+
+### Production Infrastructure & Shell State
+
+- FR72: Shell state (cwd, exported env vars, exit code) persists across commands via pipe-based environment capture
+- FR73: Landlock dropper (LD_PRELOAD C library) prevents runner binary from being executed as interactive shell
+- FR74: DENIED_SHELLS list includes all common shell binaries (bash, sh, zsh, fish, dash, csh, tcsh, ksh, ash, busybox, mksh, rbash, elvish, nu, pwsh, xonsh)
+- FR75: ctypes syscall() uses correct c_long return type for 64-bit compatibility
+
+### Audit Trail & Project Hygiene
+
+- FR76: All validation decisions are logged to a persistent structured audit trail (JSON format with timestamp, command, user, action, confidence, model, source)
+- FR77: litellm dependency has a version ceiling to prevent untested major upgrades (>=1.81.0,<2.0.0)
+- FR78: Benchmark-only dependencies (adjusttext) are not in runtime dependencies
+- FR79: Benchmark metadata counts are computed dynamically from actual datasets (not hardcoded)
+- FR80: .gitignore and .env.example reflect current project structure and providers
+
+### Sudo Post-Elevation Sandboxing
+
+- FR81: Sudo commands in production mode with sysadmin role are sandboxed: Landlock dropper via LD_PRELOAD blocks shell escapes even after privilege elevation
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -260,4 +378,18 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 ### Reliability
 
 *Out of scope for MVP - fail-safe mode and graceful degradation deferred to post-MVP.*
+
+### Static Safety Floor (Phase 2)
+
+- NFR8: Static pre-LLM checks provide a deterministic safety floor independent of LLM availability
+
+### Audit & Observability (Phase 2)
+
+- NFR9: Audit log entries use structured JSON format with timestamp, command, user, action, confidence, model, source
+- NFR10: Rate limiting is configurable via AEGISH_MAX_QUERIES_PER_MINUTE (default: 30)
+- NFR11: LLM query timeout is configurable via AEGISH_LLM_TIMEOUT (default: 30 seconds)
+
+### Trust & Access Control (Phase 2)
+
+- NFR12: Role/trust level configuration is deny-by-default (unknown roles get strictest rules)
 

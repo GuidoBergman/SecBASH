@@ -1,0 +1,75 @@
+FROM ubuntu:24.04
+
+# Install system dependencies (Python 3.10+, SSH, utilities)
+RUN apt-get update && apt-get install -y \
+    python3 \
+    vim-tiny less man-db \
+    git openssh-server \
+    gettext-base \
+    netcat-openbsd \
+    gcc libc6-dev make \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv package manager
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install aegish (layer-cached: deps first, then source)
+ENV UV_SYSTEM_PYTHON=1
+ENV UV_BREAK_SYSTEM_PACKAGES=1
+WORKDIR /opt/aegish-src
+COPY pyproject.toml uv.lock README.md ./
+COPY src/ src/
+RUN uv pip install .
+
+# Create runner binary (MUST be hardlink, NOT symlink -- DD-17)
+# Landlock resolves symlinks before checking permissions, so a symlink
+# to /bin/bash would be resolved and denied. A hardlink has a distinct
+# path entry that Landlock checks independently.
+RUN mkdir -p /opt/aegish/bin && \
+    ln /bin/bash /opt/aegish/bin/runner
+
+# Register aegish as a valid login shell
+RUN echo "$(which aegish)" >> /etc/shells
+
+# Create user with aegish as login shell
+# Password is set via AEGISH_USER_PASSWORD build arg (default: aegish)
+ARG AEGISH_USER_PASSWORD=aegish
+RUN useradd -m -s "$(which aegish)" aegish && \
+    echo "aegish:${AEGISH_USER_PASSWORD}" | chpasswd
+
+# Grant sudo WITH password required (production behavior)
+RUN usermod -aG sudo aegish
+
+# Configure SSH for login shell testing
+RUN mkdir /run/sshd && \
+    sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config
+
+# Create production config file (root-owned, secure permissions)
+# SSH sessions don't inherit Docker ENV vars, so security-critical settings
+# must live in /etc/aegish/config (read by _load_config_file at startup).
+# AEGISH_ROLE is configurable via build arg (default or sysadmin).
+ARG AEGISH_ROLE=default
+RUN mkdir -p /etc/aegish && \
+    printf '%s\n' \
+        'AEGISH_MODE=production' \
+        'AEGISH_FAIL_MODE=safe' \
+        "AEGISH_ROLE=${AEGISH_ROLE}" \
+        'AEGISH_ALLOWED_PROVIDERS=openai,anthropic,groq,together_ai,ollama,gemini,featherless_ai,huggingface' \
+        'AEGISH_VAR_CMD_ACTION=block' \
+    > /etc/aegish/config && \
+    chmod 644 /etc/aegish/config
+
+# Compute runner hash and embed in config (Story 13.4: fail-closed integrity check)
+RUN RUNNER_HASH=$(sha256sum /opt/aegish/bin/runner | cut -d' ' -f1) && \
+    echo "AEGISH_RUNNER_HASH=${RUNNER_HASH}" >> /etc/aegish/config
+
+# Create audit log directory (writable by all users)
+RUN mkdir -p /var/log/aegish && chmod 1733 /var/log/aegish
+
+# Build and install the Landlock sandboxer library
+RUN cd /opt/aegish-src/src/sandboxer && make && make install
+
+# Expose SSH port and start SSH daemon
+EXPOSE 22
+CMD ["/usr/sbin/sshd", "-D"]

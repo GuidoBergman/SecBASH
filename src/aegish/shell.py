@@ -264,10 +264,8 @@ def run_shell() -> int:
     if mode == "production":
         runner_ok, runner_msg = validate_runner_binary()
         if not runner_ok:
-            print(f"ERROR: {runner_msg}")
-            print("Falling back to development mode.\n")
-            os.environ["AEGISH_MODE"] = "development"
-            mode = "development"
+            print(f"FATAL: {runner_msg}", file=sys.stderr)
+            sys.exit(1)
 
     if mode == "production":
         sandboxer_ok, sandboxer_msg = validate_sandboxer_library()
