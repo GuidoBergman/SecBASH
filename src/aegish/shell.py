@@ -102,101 +102,15 @@ def run_shell() -> int:
     env["PWD"] = current_dir
     env["OLDPWD"] = previous_dir
 
-    print("aegish \u2014 LLM-powered security shell")
-    print("\u2500" * 42)
-
-    # Model chain: show primary + fallback summary
     model_chain = get_model_chain()
-    primary = model_chain[0] if model_chain else "none"
-    active_count = sum(
-        1 for m in model_chain
-        if get_api_key(get_provider_from_model(m)) is not None
-    )
-    inactive = len(model_chain) - active_count
-    fallback_info = f"{active_count - 1} active" if active_count > 1 else "none"
-    if inactive:
-        fallback_info += f", {inactive} no key"
-    print(f"  Primary:   {primary}")
-    print(f"  Fallbacks: {fallback_info}")
-
     mode = get_mode()
-    if mode == "production":
-        print("  Mode:      production (login shell + Landlock)")
-    else:
-        print("  Mode:      development")
     fail_mode = get_fail_mode()
-    if fail_mode == "safe":
-        print("  Fail mode: safe (block on error)")
-    else:
-        print("  Fail mode: open (warn on error)")
     role = get_role()
-    print(f"  Role:      {role}")
 
-    print("\u2500" * 42)
-    # Validate bash binary and sandboxer library in production mode
-    if mode == "production":
-        if skip_bash_hash():
-            print("WARNING: /bin/bash hash verification disabled "
-                  "via AEGISH_SKIP_BASH_HASH. Binary integrity is not checked.")
-        else:
-            bash_ok, bash_msg = validate_bash_binary()
-            if not bash_ok:
-                print(f"FATAL: {bash_msg}", file=sys.stderr)
-                sys.exit(1)
-            else:
-                print("  bash integrity: verified")
+    _display_startup_banner(model_chain, mode, fail_mode, role)
 
-    if mode == "production":
-        sandboxer_ok, sandboxer_msg = validate_sandboxer_library()
-        if not sandboxer_ok:
-            print(f"FATAL: {sandboxer_msg}", file=sys.stderr)
-            sys.exit(1)
-
-    # Landlock availability warning in production mode
-    if mode == "production":
-        ll_available, ll_version = landlock_available()
-        if ll_available:
-            print(f"Landlock: active (ABI v{ll_version})")
-        else:
-            print("WARNING: Landlock not supported on this kernel. Sandbox disabled.")
-
-    # Login shell lockout warning (Story 12.6)
     login_shell = _is_login_shell()
-    if login_shell:
-        print(
-            "WARNING: aegish is configured as login shell. "
-            "If LLM API becomes unreachable, you may be unable to execute commands."
-        )
-
-    print("Type 'exit' or press Ctrl+D to quit.\n")
-
-    # Non-default model warnings (Story 9.3, FR50)
-    primary = get_primary_model()
-    if primary != DEFAULT_PRIMARY_MODEL:
-        print(f"WARNING: Using non-default primary model: {primary}")
-        print(f"         Default is: {DEFAULT_PRIMARY_MODEL}")
-
-    fallbacks = get_fallback_models()
-    if not fallbacks:
-        print("WARNING: No fallback models configured. Single-provider mode.")
-    elif fallbacks != DEFAULT_FALLBACK_MODELS:
-        print(f"WARNING: Using non-default fallback models: {', '.join(fallbacks)}")
-        print(f"         Default is: {DEFAULT_FALLBACK_MODELS[0]}")
-
-    # Verify primary model responds correctly before entering shell loop
-    success, reason, active_model = health_check()
-    if not success:
-        logger.warning("Health check failed: %s", reason)
-        print(reason)
-        if login_shell:
-            print(
-                "WARNING: All models unreachable. "
-                "This is your login shell \u2014 commands may be blocked."
-            )
-        else:
-            print("WARNING: All models unreachable. Operating in degraded mode.")
-    elif active_model and active_model != get_primary_model():
-        print(f"NOTE: Using fallback model: {active_model}")
+    _run_startup_checks(mode, login_shell)
 
     while True:
         try:
@@ -446,3 +360,136 @@ def _is_login_shell() -> bool:
         pass
 
     return False
+
+
+def _display_startup_banner(
+    model_chain: list[str],
+    mode: str,
+    fail_mode: str,
+    role: str,
+) -> None:
+    """Display the startup banner with model, mode, and role information.
+
+    Prints the aegish title, model chain summary (primary + fallback
+    availability), mode, fail mode, role, and separator lines.
+
+    Args:
+        model_chain: Ordered list of model identifiers (primary first).
+        mode: Operating mode ("production" or "development").
+        fail_mode: Failure mode ("safe" or "open").
+        role: The configured role string.
+    """
+    print("aegish \u2014 LLM-powered security shell")
+    print("\u2500" * 42)
+
+    # Model chain: show primary + fallback summary
+    primary = model_chain[0] if model_chain else "none"
+    active_count = sum(
+        1 for m in model_chain
+        if get_api_key(get_provider_from_model(m)) is not None
+    )
+    inactive = len(model_chain) - active_count
+    fallback_info = f"{active_count - 1} active" if active_count > 1 else "none"
+    if inactive:
+        fallback_info += f", {inactive} no key"
+    print(f"  Primary:   {primary}")
+    print(f"  Fallbacks: {fallback_info}")
+
+    if mode == "production":
+        print("  Mode:      production (login shell + Landlock)")
+    else:
+        print("  Mode:      development")
+    if fail_mode == "safe":
+        print("  Fail mode: safe (block on error)")
+    else:
+        print("  Fail mode: open (warn on error)")
+    print(f"  Role:      {role}")
+
+    print("\u2500" * 42)
+
+
+def _run_startup_checks(mode: str, login_shell: bool) -> tuple[bool, str | None]:
+    """Run startup validation checks and print diagnostic messages.
+
+    Validates the environment before entering the shell loop:
+    - Bash binary integrity (production mode)
+    - Sandboxer library presence (production mode)
+    - Landlock availability (production mode)
+    - Login shell lockout warning
+    - Non-default model warnings
+    - Health check against the primary model
+
+    May call sys.exit(1) if a fatal validation fails in production mode.
+
+    Args:
+        mode: Operating mode ("production" or "development").
+        login_shell: Whether aegish is running as a login shell.
+
+    Returns:
+        Tuple of (health_check_success, active_model) from the health check.
+    """
+    # Validate bash binary and sandboxer library in production mode
+    if mode == "production":
+        if skip_bash_hash():
+            print("WARNING: /bin/bash hash verification disabled "
+                  "via AEGISH_SKIP_BASH_HASH. Binary integrity is not checked.")
+        else:
+            bash_ok, bash_msg = validate_bash_binary()
+            if not bash_ok:
+                print(f"FATAL: {bash_msg}", file=sys.stderr)
+                sys.exit(1)
+            else:
+                print("  bash integrity: verified")
+
+    if mode == "production":
+        sandboxer_ok, sandboxer_msg = validate_sandboxer_library()
+        if not sandboxer_ok:
+            print(f"FATAL: {sandboxer_msg}", file=sys.stderr)
+            sys.exit(1)
+
+    # Landlock availability warning in production mode
+    if mode == "production":
+        ll_available, ll_version = landlock_available()
+        if ll_available:
+            print(f"Landlock: active (ABI v{ll_version})")
+        else:
+            print("WARNING: Landlock not supported on this kernel. Sandbox disabled.")
+
+    # Login shell lockout warning (Story 12.6)
+    if login_shell:
+        print(
+            "WARNING: aegish is configured as login shell. "
+            "If LLM API becomes unreachable, you may be unable to execute commands."
+        )
+
+    print("Type 'exit' or press Ctrl+D to quit.\n")
+
+    # Non-default model warnings (Story 9.3, FR50)
+    primary = get_primary_model()
+    if primary != DEFAULT_PRIMARY_MODEL:
+        print(f"WARNING: Using non-default primary model: {primary}")
+        print(f"         Default is: {DEFAULT_PRIMARY_MODEL}")
+
+    fallbacks = get_fallback_models()
+    if not fallbacks:
+        print("WARNING: No fallback models configured. Single-provider mode.")
+    elif fallbacks != DEFAULT_FALLBACK_MODELS:
+        print(f"WARNING: Using non-default fallback models: {', '.join(fallbacks)}")
+        print(f"         Default is: {DEFAULT_FALLBACK_MODELS[0]}")
+
+    # Verify primary model responds correctly before entering shell loop
+    success, reason, active_model = health_check()
+    if not success:
+        logger.warning("Health check failed: %s", reason)
+        print(reason)
+        if login_shell:
+            print(
+                "WARNING: All models unreachable. "
+                "This is your login shell \u2014 commands may be blocked."
+            )
+        else:
+            print("WARNING: All models unreachable. Operating in degraded mode.")
+    elif active_model and active_model != get_primary_model():
+        print(f"NOTE: Using fallback model: {active_model}")
+
+    return success, active_model

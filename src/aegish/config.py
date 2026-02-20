@@ -190,19 +190,9 @@ def get_mode() -> str:
     Returns:
         Mode string: "production" or "development".
     """
-    raw = _get_security_config("AEGISH_MODE", "")
-    mode = raw.strip().lower()
-    if mode in VALID_MODES:
-        return mode
-    if mode:
-        # Explicitly set to invalid value: hard error (Story 12.2)
-        print(
-            f"aegish: fatal: invalid AEGISH_MODE '{raw}'. "
-            f"Valid modes: {', '.join(sorted(VALID_MODES))}",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-    return DEFAULT_MODE
+    return _get_validated_setting(
+        "AEGISH_MODE", VALID_MODES, DEFAULT_MODE, on_invalid="fatal",
+    )
 
 
 def get_fail_mode() -> str:
@@ -216,13 +206,9 @@ def get_fail_mode() -> str:
     Returns:
         Fail mode string: "safe" or "open".
     """
-    raw = _get_security_config("AEGISH_FAIL_MODE", "")
-    mode = raw.strip().lower()
-    if mode in VALID_FAIL_MODES:
-        return mode
-    if mode:
-        logger.debug("Invalid AEGISH_FAIL_MODE '%s', falling back to '%s'", raw, DEFAULT_FAIL_MODE)
-    return DEFAULT_FAIL_MODE
+    return _get_validated_setting(
+        "AEGISH_FAIL_MODE", VALID_FAIL_MODES, DEFAULT_FAIL_MODE, on_invalid="debug",
+    )
 
 
 def get_role() -> str:
@@ -238,17 +224,9 @@ def get_role() -> str:
     Returns:
         Role string: "default", "sysadmin", or "restricted".
     """
-    raw = _get_security_config("AEGISH_ROLE", "")
-    role = raw.strip().lower()
-    if role in VALID_ROLES:
-        return role
-    if role:
-        logger.warning(
-            "Invalid AEGISH_ROLE '%s', falling back to '%s'",
-            raw,
-            DEFAULT_ROLE,
-        )
-    return DEFAULT_ROLE
+    return _get_validated_setting(
+        "AEGISH_ROLE", VALID_ROLES, DEFAULT_ROLE, on_invalid="warning",
+    )
 
 
 def get_var_cmd_action() -> str:
@@ -262,17 +240,10 @@ def get_var_cmd_action() -> str:
     Returns:
         Action string: "block" or "warn".
     """
-    raw = _get_security_config("AEGISH_VAR_CMD_ACTION", "")
-    action = raw.strip().lower()
-    if action in VALID_VAR_CMD_ACTIONS:
-        return action
-    if action:
-        logger.debug(
-            "Invalid AEGISH_VAR_CMD_ACTION '%s', falling back to '%s'",
-            raw,
-            DEFAULT_VAR_CMD_ACTION,
-        )
-    return DEFAULT_VAR_CMD_ACTION
+    return _get_validated_setting(
+        "AEGISH_VAR_CMD_ACTION", VALID_VAR_CMD_ACTIONS, DEFAULT_VAR_CMD_ACTION,
+        on_invalid="debug",
+    )
 
 
 # =============================================================================
@@ -525,6 +496,60 @@ def has_fallback_models() -> bool:
 # =============================================================================
 # 7. Config file handling (internal)
 # =============================================================================
+
+
+def _get_validated_setting(
+    key: str,
+    valid_values: set[str],
+    default: str,
+    *,
+    on_invalid: str = "debug",  # "debug", "warning", or "fatal"
+) -> str:
+    """Get a config setting, validate it against allowed values, and fall back.
+
+    Encapsulates the common pattern used by get_mode(), get_fail_mode(),
+    get_role(), and get_var_cmd_action():
+      1. Read raw value from _get_security_config(key, "")
+      2. Strip and lowercase
+      3. If value is in valid_values -> return it
+      4. If value is non-empty but invalid -> handle per on_invalid
+      5. If empty -> return default
+
+    Args:
+        key: The configuration key (e.g., "AEGISH_MODE").
+        valid_values: Set of acceptable lowercase values.
+        default: Default value when unset or empty.
+        on_invalid: What to do when a non-empty invalid value is found:
+            - "debug": logger.debug(...)
+            - "warning": logger.warning(...)
+            - "fatal": print(stderr) + sys.exit(1)
+
+    Returns:
+        The validated setting string.
+    """
+    raw = _get_security_config(key, "")
+    value = raw.strip().lower()
+    if value in valid_values:
+        return value
+    if value:
+        if on_invalid == "fatal":
+            print(
+                f"aegish: fatal: invalid {key} '{raw}'. "
+                f"Valid modes: {', '.join(sorted(valid_values))}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        elif on_invalid == "warning":
+            logger.warning(
+                "Invalid %s '%s', falling back to '%s'",
+                key, raw, default,
+            )
+        else:  # "debug"
+            logger.debug(
+                "Invalid %s '%s', falling back to '%s'",
+                key, raw, default,
+            )
+    return default
 
 
 def _get_security_config(key: str, default: str = "") -> str:
