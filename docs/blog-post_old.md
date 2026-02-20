@@ -267,6 +267,8 @@ The quick wins from Section 6 are the immediate priority. Beyond those:
 - **Offline mode.** Local inference via Ollama/vLLM with a small model (7B–13B) for environments without API access.
 - **User-configurable policy layer.** Allow administrators to define environment-specific rules — for example, whether suspending a system is routine or a potential denial-of-service vector — so the LLM's baseline reasoning can be adapted to context without writing full MAC policies.
 - **Rate limiting.** Implement rate limiting to prevent brute-force attacks. Additionally, it could be valuable for sysadmins to configure that if a user accumulates many warnings in a short period, further commands are blocked or an alert is sent to a human.
+- **Local ALLOW rules** — Add an allowlist for trivially safe commands (ls, pwd, git status) to reduce latency and cost.
+
 - **Hybrid multi-layer validation pipeline.** Currently *aegish* is pure LLM — every command, regardless of how obviously safe or dangerous, makes an API call. A layered pipeline would dramatically reduce latency and cost for the majority of commands:
   ```
   Command Intercept → Local Rules (fast) → Cache Check → LLM Validation → Offline Fallback → Decision

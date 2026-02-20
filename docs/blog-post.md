@@ -20,11 +20,17 @@ Linux security traditionally relies on mature, battle-tested tools like **SELinu
 2. **Easy to configure.** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt, not a ruleset. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
 3. **Block before execution.** The LLM flags catastrophic actions before they run, not after. There is no forensic analysis of damage already done — the damage simply doesn't happen.
 4. **Interpretability** When the LLM flags something suspicious, it provides a natural-language explanation of *why*, removing the human bottleneck of manually reviewing every alert.
-5. **Attackers can't safely iterate.** Even if a bypass exists, the attacker risks detection on the very first attempt. The uncertainty itself is the deterrent.
+
 
 The approach also inherits fundamental LLM limitations (detailed in Section 6): non-deterministic responses, added latency, and susceptibility to prompt injection.
 
 The thesis is not that this replaces kernel-level enforcement — it does not and should not. It is that it adds a *complementary* analysis layer that is cheap to deploy, requires no specialized policy expertise, and generalizes to novel threat variants. Whether that analysis is accurate enough to be useful is an empirical question this project seeks to answer.
+
+The **contributions** of this project are:
+1. **The approach itself.** The main purpose of this project was to explore a new method for increasing security that is both easier to configure and requires lower expertise than existing alternatives.
+2. **A working prototype.** A functional version that can be extended toward production deployment in the future.
+3. **The benchmark.** 676 curated malicious commands across 8 GTFOBins categories with placeholder normalization plus a 496-command harmless. This datasets and methodology can be reused by others working on the same problem.
+4. **Model selection data.** Concrete cost, latency, harmless acceptance and malicious detection rate comparisons across 9 models from 4 providers.
 
 ## 2. How It Works
 
@@ -105,8 +111,7 @@ The scoring is asymmetric:
 * **Malicious Detection Rate**: blocking malicious commands. Only **BLOCK** is considered correct. *Rationale: WARN is scored as a failure because an attacker can simply bypass a warning.*
 * **Harmless Acceptance Rate:** allowing harmless commands. Both **ALLOW** and **WARN** are acceptable. Only BLOCK is considered a failure.
 
-A target rate of 95% was established for both metrics. 
-Error bars and intervals show ±1 standard error (SE).
+A target rate of 95% was established for both metrics, with error bars representing ±1 standard error (SE).
 
 
 
@@ -159,15 +164,18 @@ Since malicious detection rate is the only metric that differentiates models, pr
 
 Figure 4 plots cost-effectiveness against Malicious Detection Rate. The full per-model cost breakdown is in Appendix C.
 
-![Cost vs. Malicious Detection Rate](../benchmark/results/plots/cost_vs_detection_rate.png)
+![Cost vs. Malicious Detection Rate](../benchmark/results/plots/cost_vs_malicious_detection_rate.png)
 *Figure 4: Cost per 1,000 commands vs. malicious detection rate. Models above the Pareto frontier are strictly dominated: another model offers equal or better detection for less money.*
 
 From this plot, we can see that costs vary by nearly two orders of magnitude, ranging from $0.59 to $12.89 per 1,000 commands. Crucially, **spending more does not buy more detection**: Opus costs 11.5× more than Gemini 3 Flash for a *lower* malicious detection rate.
 
-![Latency vs. Malicious Detection Rate](../benchmark/results/plots/latency_vs_detection_rate.png)
+![Latency vs. Malicious Detection Rate](../benchmark/results/plots/latency_vs_malicious_detection_rate.png)
 *Figure 5: Mean latency vs. malicious detection rate.*
 
-Latency reveals a similar efficiency gap. *(Note: Gemini 1.5 Flash's high benchmark latency of ~70.9s was primarily due to rate-limit queuing during concurrent testing; its actual production latency is ~10s).*
+Latency reveals a similar efficiency gap. Opus takes 2.5× longer than Gemini 3 Flash (40s vs. 16s) yet achieves a *lower* malicious detection rate (92% vs. 98%). 
+
+
+*(Note: Gemini 1.5 Flash's high benchmark latency of ~70.9s was primarily due to rate-limit queuing during concurrent testing; its actual production latency is ~10s).*
 
 Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash and GPT-5-nano**. No other models offer better detection capability at a lower price or latency. 
 
@@ -185,22 +193,22 @@ Several tools address similar problems, but *aegish* occupies a unique position:
 
 It is important to acknowledge that *aegish* is currently a prototype and not a production-ready security product. Key limitations include:
 
-3. **Prompt Injection:** The system is potentially susceptible to adversarial inputs designed to manipulate the LLM's classification logic.
-5. **Latency:** The round-trip time for LLM inference adds perceptible latency compared to a native shell.
+1. **Prompt Injection:** The system is potentially susceptible to adversarial inputs designed to manipulate the LLM's classification logic.
+2. **Latency:** The round-trip time for LLM inference adds perceptible latency compared to a native shell.
 
 ## 7. Conclusion
 
-*aegish* demonstrates that LLMs can effectively serve as a semantic analysis layer for Linux commands. With malicious detection rates reaching **97.8%** and negligible false positives, the approach is empirically viable.
-
-The most significant finding is the inverse correlation between model size and effectiveness for this specific task. Mid-sized, cost-effective models like Gemini Flash and GPT-4o-mini outperformed larger alternatives by being more decisive and less prone to safety refusals.
+The *aegish* prototype proves that LLMs can act as a viable, natural-language security layer by shifting defense from complex manual policies to **intent-based reasoning**. Our benchmarking highlights a performance "sweet spot" where **mid-sized models** actually outperform expensive flagships; they provide the highest malicious detection rates without the "over-reasoning" or safety-filter issues found in larger models. While not a replacement for kernel-level enforcement, *aegish* provides an accessible **defense-in-depth** tool that catches sophisticated exploits—like indirect shell escapes—while remaining easy to configure for anyone who can describe a threat in plain English.
 
 ### Future Work
 
-Future iterations of this project will focus on:
+As future directions we propose:
+* **Offline Mode:** Integrating local models (e.g., via Ollama) to remove network dependencies and data privacy concerns.
+- **User-configurable policy layer:** Allow administrators to define environment-specific rules — for example, whether suspending a system is routine or a potential denial-of-service vector — so the LLM's baseline reasoning can be adapted to context without writing full MAC policies.
+- **Adversarial robustness assessment** Measure how well does this approach holds up against an attacker who knows the system prompt and actively crafts evasion inputs.
+- **Local ALLOW rules:**  Add an allowlist for trivially safe commands (ls, pwd, git status) to reduce latency and cost.
+* **Command History:** Incorporating the history of the previous into the prompts to allow for more nuanced, context-aware decisions and to mitigate attacks that decompose malicious actions into multiple harmful commands.
 
-* **Hybrid Architecture:** Implementing a local, rule-based cache to handle frequent commands instantly, reserving LLM inference only for ambiguous cases.
-* **Offline Capability:** Integrating quantized local models (e.g., via Ollama) to remove network dependencies and data privacy concerns.
-* **Context Awareness:** Incorporating session history and user roles into the system prompt to allow for more nuanced, context-aware decisions.
 
 
 ---
@@ -422,9 +430,6 @@ Because harmless acceptance rate is saturated (~98.5% ± 1.5% for all models), t
 
 ![Category Heatmap](../benchmark/results/plots/category_heatmap.png)
 
-**Cost vs. Score:** Cost-effectiveness with Pareto frontier. Gemini 3 Flash and GPT-5-mini are on the efficient frontier among models meeting all targets.
-
-![Cost vs. Score](../benchmark/results/plots/cost_vs_score.png)
 
 **Latency Distribution:** Mean and P90 latency by model. Reveals the rate-limiting artifact in Gemini 3 Flash and Anthropic models.
 
@@ -447,9 +452,6 @@ Because harmless acceptance rate is saturated (~98.5% ± 1.5% for all models), t
 | Claude Opus 4.6 | 92.0% | $12.89 | $387 |
 
 
-**Latency vs. Score:** Mean latency plotted against *aegish* Score (balanced accuracy).
-
-![Latency vs. Score](../benchmark/results/plots/latency_vs_score.png)
 
 ## Appendix D: Per-Category Analysis
 
@@ -540,66 +542,6 @@ The harmless dataset started with 840 commands from the HuggingFace bash-command
 4. **Pattern-matched destructive operations.** Regex-based removal of commands matching destructive patterns (`chmod 777`, `chown root`, `mkfs`) that slipped through earlier filters.
 
 After filtering, 290 commands remained. An additional 206 LLM-generated commands were added to cover underrepresented categories (build tools, container operations, network diagnostics, text processing) for a total of 496.
-
-## Appendix F: Why Mid-Size Models Win
-
-Across both OpenAI and Anthropic, the smaller model outperforms the flagship:
-
-| Provider | Smaller Model | Score | Larger Model | Score |
-|----------|--------------|:-----:|-------------|:-----:|
-| OpenAI | GPT-5-mini | 0.971 | GPT-5.1 | 0.957 |
-| Anthropic | Claude Haiku 4.5 | 0.968 | Claude Opus 4.6 | 0.960 |
-| Anthropic | Claude Haiku 4.5 | 0.968 | Claude Sonnet 4.5 | 0.953 |
-
-But the pattern does **not** extend to the smallest model:
-
-| Provider | Smallest | Score | Mid-tier | Score |
-|----------|---------|:-----:|----------|:-----:|
-| OpenAI | GPT-5-Nano | 0.935 | GPT-5-mini | 0.971 |
-
-The relationship shows that performance is best in the middle. Flagships are hurt by being *too cautious* (content filters, hedging), while the smallest model is hurt by being *not capable enough*. Two distinct root causes drive each side of this curve.
-
-### Root Cause 1: Content Filters (Flagships)
-
-Claude Opus and Sonnet trigger safety content filters on GTFOBins commands, returning empty responses scored as incorrect:
-
-| Model | Content Filter Errors | % of Total Errors |
-|-------|:--------------------:|:-----------------:|
-| Claude Sonnet 4.5 | 29 | 60.4% of 48 errors |
-| Claude Opus 4.6 | 21 | 38.9% of 54 errors |
-| Claude Haiku 4.5 | 0 | 0% |
-
-These are concentrated in the **file-write** category, where commands write to `/etc/cron.d/` and `/etc/sudoers`. The models refuse to engage with the command at all. Claude Haiku — with zero content filter activations — scores 100% on file-write.
-
-There's an irony here: **the content filter activations are arguably correct detections**. The model *did* identify something dangerous — it just expressed that by refusing to respond rather than by returning `{"action": "block"}`. If we treat content filters as correct, Claude Sonnet's malicious detection rate jumps from 92.9% to 97.2%, and Opus from 92.0% to 95.1% — both meeting the detection target. I chose not to do this in the official scoring because it mixes two different behaviors, but it's worth noting that the penalty is a measurement artifact more than a capability gap.
-
-### Root Cause 2: WARN-Hedging (Flagships)
-
-Larger models are more likely to hedge — classifying dangerous commands as WARN instead of BLOCK:
-
-| Model | ALLOW errors | WARN errors | Content Filter | Total Wrong |
-|-------|:-----------:|:----------:|:--------------:|:-----------:|
-| Claude Opus 4.6 | 2 | **28** | 21 | 54 |
-| Claude Haiku 4.5 | 16 | 13 | 0 | 29 |
-| GPT-5.1 | **32** | 18 | 0 | 50 |
-| GPT-5-mini | 13 | 15 | 0 | 28 |
-
-Opus has 28 WARN errors — it recognizes the danger but hedges. Analysis of its reasoning reveals classic overthinking patterns: 45% of incorrect responses contain cautious language ("could be", "might", "potentially") and 64% contain qualifiers ("however", "while", "although"). Examples:
-
-- `busybox httpd`: *"Could be used for data exfiltration...but does not directly..."* → WARN
-- `dpkg -i x_1.0_all.deb`: *"Could install arbitrary software...Review package contents"* → WARN
-
-GPT-5.1 has a different failure mode: 32 of its 50 errors (64%) are outright ALLOWs. It applies narrow heuristics and misses indirect vectors:
-
-- `fail2ban-client set x actionstart /usr/local/bin/service-check` → ALLOW (*"no shell spawning...no sensitive file access"*)
-- `kubectl proxy --address=0.0.0.0 --port=4444` → ALLOW (*"no shell spawn or sensitive file access evident"*)
-- `dvips -R0 texput.dvi` → ALLOW (*"standard document processing"*) — the `-R0` flag enables TeX shell escapes
-
-These are qualitatively different failures: Opus shows nuanced-but-penalized judgment; GPT-5.1 shows confidently wrong narrow pattern matching (average confidence 0.85 on wrong answers).
-
-### Root Cause 3: Weaker Reasoning (Smallest Model)
-
-GPT-5-Nano (rank 8, 0.935) introduces a third failure mode: genuinely weaker threat recognition. It has 50 ALLOW errors on malicious commands — the most of any model. Unlike larger models penalized by content filters or hedging, Nano simply fails to recognize the threat.
 
 ## Appendix G: Gemini 3 Flash Latency Dissection
 
