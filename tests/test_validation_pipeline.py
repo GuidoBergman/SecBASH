@@ -27,7 +27,7 @@ class TestEnvSubstExpansion:
 
     def test_exec_shell_produces_expanded_form(self):
         """AC1: exec $SHELL produces expanded form with real $SHELL value."""
-        with patch("aegish.llm_client.subprocess") as mock_sub:
+        with patch("aegish.utils.subprocess") as mock_sub:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "/bin/zsh"
@@ -39,7 +39,7 @@ class TestEnvSubstExpansion:
 
     def test_graceful_fallback_when_envsubst_unavailable(self):
         """AC2: expansion returns None if envsubst unavailable."""
-        with patch("aegish.llm_client.subprocess") as mock_sub:
+        with patch("aegish.utils.subprocess") as mock_sub:
             mock_sub.run.side_effect = FileNotFoundError("envsubst not found")
             mock_sub.TimeoutExpired = subprocess.TimeoutExpired
 
@@ -48,7 +48,7 @@ class TestEnvSubstExpansion:
 
     def test_no_dollar_short_circuits_subprocess(self):
         """No subprocess spawned when command has no $ character."""
-        with patch("aegish.llm_client.subprocess") as mock_sub:
+        with patch("aegish.utils.subprocess") as mock_sub:
             mock_sub.TimeoutExpired = subprocess.TimeoutExpired
             result = _expand_env_vars("ls -la /tmp")
             assert result == "ls -la /tmp"
@@ -61,7 +61,7 @@ class TestEnvSubstExpansion:
             {"OPENAI_API_KEY": "sk-secret", "HOME": "/home/user"},
             clear=True,
         ):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "OPENAI_API_KEY" not in safe
                 assert safe["HOME"] == "/home/user"
@@ -131,7 +131,7 @@ class TestCommandDelimiters:
 
     def test_envsubst_plus_delimiters_plus_llm_flow(self):
         """Cross-feature: command with $VAR gets expanded, wrapped in tags, sent to LLM."""
-        with patch("aegish.llm_client.subprocess") as mock_sub:
+        with patch("aegish.utils.subprocess") as mock_sub:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "exec /bin/bash"

@@ -62,7 +62,8 @@
       "Bash(docker --version:*)",
       "Skill(sharp-edges:sharp-edges)",
       "Skill(semgrep)",
-      "WebFetch(domain:docs.litellm.ai)"
+      "WebFetch(domain:docs.litellm.ai)",
+      "WebFetch(domain:ubuntu.com)"
     ]
   }
 }

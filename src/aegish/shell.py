@@ -34,6 +34,14 @@ from aegish.config import (
     validate_bash_binary,
     validate_sandboxer_library,
 )
+from aegish.constants import (
+    EXIT_BLOCKED,
+    EXIT_CANCELLED,
+    EXIT_KEYBOARD_INTERRUPT,
+    EXIT_SUCCESS,
+    HISTORY_FILE,
+    HISTORY_LENGTH,
+)
 from aegish.executor import (
     _build_safe_env,
     execute_command,
@@ -47,160 +55,24 @@ from aegish.validator import validate_command
 
 logger = logging.getLogger(__name__)
 
-# History configuration
-HISTORY_FILE: str = os.path.expanduser("~/.aegish_history")
-HISTORY_LENGTH: int = 1000
+# Re-export constants at module level for backward compatibility.
+# Tests import HISTORY_FILE, HISTORY_LENGTH from aegish.shell.
+__all__ = [
+    "HISTORY_FILE",
+    "HISTORY_LENGTH",
+    "EXIT_SUCCESS",
+    "EXIT_BLOCKED",
+    "EXIT_CANCELLED",
+    "EXIT_KEYBOARD_INTERRUPT",
+    "run_shell",
+    "init_history",
+    "get_prompt",
+    "_handle_cd",
+    "_execute_and_update",
+    "_is_login_shell",
+]
+
 _history_initialized: bool = False  # Guard against duplicate atexit registration
-
-# Exit code constants for consistency and documentation
-EXIT_SUCCESS = 0
-EXIT_BLOCKED = 1  # Command was blocked by security validation
-EXIT_CANCELLED = 2  # User cancelled a warned command
-EXIT_KEYBOARD_INTERRUPT = 130  # Standard exit code for Ctrl+C (128 + SIGINT)
-
-
-def _is_login_shell() -> bool:
-    """Detect if aegish is running as a login shell.
-
-    Returns True if any of these conditions hold:
-    - sys.argv[0] starts with '-' (login shell convention)
-    - $SHELL points to an aegish binary
-    - An aegish path appears in /etc/shells
-
-    Returns:
-        True if login shell context is detected.
-    """
-    # Convention: login shells have argv[0] starting with '-'
-    if sys.argv[0].startswith("-"):
-        return True
-
-    # Check if $SHELL points to aegish
-    shell_var = os.environ.get("SHELL", "")
-    if "aegish" in os.path.basename(shell_var):
-        return True
-
-    # Check /etc/shells for aegish entries
-    try:
-        with open("/etc/shells") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "aegish" in os.path.basename(line):
-                    return True
-    except (FileNotFoundError, OSError):
-        pass
-
-    return False
-
-
-def init_history() -> None:
-    """Initialize readline history from persistent file.
-
-    Loads command history from HISTORY_FILE if it exists.
-    Registers atexit handler to save history on shell exit.
-
-    History features enabled:
-    - Session navigation with up/down arrows
-    - Persistent history across sessions (stored in ~/.aegish_history)
-    - History limited to HISTORY_LENGTH commands (default: 1000)
-    """
-    global _history_initialized
-
-    readline.set_history_length(HISTORY_LENGTH)
-
-    try:
-        readline.read_history_file(HISTORY_FILE)
-    except (FileNotFoundError, OSError):
-        # No history file yet, or file not readable - will be created on exit
-        pass
-
-    # Register handler only once to avoid duplicate writes on exit
-    if not _history_initialized:
-        atexit.register(readline.write_history_file, HISTORY_FILE)
-        _history_initialized = True
-
-
-def get_prompt() -> str:
-    """Return the shell prompt string.
-
-    The default prompt "aegish> " clearly identifies the shell
-    while remaining concise. This is not configurable in the MVP.
-
-    Returns:
-        Prompt string, default is "aegish> "
-    """
-    return "aegish> "
-
-
-def _handle_cd(
-    command: str,
-    current_dir: str,
-    previous_dir: str,
-    env: dict[str, str],
-) -> tuple[int, str, str, dict[str, str]]:
-    """Handle a bare cd command as fast path (no subprocess spawn).
-
-    Args:
-        command: The cd command string.
-        current_dir: Current working directory.
-        previous_dir: Previous working directory (for cd -).
-        env: Current environment dict.
-
-    Returns:
-        Tuple of (exit_code, new_current_dir, new_previous_dir, updated_env).
-    """
-    stripped = command.strip()
-    parts = stripped.split(None, 1)
-    target = parts[1].strip() if len(parts) > 1 else ""
-
-    resolved, error = resolve_cd(target, current_dir, env)
-    if error:
-        print(error)
-        return 1, current_dir, previous_dir, env
-
-    # cd - prints the new directory (bash behavior)
-    if target == "-":
-        print(resolved)
-
-    new_previous = current_dir
-    new_current = resolved
-
-    # Update PWD/OLDPWD in env
-    updated_env = dict(env)
-    updated_env["PWD"] = new_current
-    updated_env["OLDPWD"] = new_previous
-
-    return 0, new_current, new_previous, updated_env
-
-
-def _execute_and_update(
-    command: str,
-    last_exit_code: int,
-    current_dir: str,
-    previous_dir: str,
-    env: dict[str, str],
-) -> tuple[int, str, str, dict[str, str]]:
-    """Execute a command via subprocess and update shell state.
-
-    Args:
-        command: The command string to execute.
-        last_exit_code: Previous command's exit code (for $?).
-        current_dir: Current working directory.
-        previous_dir: Previous working directory.
-        env: Current environment dict.
-
-    Returns:
-        Tuple of (exit_code, new_current_dir, new_previous_dir, updated_env).
-    """
-    exit_code, new_env, new_cwd = execute_command(
-        command, last_exit_code, env=env, cwd=current_dir,
-    )
-
-    # If cwd changed (e.g. compound command with cd), update previous_dir
-    new_previous = previous_dir
-    if new_cwd != current_dir:
-        new_previous = current_dir
-
-    return exit_code, new_cwd, new_previous, new_env
 
 
 def run_shell() -> int:
@@ -430,3 +302,147 @@ def run_shell() -> int:
                 break
 
     return 0
+
+
+def init_history() -> None:
+    """Initialize readline history from persistent file.
+
+    Loads command history from HISTORY_FILE if it exists.
+    Registers atexit handler to save history on shell exit.
+
+    History features enabled:
+    - Session navigation with up/down arrows
+    - Persistent history across sessions (stored in ~/.aegish_history)
+    - History limited to HISTORY_LENGTH commands (default: 1000)
+    """
+    global _history_initialized
+
+    readline.set_history_length(HISTORY_LENGTH)
+
+    try:
+        readline.read_history_file(HISTORY_FILE)
+    except (FileNotFoundError, OSError):
+        # No history file yet, or file not readable - will be created on exit
+        pass
+
+    # Register handler only once to avoid duplicate writes on exit
+    if not _history_initialized:
+        atexit.register(readline.write_history_file, HISTORY_FILE)
+        _history_initialized = True
+
+
+def get_prompt() -> str:
+    """Return the shell prompt string.
+
+    The default prompt "aegish> " clearly identifies the shell
+    while remaining concise. This is not configurable in the MVP.
+
+    Returns:
+        Prompt string, default is "aegish> "
+    """
+    return "aegish> "
+
+
+def _handle_cd(
+    command: str,
+    current_dir: str,
+    previous_dir: str,
+    env: dict[str, str],
+) -> tuple[int, str, str, dict[str, str]]:
+    """Handle a bare cd command as fast path (no subprocess spawn).
+
+    Args:
+        command: The cd command string.
+        current_dir: Current working directory.
+        previous_dir: Previous working directory (for cd -).
+        env: Current environment dict.
+
+    Returns:
+        Tuple of (exit_code, new_current_dir, new_previous_dir, updated_env).
+    """
+    stripped = command.strip()
+    parts = stripped.split(None, 1)
+    target = parts[1].strip() if len(parts) > 1 else ""
+
+    resolved, error = resolve_cd(target, current_dir, env)
+    if error:
+        print(error)
+        return 1, current_dir, previous_dir, env
+
+    # cd - prints the new directory (bash behavior)
+    if target == "-":
+        print(resolved)
+
+    new_previous = current_dir
+    new_current = resolved
+
+    # Update PWD/OLDPWD in env
+    updated_env = dict(env)
+    updated_env["PWD"] = new_current
+    updated_env["OLDPWD"] = new_previous
+
+    return 0, new_current, new_previous, updated_env
+
+
+def _execute_and_update(
+    command: str,
+    last_exit_code: int,
+    current_dir: str,
+    previous_dir: str,
+    env: dict[str, str],
+) -> tuple[int, str, str, dict[str, str]]:
+    """Execute a command via subprocess and update shell state.
+
+    Args:
+        command: The command string to execute.
+        last_exit_code: Previous command's exit code (for $?).
+        current_dir: Current working directory.
+        previous_dir: Previous working directory.
+        env: Current environment dict.
+
+    Returns:
+        Tuple of (exit_code, new_current_dir, new_previous_dir, updated_env).
+    """
+    exit_code, new_env, new_cwd = execute_command(
+        command, last_exit_code, env=env, cwd=current_dir,
+    )
+
+    # If cwd changed (e.g. compound command with cd), update previous_dir
+    new_previous = previous_dir
+    if new_cwd != current_dir:
+        new_previous = current_dir
+
+    return exit_code, new_cwd, new_previous, new_env
+
+
+def _is_login_shell() -> bool:
+    """Detect if aegish is running as a login shell.
+
+    Returns True if any of these conditions hold:
+    - sys.argv[0] starts with '-' (login shell convention)
+    - $SHELL points to an aegish binary
+    - An aegish path appears in /etc/shells
+
+    Returns:
+        True if login shell context is detected.
+    """
+    # Convention: login shells have argv[0] starting with '-'
+    if sys.argv[0].startswith("-"):
+        return True
+
+    # Check if $SHELL points to aegish
+    shell_var = os.environ.get("SHELL", "")
+    if "aegish" in os.path.basename(shell_var):
+        return True
+
+    # Check /etc/shells for aegish entries
+    try:
+        with open("/etc/shells") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "aegish" in os.path.basename(line):
+                    return True
+    except (FileNotFoundError, OSError):
+        pass
+
+    return False

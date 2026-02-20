@@ -196,7 +196,7 @@ It is important to acknowledge that *aegish* is currently a prototype and not a 
 1. **Prompt Injection:** The system is potentially susceptible to adversarial inputs designed to manipulate the LLM's classification logic.
 2. **Latency:** The round-trip time for LLM inference adds perceptible latency compared to a native shell.
 
-## 7. Conclusion
+## 7. Conclusion and Future Work
 
 The *aegish* prototype proves that LLMs can act as a viable, natural-language security layer by shifting defense from complex manual policies to **intent-based reasoning**. Our benchmarking highlights a performance "sweet spot" where **mid-sized models** actually outperform expensive flagships; they provide the highest malicious detection rates without the "over-reasoning" or safety-filter issues found in larger models. While not a replacement for kernel-level enforcement, *aegish* provides an accessible **defense-in-depth** tool that catches sophisticated exploits—like indirect shell escapes—while remaining easy to configure for anyone who can describe a threat in plain English.
 

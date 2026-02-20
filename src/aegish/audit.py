@@ -12,14 +12,14 @@ import os
 from datetime import datetime, timezone
 
 from aegish.config import get_mode
+from aegish.constants import (
+    DEV_AUDIT_DIR,
+    DEV_AUDIT_LOG,
+    PRODUCTION_AUDIT_DIR,
+    PRODUCTION_AUDIT_LOG,
+)
 
 logger = logging.getLogger(__name__)
-
-# Audit log paths
-PRODUCTION_AUDIT_DIR = "/var/log/aegish"
-PRODUCTION_AUDIT_LOG = os.path.join(PRODUCTION_AUDIT_DIR, "audit.log")
-DEV_AUDIT_DIR = os.path.expanduser("~/.aegish")
-DEV_AUDIT_LOG = os.path.join(DEV_AUDIT_DIR, "audit.log")
 
 _audit_fd = None
 _audit_available = False

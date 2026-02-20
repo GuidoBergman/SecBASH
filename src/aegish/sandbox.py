@@ -22,18 +22,30 @@ import ctypes
 import ctypes.util
 import logging
 
+from aegish.constants import (
+    DENIED_SHELLS,
+    LANDLOCK_ACCESS_FS_EXECUTE,
+    LANDLOCK_CREATE_RULESET_VERSION,
+    LANDLOCK_RULE_PATH_BENEATH,
+    PR_SET_NO_NEW_PRIVS,
+    SYS_LANDLOCK_ADD_RULE,
+    SYS_LANDLOCK_CREATE_RULESET,
+    SYS_LANDLOCK_RESTRICT_SELF,
+)
+
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# Constants
+# Backward-compatible aliases (original names used lowercase)
 # =============================================================================
 
-# Syscall numbers (x86_64)
-SYS_landlock_create_ruleset = 444
-SYS_landlock_add_rule = 445
-SYS_landlock_restrict_self = 446
+SYS_landlock_create_ruleset = SYS_LANDLOCK_CREATE_RULESET
+SYS_landlock_add_rule = SYS_LANDLOCK_ADD_RULE
+SYS_landlock_restrict_self = SYS_LANDLOCK_RESTRICT_SELF
 
+# =============================================================================
 # ctypes struct definitions (kept for landlock_available() probe)
+# =============================================================================
 
 
 class LandlockRulesetAttr(ctypes.Structure):
@@ -47,39 +59,6 @@ class LandlockPathBeneathAttr(ctypes.Structure):
         ("parent_fd", ctypes.c_int32),
     ]
 
-
-# Access flags
-LANDLOCK_ACCESS_FS_EXECUTE = 1 << 0
-LANDLOCK_RULE_PATH_BENEATH = 1
-LANDLOCK_CREATE_RULESET_VERSION = 1 << 0
-PR_SET_NO_NEW_PRIVS = 38
-
-# Denied shell binary paths (reference copy -- authoritative copy is in
-# src/sandboxer/landlock_sandboxer.c which must be kept in sync).
-#
-# Known limitation: This is a path-based denylist. A user who copies or
-# renames a shell binary to a non-listed path (e.g. cp /bin/bash /tmp/mysh)
-# can bypass this list. Landlock matches by the path rule, not by binary
-# content. Full mitigation requires inode-level or content-based checks,
-# which are out of scope for this implementation.
-DENIED_SHELLS = {
-    "/bin/bash", "/usr/bin/bash",
-    "/bin/sh", "/usr/bin/sh",
-    "/bin/dash", "/usr/bin/dash",
-    "/bin/zsh", "/usr/bin/zsh",
-    "/bin/fish", "/usr/bin/fish",
-    "/bin/ksh", "/usr/bin/ksh",
-    "/bin/csh", "/usr/bin/csh",
-    "/bin/tcsh", "/usr/bin/tcsh",
-    "/bin/ash", "/usr/bin/ash",
-    "/bin/busybox", "/usr/bin/busybox",
-    "/bin/mksh", "/usr/bin/mksh",
-    "/bin/rbash", "/usr/bin/rbash",
-    "/bin/elvish", "/usr/bin/elvish",
-    "/bin/nu", "/usr/bin/nu",
-    "/bin/pwsh", "/usr/bin/pwsh",
-    "/bin/xonsh", "/usr/bin/xonsh",
-}
 
 # =============================================================================
 # Internal helpers

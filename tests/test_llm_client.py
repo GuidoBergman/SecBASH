@@ -804,7 +804,7 @@ class TestExpandEnvVars:
 
     def test_returns_expanded_string_on_success(self):
         """AC1: envsubst expands variables and returns result."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "exec /bin/bash"
@@ -816,7 +816,7 @@ class TestExpandEnvVars:
 
     def test_returns_none_when_envsubst_not_found(self):
         """AC3: Returns None when envsubst is not installed."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_subprocess.run.side_effect = FileNotFoundError("envsubst not found")
             mock_subprocess.TimeoutExpired = subprocess.TimeoutExpired
 
@@ -825,7 +825,7 @@ class TestExpandEnvVars:
 
     def test_returns_none_on_nonzero_exit(self):
         """Returns None when envsubst returns non-zero exit code."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_result = MagicMock()
             mock_result.returncode = 1
             mock_subprocess.run.return_value = mock_result
@@ -836,7 +836,7 @@ class TestExpandEnvVars:
 
     def test_returns_none_on_timeout(self):
         """Returns None when envsubst times out."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_subprocess.run.side_effect = subprocess.TimeoutExpired("envsubst", 5)
             mock_subprocess.TimeoutExpired = subprocess.TimeoutExpired
 
@@ -845,7 +845,7 @@ class TestExpandEnvVars:
 
     def test_returns_none_on_generic_exception(self):
         """Returns None on unexpected exceptions."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_subprocess.run.side_effect = OSError("permission denied")
             mock_subprocess.TimeoutExpired = subprocess.TimeoutExpired
 
@@ -854,7 +854,7 @@ class TestExpandEnvVars:
 
     def test_strips_trailing_newline(self):
         """envsubst output trailing newline is stripped."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "exec /bin/bash\n"
@@ -866,7 +866,7 @@ class TestExpandEnvVars:
 
     def test_skips_subprocess_when_no_dollar_sign(self):
         """M1 fix: No subprocess spawned when command has no $ character."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_subprocess.TimeoutExpired = subprocess.TimeoutExpired
             result = _expand_env_vars("ls -la")
             assert result == "ls -la"
@@ -874,8 +874,8 @@ class TestExpandEnvVars:
 
     def test_calls_subprocess_with_correct_args(self):
         """L2 fix: Verify exact arguments passed to subprocess.run."""
-        import aegish.llm_client as mod
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        import aegish.utils as mod
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "exec /bin/bash"
@@ -895,7 +895,7 @@ class TestExpandEnvVars:
 
     def test_empty_string_returns_without_subprocess(self):
         """L3 fix: Empty string has no $ so returns immediately."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_subprocess.TimeoutExpired = subprocess.TimeoutExpired
             result = _expand_env_vars("")
             assert result == ""
@@ -922,7 +922,7 @@ class TestGetSafeEnv:
     def test_filters_api_key_variables(self):
         """API key variables are excluded when filtering enabled."""
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-secret", "HOME": "/home/user"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "OPENAI_API_KEY" not in safe
                 assert safe["HOME"] == "/home/user"
@@ -930,7 +930,7 @@ class TestGetSafeEnv:
     def test_filters_secret_variables(self):
         """Secret variables are excluded when filtering enabled."""
         with patch.dict(os.environ, {"AWS_SECRET_ACCESS_KEY": "abc", "PATH": "/usr/bin"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "AWS_SECRET_ACCESS_KEY" not in safe
                 assert safe["PATH"] == "/usr/bin"
@@ -938,7 +938,7 @@ class TestGetSafeEnv:
     def test_filters_token_variables(self):
         """Token variables are excluded when filtering enabled."""
         with patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_xxx", "SHELL": "/bin/bash"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "GITHUB_TOKEN" not in safe
                 assert safe["SHELL"] == "/bin/bash"
@@ -946,7 +946,7 @@ class TestGetSafeEnv:
     def test_filters_password_variables(self):
         """Password variables are excluded when filtering enabled."""
         with patch.dict(os.environ, {"DATABASE_PASSWORD": "pass123", "USER": "dev"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "DATABASE_PASSWORD" not in safe
                 assert safe["USER"] == "dev"
@@ -954,7 +954,7 @@ class TestGetSafeEnv:
     def test_case_insensitive_matching(self):
         """Filtering works regardless of variable name casing."""
         with patch.dict(os.environ, {"my_api_key": "secret", "LANG": "en_US"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "my_api_key" not in safe
                 assert safe["LANG"] == "en_US"
@@ -963,7 +963,7 @@ class TestGetSafeEnv:
         """Non-sensitive variables are preserved."""
         safe_vars = {"HOME": "/home/user", "SHELL": "/bin/bash", "LANG": "en_US", "PATH": "/usr/bin"}
         with patch.dict(os.environ, safe_vars, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 for key, value in safe_vars.items():
                     assert safe[key] == value
@@ -1086,7 +1086,7 @@ class TestQueryLLMEnvExpansionIntegration:
 
     def test_expanded_command_reaches_llm(self):
         """Full path: query_llm expands env vars and sends to LLM."""
-        with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils.subprocess") as mock_subprocess:
             mock_result = MagicMock()
             mock_result.returncode = 0
             mock_result.stdout = "exec /bin/bash"
@@ -1711,7 +1711,7 @@ class TestSensitiveVarFilter:
     def test_safe_env_returns_all_when_filter_disabled(self):
         """When filtering disabled, _get_safe_env returns ALL env vars."""
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-secret", "HOME": "/home/user"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=False):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=False):
                 safe = _get_safe_env()
                 assert "OPENAI_API_KEY" in safe
                 assert safe["OPENAI_API_KEY"] == "sk-secret"
@@ -1720,7 +1720,7 @@ class TestSensitiveVarFilter:
     def test_safe_env_filters_when_enabled(self):
         """When filtering enabled, _get_safe_env removes sensitive vars."""
         with patch.dict(os.environ, {"OPENAI_API_KEY": "sk-secret", "HOME": "/home/user"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "OPENAI_API_KEY" not in safe
                 assert safe["HOME"] == "/home/user"
@@ -1728,7 +1728,7 @@ class TestSensitiveVarFilter:
     def test_safe_env_filters_tokens_when_enabled(self):
         """When filtering enabled, token variables are filtered."""
         with patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_xxx", "PATH": "/usr/bin"}, clear=True):
-            with patch("aegish.llm_client.get_filter_sensitive_vars", return_value=True):
+            with patch("aegish.config.get_filter_sensitive_vars", return_value=True):
                 safe = _get_safe_env()
                 assert "GITHUB_TOKEN" not in safe
                 assert safe["PATH"] == "/usr/bin"
@@ -1739,7 +1739,7 @@ class TestEnvsubstAbsolutePath:
 
     def test_envsubst_path_resolved_at_module_load(self):
         """_envsubst_path is resolved at module load time."""
-        import aegish.llm_client as mod
+        import aegish.utils as mod
         # It should be a string (path found) or None (not installed)
         assert mod._envsubst_path is None or isinstance(mod._envsubst_path, str)
 
@@ -1751,14 +1751,14 @@ class TestEnvsubstAbsolutePath:
 
     def test_expand_returns_none_when_envsubst_missing(self):
         """When _envsubst_path is None, expansion returns None."""
-        with patch("aegish.llm_client._envsubst_path", None):
+        with patch("aegish.utils._envsubst_path", None):
             result = _expand_env_vars("echo $HOME")
             assert result is None
 
     def test_expand_uses_absolute_path(self):
         """subprocess.run is called with absolute path, not bare 'envsubst'."""
-        with patch("aegish.llm_client._envsubst_path", "/usr/bin/envsubst"):
-            with patch("aegish.llm_client.subprocess") as mock_subprocess:
+        with patch("aegish.utils._envsubst_path", "/usr/bin/envsubst"):
+            with patch("aegish.utils.subprocess") as mock_subprocess:
                 mock_result = MagicMock()
                 mock_result.returncode = 0
                 mock_result.stdout = "echo /home/user"
@@ -1772,7 +1772,7 @@ class TestEnvsubstAbsolutePath:
 
     def test_no_dollar_skips_envsubst(self):
         """Commands without $ skip envsubst entirely."""
-        with patch("aegish.llm_client._envsubst_path", None):
+        with patch("aegish.utils._envsubst_path", None):
             result = _expand_env_vars("ls -la")
             assert result == "ls -la"
 
