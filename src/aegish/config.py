@@ -56,11 +56,14 @@ CONFIG_FILE_PATH = "/etc/aegish/config"
 SECURITY_CRITICAL_KEYS = frozenset({
     "AEGISH_FAIL_MODE",
     "AEGISH_ALLOWED_PROVIDERS",
-    "AEGISH_RUNNER_PATH",
-    "AEGISH_RUNNER_HASH",
     "AEGISH_MODE",
     "AEGISH_ROLE",
     "AEGISH_VAR_CMD_ACTION",
+    "AEGISH_SANDBOXER_HASH",
+    "AEGISH_PRIMARY_MODEL",
+    "AEGISH_FALLBACK_MODELS",
+    "AEGISH_BASH_HASH",
+    "AEGISH_SKIP_BASH_HASH",
 })
 
 # Module-level cache for config file contents (loaded once)
@@ -103,12 +106,6 @@ VALID_ROLES = {"default", "sysadmin", "restricted"}
 # Variable-in-command-position action (Story 10.1)
 DEFAULT_VAR_CMD_ACTION = "block"
 VALID_VAR_CMD_ACTIONS = {"block", "warn"}
-
-# Runner binary configuration (DD-17: Landlock bypass via hardlink)
-DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"
-# Production runner path is hardcoded (Story 13.4)
-PRODUCTION_RUNNER_PATH = "/opt/aegish/bin/runner"
-
 
 # Sandboxer library configuration (Story 14.2: LD_PRELOAD Landlock enforcement)
 DEFAULT_SANDBOXER_PATH = "/opt/aegish/lib/landlock_sandboxer.so"
@@ -534,36 +531,42 @@ Tip: Copy .env.example to .env and fill in your keys, then source it:
 def get_primary_model() -> str:
     """Get the primary LLM model for command validation.
 
-    Reads from AEGISH_PRIMARY_MODEL environment variable.
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_PRIMARY_MODEL env var.
     Falls back to default if not set or empty.
 
     Returns:
         The primary model string in provider/model-name format.
     """
-    model = os.environ.get("AEGISH_PRIMARY_MODEL", "")
+    model = _get_security_config("AEGISH_PRIMARY_MODEL", "")
     if model and model.strip():
         return model.strip()
     return DEFAULT_PRIMARY_MODEL
 
 
 def get_fallback_models() -> list[str]:
-    """Get the list of fallback LLM models.
+    """Get fallback models list.
 
-    Reads from AEGISH_FALLBACK_MODELS environment variable.
+    In production: reads from config file (ignores env var).
+    In development: reads from AEGISH_FALLBACK_MODELS env var.
     If not set, returns default fallbacks.
     If set to empty string, returns empty list (single-provider mode).
 
     Returns:
         List of fallback model strings in provider/model-name format.
     """
-    env_value = os.environ.get("AEGISH_FALLBACK_MODELS")
+    env_value = _get_security_config("AEGISH_FALLBACK_MODELS", "")
 
-    # Not set at all - use defaults
-    # Use .copy() to prevent external mutation of the default list
-    if env_value is None:
+    if not env_value:
+        # _get_security_config returns "" for both "not set" and "set to empty".
+        # In dev mode, distinguish via raw env var: None = not set, "" = single-provider.
+        if not _is_production_mode():
+            raw = os.environ.get("AEGISH_FALLBACK_MODELS")
+            if raw is not None:
+                return []  # Explicitly set to empty = single-provider mode
         return DEFAULT_FALLBACK_MODELS.copy()
 
-    # Set but empty/whitespace - single provider mode
+    # Set but whitespace-only - single provider mode
     if not env_value.strip():
         return []
 
@@ -691,25 +694,6 @@ def has_fallback_models() -> bool:
     return len(get_fallback_models()) > 0
 
 
-def get_runner_path() -> str:
-    """Get the path to the runner binary.
-
-    In production: hardcoded to PRODUCTION_RUNNER_PATH, ignores all config.
-    In development: reads from AEGISH_RUNNER_PATH env var.
-    Falls back to DEFAULT_RUNNER_PATH if not set or empty.
-
-    Returns:
-        Path to the runner binary.
-    """
-    if _is_production_mode():
-        return PRODUCTION_RUNNER_PATH
-
-    raw = _get_security_config("AEGISH_RUNNER_PATH", "")
-    if raw and raw.strip():
-        return raw.strip()
-    return DEFAULT_RUNNER_PATH
-
-
 def _compute_file_sha256(path: str) -> str:
     """Compute the SHA-256 hash of a file.
 
@@ -726,72 +710,103 @@ def _compute_file_sha256(path: str) -> str:
     return sha256.hexdigest()
 
 
-def validate_runner_binary() -> tuple[bool, str]:
-    """Validate that the runner binary exists and is executable.
+def validate_bash_binary() -> tuple[bool, str]:
+    """Validate /bin/bash exists, is executable, and has correct hash.
 
-    In production mode: also verifies SHA-256 hash integrity.
-    Expected hash is read from config file via _get_security_config()
-    (never from env vars in production — prevents env var poisoning).
-    Refuses to start on hash mismatch or missing hash in production.
+    In production mode: verifies SHA-256 hash integrity against
+    AEGISH_BASH_HASH from config file. Refuses to start on mismatch
+    or missing hash. On bare-metal, system bash updates break the hash
+    and force acknowledgment (fail-loud, not silently stale).
 
     Returns:
         Tuple of (is_valid, message).
-        If valid: (True, "runner binary ready message")
-        If invalid: (False, "error message with setup instructions")
+        If valid: (True, "bash binary verified message")
+        If invalid: (False, "error message with remediation steps")
     """
-    path = get_runner_path()
+    path = "/bin/bash"
 
     if not os.path.exists(path):
-        return (False, f"Runner binary not found at {path}.\n"
-                f"Create it with: sudo mkdir -p {os.path.dirname(path)} && "
-                f"sudo ln /bin/bash {path}")
+        return (False, "/bin/bash not found. This system has no bash.")
 
     if not os.access(path, os.X_OK):
-        return (False, f"Runner binary at {path} is not executable.\n"
+        return (False, f"/bin/bash is not executable.\n"
                 f"Fix with: sudo chmod +x {path}")
 
-    # SHA-256 hash verification in production mode (Story 13.4)
+    # SHA-256 hash verification in production mode (Story 17.2)
     if _is_production_mode():
-        expected_hash = _get_security_config("AEGISH_RUNNER_HASH", "")
+        expected_hash = _get_security_config("AEGISH_BASH_HASH", "")
         if not expected_hash:
             return (False,
-                    "No runner hash configured in /etc/aegish/config. "
-                    "Rebuild the container to embed AEGISH_RUNNER_HASH.")
+                    "No bash hash configured in /etc/aegish/config. "
+                    "Rebuild the container to embed AEGISH_BASH_HASH.")
         try:
             actual_hash = _compute_file_sha256(path)
             if actual_hash != expected_hash:
                 return (False,
-                        f"Runner binary hash mismatch at {path}.\n"
-                        f"Expected: {expected_hash}\n"
-                        f"Actual:   {actual_hash}\n"
-                        f"The runner binary may have been tampered with.")
+                        f"/bin/bash hash mismatch.\n"
+                        f"  Expected: {expected_hash}\n"
+                        f"  Actual:   {actual_hash}\n"
+                        f"Step 1 — Verify the binary is a legitimate "
+                        f"package update:\n"
+                        f"  dpkg --verify bash        "
+                        f"# Debian/Ubuntu — no output means OK\n"
+                        f"  rpm -V bash               "
+                        f"# RHEL/CentOS  — no output means OK\n"
+                        f"Step 2 — Only after verification, update the "
+                        f"stored hash:\n"
+                        f"  sudo sed -i "
+                        f"'s/^AEGISH_BASH_HASH=.*/"
+                        f"AEGISH_BASH_HASH={actual_hash}/' "
+                        f"/etc/aegish/config")
         except OSError as e:
-            return (False, f"Cannot read runner binary for hash verification: {e}")
+            return (False, f"Cannot read /bin/bash for hash verification: {e}")
 
-    return (True, f"Runner binary ready at {path}")
+    return (True, "bash binary verified at /bin/bash")
+
+
+def skip_bash_hash() -> bool:
+    """Check if /bin/bash hash verification should be skipped.
+
+    When AEGISH_SKIP_BASH_HASH=true in /etc/aegish/config, the bash
+    hash check is bypassed. Intended for bare-metal deployments with
+    automated package updates and host-level integrity monitoring.
+
+    Read from config file in production (never from env vars).
+    The sandboxer .so hash check is NOT affected by this setting.
+
+    Returns:
+        True if bash hash check should be skipped.
+    """
+    raw = _get_security_config("AEGISH_SKIP_BASH_HASH", "")
+    return raw.strip().lower() == "true"
 
 
 def get_sandboxer_path() -> str:
     """Get the path to the sandboxer shared library.
 
-    Reads from AEGISH_SANDBOXER_PATH environment variable.
+    In production: hardcoded to DEFAULT_SANDBOXER_PATH, ignores all config.
+    In development: reads from AEGISH_SANDBOXER_PATH env var.
     Falls back to DEFAULT_SANDBOXER_PATH if not set or empty.
 
     Returns:
         Path to the sandboxer library.
     """
-    path = os.environ.get("AEGISH_SANDBOXER_PATH", "")
-    if path and path.strip():
-        return path.strip()
+    if _is_production_mode():
+        return DEFAULT_SANDBOXER_PATH
+
+    raw = _get_security_config("AEGISH_SANDBOXER_PATH", "")
+    if raw and raw.strip():
+        return raw.strip()
     return DEFAULT_SANDBOXER_PATH
 
 
 def validate_sandboxer_library() -> tuple[bool, str]:
     """Validate that the sandboxer shared library exists and is readable.
 
-    The sandboxer library (landlock_sandboxer.so) is an LD_PRELOAD library
-    that applies Landlock restrictions inside the runner process. It must
-    exist and be readable for production mode to work.
+    In production mode: also verifies SHA-256 hash integrity.
+    Expected hash is read from config file via _get_security_config()
+    (never from env vars in production -- prevents env var poisoning).
+    Refuses to start on hash mismatch or missing hash in production.
 
     Returns:
         Tuple of (is_valid, message).
@@ -807,6 +822,31 @@ def validate_sandboxer_library() -> tuple[bool, str]:
     if not os.access(path, os.R_OK):
         return (False, f"Sandboxer library at {path} is not readable.\n"
                 f"Fix with: sudo chmod +r {path}")
+
+    # SHA-256 hash verification in production mode (Story 17.8)
+    if _is_production_mode():
+        expected_hash = _get_security_config("AEGISH_SANDBOXER_HASH", "")
+        if not expected_hash:
+            return (False,
+                    "No sandboxer hash configured in /etc/aegish/config. "
+                    "Rebuild the container to embed AEGISH_SANDBOXER_HASH.")
+        try:
+            actual_hash = _compute_file_sha256(path)
+            if actual_hash != expected_hash:
+                return (False,
+                        f"Sandboxer library hash mismatch at {path}.\n"
+                        f"  Expected: {expected_hash}\n"
+                        f"  Actual:   {actual_hash}\n"
+                        f"Step 1 — Verify the library is legitimate "
+                        f"(rebuild from source and compare hashes).\n"
+                        f"Step 2 — Only after verification, update the "
+                        f"stored hash:\n"
+                        f"  sudo sed -i "
+                        f"'s/^AEGISH_SANDBOXER_HASH=.*/"
+                        f"AEGISH_SANDBOXER_HASH={actual_hash}/' "
+                        f"/etc/aegish/config")
+        except OSError as e:
+            return (False, f"Cannot read sandboxer library for hash verification: {e}")
 
     return (True, f"Sandboxer library ready at {path}")
 

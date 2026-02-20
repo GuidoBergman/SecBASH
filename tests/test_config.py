@@ -3,8 +3,10 @@
 Tests credential validation and model configuration functionality.
 """
 
+import hashlib
 import os
 import stat
+import tempfile
 
 import pytest
 
@@ -14,9 +16,10 @@ from aegish.config import (
     DEFAULT_FALLBACK_MODELS,
     DEFAULT_PRIMARY_MODEL,
     DEFAULT_ROLE,
-    DEFAULT_RUNNER_PATH,
+    DEFAULT_SANDBOXER_PATH,
     SECURITY_CRITICAL_KEYS,
     VALID_ROLES,
+    _compute_file_sha256,
     _get_security_config,
     _load_config_file,
     _reset_config_cache,
@@ -31,14 +34,16 @@ from aegish.config import (
     get_primary_model,
     get_provider_from_model,
     get_role,
-    get_runner_path,
+    get_sandboxer_path,
     has_fallback_models,
     is_default_fallback_models,
     is_default_primary_model,
     is_valid_model_string,
+    skip_bash_hash,
+    validate_bash_binary,
     validate_credentials,
     validate_model_provider,
-    validate_runner_binary,
+    validate_sandboxer_library,
 )
 
 
@@ -856,72 +861,49 @@ class TestHasFallbackModels:
         assert has_fallback_models() is True
 
 
-class TestGetRunnerPath:
-    """Tests for get_runner_path function (Story 8.4)."""
+class TestValidateBashBinary:
+    """Tests for validate_bash_binary function (Story 17.2)."""
 
-    def test_default_runner_path(self, mocker):
-        """AC4: Default path when AEGISH_RUNNER_PATH not set."""
-        mocker.patch.dict(os.environ, {}, clear=True)
-        assert get_runner_path() == DEFAULT_RUNNER_PATH
-
-    def test_custom_runner_path(self, mocker):
-        """AC4: Custom path from AEGISH_RUNNER_PATH env var."""
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "/custom/runner"}, clear=True)
-        assert get_runner_path() == "/custom/runner"
-
-    def test_empty_runner_path_uses_default(self, mocker):
-        """Empty env var falls back to default."""
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": ""}, clear=True)
-        assert get_runner_path() == DEFAULT_RUNNER_PATH
-
-    def test_whitespace_runner_path_uses_default(self, mocker):
-        """Whitespace-only env var falls back to default."""
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "   "}, clear=True)
-        assert get_runner_path() == DEFAULT_RUNNER_PATH
-
-    def test_runner_path_whitespace_trimmed(self, mocker):
-        """Whitespace around path is trimmed."""
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "  /custom/runner  "}, clear=True)
-        assert get_runner_path() == "/custom/runner"
-
-
-class TestValidateRunnerBinary:
-    """Tests for validate_runner_binary function (Story 8.4)."""
-
-    def test_valid_runner_binary(self, mocker, tmp_path):
-        """AC1: Returns True when runner binary exists and is executable."""
-        runner = tmp_path / "runner"
-        runner.write_text("#!/bin/bash")
-        runner.chmod(0o755)
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": str(runner)}, clear=True)
-
-        is_valid, msg = validate_runner_binary()
-
+    def test_bash_exists_and_executable(self):
+        """/bin/bash exists and is executable on this system."""
+        is_valid, msg = validate_bash_binary()
         assert is_valid is True
-        assert "ready" in msg
+        assert "verified" in msg
 
-    def test_missing_runner_binary(self, mocker):
-        """AC2: Returns False with instructions when runner is missing."""
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": "/nonexistent/runner"}, clear=True)
-
-        is_valid, msg = validate_runner_binary()
-
+    def test_bash_not_found(self, mocker):
+        """Returns error when /bin/bash doesn't exist."""
+        mocker.patch("os.path.exists", return_value=False)
+        is_valid, msg = validate_bash_binary()
         assert is_valid is False
-        assert "not found" in msg
-        assert "ln" in msg  # setup instructions
+        assert "/bin/bash not found" in msg
 
-    def test_non_executable_runner_binary(self, mocker, tmp_path):
-        """Returns False when runner exists but is not executable."""
-        runner = tmp_path / "runner"
-        runner.write_text("#!/bin/bash")
-        runner.chmod(0o644)
-        mocker.patch.dict(os.environ, {"AEGISH_RUNNER_PATH": str(runner)}, clear=True)
-
-        is_valid, msg = validate_runner_binary()
-
+    def test_bash_not_executable(self, mocker):
+        """Returns error when /bin/bash is not executable."""
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=False)
+        is_valid, msg = validate_bash_binary()
         assert is_valid is False
         assert "not executable" in msg
-        assert "chmod" in msg
+
+
+class TestSkipBashHash:
+    """Tests for skip_bash_hash function (Story 17.10)."""
+
+    def test_skip_when_true(self, mocker):
+        mocker.patch("aegish.config._get_security_config", return_value="true")
+        assert skip_bash_hash() is True
+
+    def test_no_skip_when_false(self, mocker):
+        mocker.patch("aegish.config._get_security_config", return_value="false")
+        assert skip_bash_hash() is False
+
+    def test_no_skip_when_empty(self, mocker):
+        mocker.patch("aegish.config._get_security_config", return_value="")
+        assert skip_bash_hash() is False
+
+    def test_case_insensitive(self, mocker):
+        mocker.patch("aegish.config._get_security_config", return_value="TRUE")
+        assert skip_bash_hash() is True
 
 
 class TestLoadConfigFile:
@@ -1151,137 +1133,36 @@ class TestProductionModeIntegration:
         assert get_fail_mode() == "open"
 
 
-class TestRunnerPathProduction:
-    """Tests for get_runner_path in production mode (Story 13.4)."""
+class TestSecurityCriticalKeys:
+    """Tests for SECURITY_CRITICAL_KEYS after runner removal (Story 17.6)."""
 
-    def test_production_hardcodes_runner_path(self, tmp_path, mocker):
-        """In production, runner path is always PRODUCTION_RUNNER_PATH."""
-        config_file = tmp_path / "config"
-        config_file.write_text("AEGISH_MODE=production\n")
-        fake_stat = mocker.MagicMock()
-        fake_stat.st_uid = 0
-        fake_stat.st_mode = 0o644
-        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
-        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
-        mocker.patch.dict(os.environ, {
-            "AEGISH_MODE": "production",
-            "AEGISH_RUNNER_PATH": "/evil/path/runner",
-        }, clear=True)
+    def test_bash_hash_in_security_critical_keys(self):
+        """AEGISH_BASH_HASH is in SECURITY_CRITICAL_KEYS."""
+        assert "AEGISH_BASH_HASH" in SECURITY_CRITICAL_KEYS
 
-        from aegish.config import PRODUCTION_RUNNER_PATH
-        assert get_runner_path() == PRODUCTION_RUNNER_PATH
+    def test_skip_bash_hash_in_security_critical_keys(self):
+        """AEGISH_SKIP_BASH_HASH is in SECURITY_CRITICAL_KEYS."""
+        assert "AEGISH_SKIP_BASH_HASH" in SECURITY_CRITICAL_KEYS
 
-    def test_production_ignores_env_var_runner_path(self, mocker):
-        """In production, AEGISH_RUNNER_PATH env var is ignored."""
-        mocker.patch("aegish.config._is_production_mode", return_value=True)
-        mocker.patch.dict(os.environ, {
-            "AEGISH_RUNNER_PATH": "/custom/runner",
-        }, clear=True)
+    def test_sandboxer_hash_in_security_critical_keys(self):
+        """AEGISH_SANDBOXER_HASH is in SECURITY_CRITICAL_KEYS."""
+        assert "AEGISH_SANDBOXER_HASH" in SECURITY_CRITICAL_KEYS
 
-        from aegish.config import PRODUCTION_RUNNER_PATH
-        assert get_runner_path() == PRODUCTION_RUNNER_PATH
+    def test_primary_model_in_security_critical_keys(self):
+        """AEGISH_PRIMARY_MODEL is in SECURITY_CRITICAL_KEYS."""
+        assert "AEGISH_PRIMARY_MODEL" in SECURITY_CRITICAL_KEYS
 
-    def test_development_allows_custom_runner_path(self, mocker):
-        """In development, AEGISH_RUNNER_PATH env var is respected."""
-        mocker.patch.dict(os.environ, {
-            "AEGISH_RUNNER_PATH": "/custom/runner",
-        }, clear=True)
+    def test_fallback_models_in_security_critical_keys(self):
+        """AEGISH_FALLBACK_MODELS is in SECURITY_CRITICAL_KEYS."""
+        assert "AEGISH_FALLBACK_MODELS" in SECURITY_CRITICAL_KEYS
 
-        assert get_runner_path() == "/custom/runner"
+    def test_runner_hash_not_in_security_critical_keys(self):
+        """AEGISH_RUNNER_HASH is NOT in SECURITY_CRITICAL_KEYS (runner removed)."""
+        assert "AEGISH_RUNNER_HASH" not in SECURITY_CRITICAL_KEYS
 
-
-class TestRunnerHashVerification:
-    """Tests for SHA-256 hash verification of runner binary (Story 13.4).
-
-    Hash is read from config file via _get_security_config() — never from
-    env vars in production (prevents env var poisoning).
-    """
-
-    def test_production_valid_hash_passes(self, tmp_path, mocker):
-        """Production: matching hash passes validation."""
-        runner = tmp_path / "runner"
-        runner.write_bytes(b"#!/bin/bash\necho hello\n")
-        runner.chmod(0o755)
-
-        import hashlib
-        expected_hash = hashlib.sha256(b"#!/bin/bash\necho hello\n").hexdigest()
-
-        mocker.patch("aegish.config._is_production_mode", return_value=True)
-        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch(
-            "aegish.config._get_security_config",
-            side_effect=lambda key, default="": expected_hash if key == "AEGISH_RUNNER_HASH" else default,
-        )
-
-        is_valid, msg = validate_runner_binary()
-
-        assert is_valid is True
-        assert "ready" in msg
-
-    def test_production_invalid_hash_fails(self, tmp_path, mocker):
-        """Production: mismatched hash fails validation."""
-        runner = tmp_path / "runner"
-        runner.write_bytes(b"#!/bin/bash\necho hello\n")
-        runner.chmod(0o755)
-
-        mocker.patch("aegish.config._is_production_mode", return_value=True)
-        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch(
-            "aegish.config._get_security_config",
-            side_effect=lambda key, default="": "deadbeef" * 8 if key == "AEGISH_RUNNER_HASH" else default,
-        )
-
-        is_valid, msg = validate_runner_binary()
-
-        assert is_valid is False
-        assert "hash mismatch" in msg
-        assert "tampered" in msg
-
-    def test_production_no_hash_configured_fails_closed(self, tmp_path, mocker):
-        """Production with no expected hash: fail-closed (refuse to start)."""
-        runner = tmp_path / "runner"
-        runner.write_bytes(b"#!/bin/bash\n")
-        runner.chmod(0o755)
-
-        mocker.patch("aegish.config._is_production_mode", return_value=True)
-        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", str(runner))
-        mocker.patch(
-            "aegish.config._get_security_config",
-            side_effect=lambda key, default="": "" if key == "AEGISH_RUNNER_HASH" else default,
-        )
-
-        is_valid, msg = validate_runner_binary()
-
-        assert is_valid is False
-        assert "No runner hash configured" in msg
-
-    def test_development_no_hash_check(self, tmp_path, mocker):
-        """Development mode: no hash check regardless of config."""
-        runner = tmp_path / "runner"
-        runner.write_bytes(b"#!/bin/bash\n")
-        runner.chmod(0o755)
-
-        mocker.patch.dict(os.environ, {
-            "AEGISH_RUNNER_PATH": str(runner),
-        }, clear=True)
-
-        is_valid, msg = validate_runner_binary()
-
-        assert is_valid is True  # No hash check in development
-
-    def test_production_missing_runner_fails(self, mocker):
-        """Production: missing runner binary fails."""
-        mocker.patch("aegish.config._is_production_mode", return_value=True)
-        mocker.patch("aegish.config.PRODUCTION_RUNNER_PATH", "/nonexistent/runner")
-
-        is_valid, msg = validate_runner_binary()
-
-        assert is_valid is False
-        assert "not found" in msg
-
-    def test_runner_hash_in_security_critical_keys(self):
-        """AEGISH_RUNNER_HASH is in SECURITY_CRITICAL_KEYS (prevents env var poisoning)."""
-        assert "AEGISH_RUNNER_HASH" in SECURITY_CRITICAL_KEYS
+    def test_runner_path_not_in_security_critical_keys(self):
+        """AEGISH_RUNNER_PATH is NOT in SECURITY_CRITICAL_KEYS (runner removed)."""
+        assert "AEGISH_RUNNER_PATH" not in SECURITY_CRITICAL_KEYS
 
 
 class TestGetRole:
@@ -1346,3 +1227,202 @@ class TestGetRole:
     def test_default_role_constant(self):
         """DEFAULT_ROLE is 'default'."""
         assert DEFAULT_ROLE == "default"
+
+
+# =============================================================================
+# Story 17.2/17.6: Production-Mode Hash Verification Tests
+# =============================================================================
+
+
+class TestValidateBashBinaryProduction:
+    """Tests for validate_bash_binary() production-mode hash verification."""
+
+    def test_hash_match_in_production(self, mocker):
+        """Production mode with matching hash returns success."""
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="abc123")
+        mocker.patch("aegish.config._compute_file_sha256", return_value="abc123")
+        is_valid, msg = validate_bash_binary()
+        assert is_valid is True
+        assert "verified" in msg
+
+    def test_hash_mismatch_in_production(self, mocker):
+        """Production mode with mismatched hash returns failure with both hashes."""
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="expected_hash")
+        mocker.patch("aegish.config._compute_file_sha256", return_value="actual_hash")
+        is_valid, msg = validate_bash_binary()
+        assert is_valid is False
+        assert "expected_hash" in msg
+        assert "actual_hash" in msg
+        assert "mismatch" in msg.lower()
+
+    def test_missing_hash_in_production(self, mocker):
+        """Production mode with no configured hash returns failure."""
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="")
+        is_valid, msg = validate_bash_binary()
+        assert is_valid is False
+        assert "No bash hash configured" in msg
+
+    def test_oserror_during_hash_read(self, mocker):
+        """Production mode with OSError during hash read returns failure."""
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="abc123")
+        mocker.patch("aegish.config._compute_file_sha256", side_effect=OSError("disk error"))
+        is_valid, msg = validate_bash_binary()
+        assert is_valid is False
+        assert "Cannot read" in msg
+
+
+class TestValidateSandboxerLibraryProduction:
+    """Tests for validate_sandboxer_library() production-mode hash verification."""
+
+    def test_hash_match_in_production(self, mocker):
+        """Production mode with matching hash returns success."""
+        mocker.patch("aegish.config.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="abc123")
+        mocker.patch("aegish.config._compute_file_sha256", return_value="abc123")
+        is_valid, msg = validate_sandboxer_library()
+        assert is_valid is True
+        assert "ready" in msg.lower()
+
+    def test_hash_mismatch_in_production(self, mocker):
+        """Production mode with mismatched hash returns failure with both hashes."""
+        mocker.patch("aegish.config.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="expected_hash")
+        mocker.patch("aegish.config._compute_file_sha256", return_value="actual_hash")
+        is_valid, msg = validate_sandboxer_library()
+        assert is_valid is False
+        assert "expected_hash" in msg
+        assert "actual_hash" in msg
+        assert "mismatch" in msg.lower()
+
+    def test_missing_hash_in_production(self, mocker):
+        """Production mode with no configured hash returns failure."""
+        mocker.patch("aegish.config.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="")
+        is_valid, msg = validate_sandboxer_library()
+        assert is_valid is False
+        assert "No sandboxer hash configured" in msg
+
+    def test_oserror_during_hash_read(self, mocker):
+        """Production mode with OSError during hash read returns failure."""
+        mocker.patch("aegish.config.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="abc123")
+        mocker.patch("aegish.config._compute_file_sha256", side_effect=OSError("disk error"))
+        is_valid, msg = validate_sandboxer_library()
+        assert is_valid is False
+        assert "Cannot read" in msg
+
+    def test_development_mode_skips_hash(self, mocker):
+        """Development mode does not verify hash."""
+        mocker.patch("aegish.config.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
+        mocker.patch("os.path.exists", return_value=True)
+        mocker.patch("os.access", return_value=True)
+        mocker.patch("aegish.config._is_production_mode", return_value=False)
+        mock_sha = mocker.patch("aegish.config._compute_file_sha256")
+        is_valid, msg = validate_sandboxer_library()
+        assert is_valid is True
+        mock_sha.assert_not_called()
+
+
+class TestGetSandboxerPath:
+    """Tests for get_sandboxer_path() (Story 17.8)."""
+
+    def test_production_returns_hardcoded_path(self, mocker):
+        """Production mode returns DEFAULT_SANDBOXER_PATH, ignoring config."""
+        mocker.patch("aegish.config._is_production_mode", return_value=True)
+        mocker.patch("aegish.config._get_security_config", return_value="/evil/path.so")
+        assert get_sandboxer_path() == DEFAULT_SANDBOXER_PATH
+
+    def test_development_reads_from_config(self, mocker):
+        """Development mode reads custom path from config."""
+        mocker.patch("aegish.config._is_production_mode", return_value=False)
+        mocker.patch("aegish.config._get_security_config", return_value="/custom/sandboxer.so")
+        assert get_sandboxer_path() == "/custom/sandboxer.so"
+
+    def test_development_falls_back_to_default(self, mocker):
+        """Development mode falls back to default when config is empty."""
+        mocker.patch("aegish.config._is_production_mode", return_value=False)
+        mocker.patch("aegish.config._get_security_config", return_value="")
+        assert get_sandboxer_path() == DEFAULT_SANDBOXER_PATH
+
+
+class TestComputeFileSha256:
+    """Tests for _compute_file_sha256() utility (Story 17.8)."""
+
+    def test_computes_correct_hash(self, tmp_path):
+        """Hash matches hashlib.sha256 for known content."""
+        test_file = tmp_path / "test_binary"
+        content = b"hello world binary content"
+        test_file.write_bytes(content)
+        expected = hashlib.sha256(content).hexdigest()
+        actual = _compute_file_sha256(str(test_file))
+        assert actual == expected
+
+    def test_raises_oserror_for_nonexistent_file(self):
+        """Raises OSError for a nonexistent file."""
+        with pytest.raises(OSError):
+            _compute_file_sha256("/nonexistent/file/path")
+
+
+class TestModelGettersProductionMode:
+    """Production-mode tests: model getters ignore env vars (Story 17.9)."""
+
+    def test_get_primary_model_ignores_env_in_production(self, tmp_path, mocker):
+        """get_primary_model() reads from config file, not env var, in production."""
+        config_file = tmp_path / "config"
+        config_file.write_text(
+            "AEGISH_MODE=production\n"
+            "AEGISH_PRIMARY_MODEL=openai/gpt-4\n"
+        )
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_PRIMARY_MODEL": "evil-corp/permissive-model",
+        }, clear=True)
+        assert get_primary_model() == "openai/gpt-4"
+
+    def test_get_fallback_models_ignores_env_in_production(self, tmp_path, mocker):
+        """get_fallback_models() reads from config file, not env var, in production."""
+        config_file = tmp_path / "config"
+        config_file.write_text(
+            "AEGISH_MODE=production\n"
+            "AEGISH_FALLBACK_MODELS=model-a,model-b\n"
+        )
+        fake_stat = mocker.MagicMock()
+        fake_stat.st_uid = 0
+        fake_stat.st_mode = 0o644
+        mocker.patch("aegish.config.os.stat", return_value=fake_stat)
+        mocker.patch("aegish.config.CONFIG_FILE_PATH", str(config_file))
+        mocker.patch.dict(os.environ, {
+            "AEGISH_MODE": "production",
+            "AEGISH_FALLBACK_MODELS": "evil-corp/bad-model",
+        }, clear=True)
+        result = get_fallback_models()
+        assert result == ["model-a", "model-b"]

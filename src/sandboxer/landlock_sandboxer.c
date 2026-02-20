@@ -1,7 +1,7 @@
 /*
  * landlock_sandboxer.c -- LD_PRELOAD library that applies Landlock
- * restrictions inside the runner (bash) process, denying execution
- * of all shell binaries AND the runner binary itself.
+ * restrictions inside the bash process, denying execution of all
+ * shell binaries listed in DENIED_SHELLS.
  *
  * Loaded via LD_PRELOAD in the subprocess environment.
  * Constructor runs before bash main(), so restrictions are in place
@@ -55,27 +55,13 @@ static const char *DENIED_SHELLS[] = {
 };
 
 /*
- * Check if a path (or its resolved form) matches a denied shell
- * or the runner binary.
+ * Check if a path (or its resolved form) matches a denied shell.
  */
-static int is_denied(const char *path, const char *resolved,
-                     const char *runner, const char *runner_resolved) {
-    /* Check against denied shells */
+static int is_denied(const char *path, const char *resolved) {
     for (const char **s = DENIED_SHELLS; *s != NULL; s++) {
         if (strcmp(path, *s) == 0 || strcmp(resolved, *s) == 0)
             return 1;
     }
-
-    /* Check against runner (both literal and resolved for hardlink detection) */
-    if (runner && runner[0] != '\0') {
-        if (strcmp(path, runner) == 0 || strcmp(resolved, runner) == 0)
-            return 1;
-    }
-    if (runner_resolved && runner_resolved[0] != '\0') {
-        if (strcmp(path, runner_resolved) == 0 || strcmp(resolved, runner_resolved) == 0)
-            return 1;
-    }
-
     return 0;
 }
 
@@ -98,18 +84,7 @@ static int add_exec_rule(int ruleset_fd, const char *path) {
 
 __attribute__((constructor))
 static void apply_sandbox(void) {
-    /* 1. Determine runner path from environment */
-    const char *runner = getenv("AEGISH_RUNNER_PATH");
-    if (!runner || !*runner)
-        runner = "/opt/aegish/bin/runner";
-
-    char runner_resolved[PATH_MAX];
-    if (!realpath(runner, runner_resolved)) {
-        /* Runner might not exist yet (e.g. dev mode) -- use empty string */
-        runner_resolved[0] = '\0';
-    }
-
-    /* 2. Create Landlock ruleset for EXECUTE access */
+    /* 1. Create Landlock ruleset for EXECUTE access */
     struct landlock_ruleset_attr attr = {
         .handled_access_fs = LANDLOCK_ACCESS_FS_EXECUTE,
     };
@@ -121,7 +96,7 @@ static void apply_sandbox(void) {
         _exit(126);
     }
 
-    /* 3. Enumerate PATH directories and add rules for allowed executables */
+    /* 2. Enumerate PATH directories and add rules for allowed executables */
     const char *path_env = getenv("PATH");
     if (!path_env || !*path_env) {
         close(ruleset_fd);
@@ -154,7 +129,7 @@ static void apply_sandbox(void) {
             char resolved[PATH_MAX];
             if (!realpath(fullpath, resolved)) continue;
 
-            if (is_denied(fullpath, resolved, runner, runner_resolved))
+            if (is_denied(fullpath, resolved))
                 continue;
 
             add_exec_rule(ruleset_fd, fullpath);
@@ -163,7 +138,7 @@ static void apply_sandbox(void) {
     }
     free(path_copy);
 
-    /* 4. Ensure NO_NEW_PRIVS is set (required by landlock_restrict_self).
+    /* 3. Ensure NO_NEW_PRIVS is set (required by landlock_restrict_self).
      *    Idempotent: harmless if already set by Python preexec_fn.
      *    Essential for the sudo path where no preexec_fn runs. */
     if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0) {
@@ -172,7 +147,7 @@ static void apply_sandbox(void) {
         _exit(126);
     }
 
-    /* 5. Activate Landlock */
+    /* 4. Activate Landlock */
     if (syscall(SYS_landlock_restrict_self, ruleset_fd, 0) != 0) {
         perror("landlock_sandboxer: restrict_self");
         close(ruleset_fd);

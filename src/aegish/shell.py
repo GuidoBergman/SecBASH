@@ -30,7 +30,8 @@ from aegish.config import (
     get_primary_model,
     get_provider_from_model,
     get_role,
-    validate_runner_binary,
+    skip_bash_hash,
+    validate_bash_binary,
     validate_sandboxer_library,
 )
 from aegish.executor import (
@@ -260,20 +261,24 @@ def run_shell() -> int:
     print(f"  Role:      {role}")
 
     print("\u2500" * 42)
-    # Validate runner binary and sandboxer library in production mode
+    # Validate bash binary and sandboxer library in production mode
     if mode == "production":
-        runner_ok, runner_msg = validate_runner_binary()
-        if not runner_ok:
-            print(f"FATAL: {runner_msg}", file=sys.stderr)
-            sys.exit(1)
+        if skip_bash_hash():
+            print("WARNING: /bin/bash hash verification disabled "
+                  "via AEGISH_SKIP_BASH_HASH. Binary integrity is not checked.")
+        else:
+            bash_ok, bash_msg = validate_bash_binary()
+            if not bash_ok:
+                print(f"FATAL: {bash_msg}", file=sys.stderr)
+                sys.exit(1)
+            else:
+                print("  bash integrity: verified")
 
     if mode == "production":
         sandboxer_ok, sandboxer_msg = validate_sandboxer_library()
         if not sandboxer_ok:
-            print(f"ERROR: {sandboxer_msg}")
-            print("Falling back to development mode.\n")
-            os.environ["AEGISH_MODE"] = "development"
-            mode = "development"
+            print(f"FATAL: {sandboxer_msg}", file=sys.stderr)
+            sys.exit(1)
 
     # Landlock availability warning in production mode
     if mode == "production":

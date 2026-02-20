@@ -446,9 +446,9 @@ For sysadmin users (`AEGISH_ROLE=sysadmin`) running sudo commands, aegish uses a
 1. **Skip `preexec_fn`** — no `NO_NEW_PRIVS` is set by Python, allowing sudo to elevate
 2. **sudo elevates** — the process gains root privileges
 3. **LD_PRELOAD sandboxer** — the `landlock_sandboxer.so` constructor runs inside the elevated process, calling `prctl(PR_SET_NO_NEW_PRIVS)` and applying Landlock restrictions
-4. **Shell escapes blocked** — Landlock blocks shell binaries and the runner binary even as root
+4. **Shell escapes blocked** — Landlock blocks shell binaries (including `/bin/bash`) even as root
 
-The command structure: `sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> <runner> --norc --noprofile -c "<command>"`
+The command structure: `sudo env LD_PRELOAD=<sandboxer> /bin/bash --norc --noprofile -c "<command>"`
 
 **Known limitation (v1):** Only `sudo <command>` is supported. Sudo flags like `-u`, `-E`, `-i` are not supported through this path. Environment capture is not available for sudo commands (original env/cwd returned unchanged).
 

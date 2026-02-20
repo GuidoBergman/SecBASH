@@ -10,48 +10,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9260355029585798,
-          "detection_rate_macro": 0.8720945884685936,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9260355029585798,
           "stderr": 0.010073342173599318,
           "total_commands": 676,
           "correct": 626,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.3235294117647059
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 0.9310344827586207
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9758454106280193
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.9404761904761905
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9621212121212122
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.84375
-            }
-          },
           "latency": {
             "mean": 14026.74852071006,
             "p50": 12938.5,
@@ -63,12 +27,45 @@
             "total_cost": 1.9066700000000003,
             "cost_per_1000": 2.8205177514792905,
             "cost_per_command": 0.0028205177514792905
+          },
+          "malicious_detection_rate": 0.9260355029585798,
+          "malicious_detection_rate_macro": 0.8720945884685936,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.3235294117647059
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 0.9310344827586207
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9758454106280193
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.9404761904761905
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9621212121212122
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.84375
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9879032258064516,
           "false_positive_rate": 0.012096774193548376,
           "accuracy": 0.9879032258064516,
           "stderr": 0.004913482224555987,
@@ -86,7 +83,10 @@
             "total_cost": 1.3546262500000001,
             "cost_per_1000": 2.7311013104838713,
             "cost_per_command": 0.0027311013104838714
-          }
+          },
+          "harmless_acceptance_rate": 0.9879032258064516,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -119,48 +119,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9585798816568047,
-          "detection_rate_macro": 0.9300265540175227,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9585798816568047,
           "stderr": 0.007669515619417585,
           "total_commands": 676,
           "correct": 648,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.6764705882352942
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 1.0
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9903381642512077
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.9523809523809523
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9772727272727273
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.84375
-            }
-          },
           "latency": {
             "mean": 18723.12721893491,
             "p50": 17488.0,
@@ -172,12 +136,45 @@
             "total_cost": 0.8145079999999999,
             "cost_per_1000": 1.2048934911242601,
             "cost_per_command": 0.0012048934911242603
+          },
+          "malicious_detection_rate": 0.9585798816568047,
+          "malicious_detection_rate_macro": 0.9300265540175227,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.6764705882352942
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 1.0
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9903381642512077
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.9523809523809523
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9772727272727273
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.84375
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9838709677419355,
           "false_positive_rate": 0.016129032258064502,
           "accuracy": 0.9838709677419355,
           "stderr": 0.005662009954085858,
@@ -195,7 +192,10 @@
             "total_cost": 0.49934724999999996,
             "cost_per_1000": 1.0067484879032256,
             "cost_per_command": 0.0010067484879032257
-          }
+          },
+          "harmless_acceptance_rate": 0.9838709677419355,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -212,48 +212,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9571005917159763,
-          "detection_rate_macro": 0.9332758350659787,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9571005917159763,
           "stderr": 0.007799244887751474,
           "total_commands": 676,
           "correct": 647,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.6176470588235294
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 0.9655172413793104
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9758454106280193
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 1.0
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9696969696969697
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.9375
-            }
-          },
           "latency": {
             "mean": 39350.68195266272,
             "p50": 36862.5,
@@ -265,12 +229,45 @@
             "total_cost": 1.761068,
             "cost_per_1000": 2.605130177514793,
             "cost_per_command": 0.002605130177514793
+          },
+          "malicious_detection_rate": 0.9571005917159763,
+          "malicious_detection_rate_macro": 0.9332758350659787,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.6176470588235294
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 0.9655172413793104
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9758454106280193
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 1.0
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9696969696969697
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.9375
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9798387096774194,
           "false_positive_rate": 0.020161290322580627,
           "accuracy": 0.9798387096774194,
           "stderr": 0.006317334288714841,
@@ -288,7 +285,10 @@
             "total_cost": 1.163606,
             "cost_per_1000": 2.3459798387096775,
             "cost_per_command": 0.0023459798387096774
-          }
+          },
+          "harmless_acceptance_rate": 0.9798387096774194,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -305,48 +305,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.977810650887574,
-          "detection_rate_macro": 0.96759690783428,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.977810650887574,
           "stderr": 0.005669539389272115,
           "total_commands": 676,
           "correct": 661,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.8529411764705882
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 1.0
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9855072463768116
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.9761904761904762
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9886363636363636
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.9375
-            }
-          },
           "latency": {
             "mean": 62078.48668639053,
             "p50": 52559.5,
@@ -358,12 +322,45 @@
             "total_cost": 0.7686529999999999,
             "cost_per_1000": 1.137060650887574,
             "cost_per_command": 0.001137060650887574
+          },
+          "malicious_detection_rate": 0.977810650887574,
+          "malicious_detection_rate_macro": 0.96759690783428,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.8529411764705882
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 1.0
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9855072463768116
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.9761904761904762
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9886363636363636
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.9375
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9899193548387096,
           "false_positive_rate": 0.01008064516129037,
           "accuracy": 0.9899193548387096,
           "stderr": 0.0044899496643873715,
@@ -381,7 +378,10 @@
             "total_cost": 0.541341,
             "cost_per_1000": 1.091413306451613,
             "cost_per_command": 0.0010914133064516128
-          }
+          },
+          "harmless_acceptance_rate": 0.9899193548387096,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -398,48 +398,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.7855029585798816,
-          "detection_rate_macro": 0.7967146682738335,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.7855029585798816,
           "stderr": 0.015799112053911477,
           "total_commands": 676,
           "correct": 531,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.11764705882352941
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 0.9655172413793104
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9371980676328503
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.7738095238095238
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.7045454545454546
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.875
-            }
-          },
           "latency": {
             "mean": 30331.883136094675,
             "p50": 26507.5,
@@ -451,12 +415,45 @@
             "total_cost": 0.9852631578947368,
             "cost_per_1000": 1.45748987854251,
             "cost_per_command": 0.0014574898785425102
+          },
+          "malicious_detection_rate": 0.7855029585798816,
+          "malicious_detection_rate_macro": 0.7967146682738335,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.11764705882352941
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 0.9655172413793104
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9371980676328503
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.7738095238095238
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.7045454545454546
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.875
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 1.0,
           "false_positive_rate": 0.0,
           "accuracy": 1.0,
           "stderr": 0.0,
@@ -474,7 +471,10 @@
             "total_cost": 0.7229149797570851,
             "cost_per_1000": 1.45748987854251,
             "cost_per_command": 0.0014574898785425102
-          }
+          },
+          "harmless_acceptance_rate": 1.0,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -491,48 +491,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9644970414201184,
-          "detection_rate_macro": 0.9629108725176501,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9644970414201184,
           "stderr": 0.007122473406417274,
           "total_commands": 676,
           "correct": 652,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.7941176470588235
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 1.0
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9903381642512077
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.9642857142857143
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9545454545454546
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 1.0
-            }
-          },
           "latency": {
             "mean": 31800.33875739645,
             "p50": 25930.5,
@@ -544,12 +508,45 @@
             "total_cost": 0.9852631578947368,
             "cost_per_1000": 1.45748987854251,
             "cost_per_command": 0.0014574898785425102
+          },
+          "malicious_detection_rate": 0.9644970414201184,
+          "malicious_detection_rate_macro": 0.9629108725176501,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.7941176470588235
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 1.0
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9903381642512077
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.9642857142857143
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9545454545454546
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 1.0
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.967741935483871,
           "false_positive_rate": 0.032258064516129004,
           "accuracy": 0.967741935483871,
           "stderr": 0.007941386514795663,
@@ -567,7 +564,10 @@
             "total_cost": 0.7229149797570851,
             "cost_per_1000": 1.45748987854251,
             "cost_per_command": 0.0014574898785425102
-          }
+          },
+          "harmless_acceptance_rate": 0.967741935483871,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -600,48 +600,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9289940828402367,
-          "detection_rate_macro": 0.9166663062622942,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9289940828402367,
           "stderr": 0.009885573243504274,
           "total_commands": 676,
           "correct": 628,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.8235294117647058
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 1.0
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9758454106280193
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.6428571428571429
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9848484848484849
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.90625
-            }
-          },
           "latency": {
             "mean": 41732.33284023669,
             "p50": 38537.0,
@@ -653,12 +617,45 @@
             "total_cost": 4.921269,
             "cost_per_1000": 7.2799837278106505,
             "cost_per_command": 0.007279983727810651
+          },
+          "malicious_detection_rate": 0.9289940828402367,
+          "malicious_detection_rate_macro": 0.9166663062622942,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.8235294117647058
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 1.0
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9758454106280193
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.6428571428571429
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9848484848484849
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.90625
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9778225806451613,
           "false_positive_rate": 0.022177419354838745,
           "accuracy": 0.9778225806451613,
           "stderr": 0.006618856049594157,
@@ -676,7 +673,10 @@
             "total_cost": 3.436668,
             "cost_per_1000": 6.928766129032258,
             "cost_per_command": 0.006928766129032258
-          }
+          },
+          "harmless_acceptance_rate": 0.9778225806451613,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -693,48 +693,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.9201183431952663,
-          "detection_rate_macro": 0.8861558948093117,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.9201183431952663,
           "stderr": 0.010435024904466506,
           "total_commands": 676,
           "correct": 622,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 1.0
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.6470588235294118
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 0.9310344827586207
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9758454106280193
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.7142857142857143
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9772727272727273
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.84375
-            }
-          },
           "latency": {
             "mean": 42164.51183431953,
             "p50": 39555.0,
@@ -746,12 +710,45 @@
             "total_cost": 9.37782,
             "cost_per_1000": 13.872514792899409,
             "cost_per_command": 0.013872514792899408
+          },
+          "malicious_detection_rate": 0.9201183431952663,
+          "malicious_detection_rate_macro": 0.8861558948093117,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 1.0
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.6470588235294118
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 0.9310344827586207
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9758454106280193
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.7142857142857143
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9772727272727273
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.84375
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 1.0,
           "false_positive_rate": 0.0,
           "accuracy": 1.0,
           "stderr": 0.0,
@@ -769,7 +766,10 @@
             "total_cost": 5.72756,
             "cost_per_1000": 11.547500000000001,
             "cost_per_command": 0.0115475
-          }
+          },
+          "harmless_acceptance_rate": 1.0,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {
@@ -786,48 +786,12 @@
       "status": "success",
       "datasets": {
         "gtfobins": {
-          "detection_rate": 0.8831360946745562,
-          "detection_rate_macro": 0.8290232624130702,
           "pass_rate": 0.0,
           "false_positive_rate": 1.0,
           "accuracy": 0.8831360946745562,
           "stderr": 0.012365228006016889,
           "total_commands": 676,
           "correct": 597,
-          "per_category_detection_rates": {
-            "bind-shell": {
-              "count": 7,
-              "detection_rate": 0.8571428571428571
-            },
-            "command": {
-              "count": 34,
-              "detection_rate": 0.29411764705882354
-            },
-            "download": {
-              "count": 29,
-              "detection_rate": 0.9655172413793104
-            },
-            "file-read": {
-              "count": 207,
-              "detection_rate": 0.9516908212560387
-            },
-            "file-write": {
-              "count": 84,
-              "detection_rate": 0.8809523809523809
-            },
-            "reverse-shell": {
-              "count": 19,
-              "detection_rate": 1.0
-            },
-            "shell": {
-              "count": 264,
-              "detection_rate": 0.9015151515151515
-            },
-            "upload": {
-              "count": 32,
-              "detection_rate": 0.78125
-            }
-          },
           "latency": {
             "mean": 17988.684911242603,
             "p50": 16266.0,
@@ -839,12 +803,45 @@
             "total_cost": 0.43142435,
             "cost_per_1000": 0.638201701183432,
             "cost_per_command": 0.000638201701183432
+          },
+          "malicious_detection_rate": 0.8831360946745562,
+          "malicious_detection_rate_macro": 0.8290232624130702,
+          "per_category_malicious_detection_rates": {
+            "bind-shell": {
+              "count": 7,
+              "malicious_detection_rate": 0.8571428571428571
+            },
+            "command": {
+              "count": 34,
+              "malicious_detection_rate": 0.29411764705882354
+            },
+            "download": {
+              "count": 29,
+              "malicious_detection_rate": 0.9655172413793104
+            },
+            "file-read": {
+              "count": 207,
+              "malicious_detection_rate": 0.9516908212560387
+            },
+            "file-write": {
+              "count": 84,
+              "malicious_detection_rate": 0.8809523809523809
+            },
+            "reverse-shell": {
+              "count": 19,
+              "malicious_detection_rate": 1.0
+            },
+            "shell": {
+              "count": 264,
+              "malicious_detection_rate": 0.9015151515151515
+            },
+            "upload": {
+              "count": 32,
+              "malicious_detection_rate": 0.78125
+            }
           }
         },
         "harmless": {
-          "detection_rate": 0.0,
-          "detection_rate_macro": 0.0,
-          "pass_rate": 0.9858870967741935,
           "false_positive_rate": 0.014112903225806495,
           "accuracy": 0.9858870967741935,
           "stderr": 0.0053017491278670795,
@@ -862,7 +859,10 @@
             "total_cost": 0.26211655,
             "cost_per_1000": 0.5284607862903226,
             "cost_per_command": 0.0005284607862903226
-          }
+          },
+          "harmless_acceptance_rate": 0.9858870967741935,
+          "malicious_detection_rate": 0.0,
+          "malicious_detection_rate_macro": 0.0
         }
       },
       "composite": {

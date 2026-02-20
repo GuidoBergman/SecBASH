@@ -14,20 +14,20 @@ So that **shell spawning is kernel-enforced without manual configuration per com
 2. Development mode: no Landlock restrictions (unchanged)
 3. Kernel < 5.13: warning printed, falls back to development behavior
 4. `run_bash_command()` also applies Landlock in production mode
-5. Production mode uses runner binary path
+5. Production mode uses `/bin/bash` directly [Updated by Epic 17: runner binary removed]
 
 ## Tasks / Subtasks
 
 - [x] Task 1: Integrate Landlock into `execute_command()` in `src/aegish/executor.py`
   - [x] 1.1: Import `get_sandbox_ruleset`, `make_preexec_fn` from `aegish.sandbox`
   - [x] 1.2: Production mode: get `ruleset_fd`, use `preexec_fn=make_preexec_fn(fd)`, `pass_fds=(fd,)`
-  - [x] 1.3: Landlock unavailable or runner missing: fall back to bash, no preexec_fn
+  - [x] 1.3: Landlock unavailable or runner missing: fall back to bash, no preexec_fn [Updated by Epic 17: runner removed; always uses /bin/bash]
 - [x] Task 2: Integrate into `run_bash_command()`
   - [x] 2.1: Same production/development branching
 - [x] Task 3: Add Landlock availability warning at startup in `src/aegish/shell.py`
   - [x] 3.1: If production mode, check `landlock_available()`, print warning if not supported
 - [x] Task 4: Unit tests in `tests/test_executor.py`
-  - [x] 4.1: Production + Landlock + runner: subprocess with runner path, preexec_fn, pass_fds
+  - [x] 4.1: Production + Landlock + runner: subprocess with runner path, preexec_fn, pass_fds [Updated by Epic 17: runner removed; uses /bin/bash directly]
   - [x] 4.2: Production + no Landlock: fallback to bash
   - [x] 4.3: Development: bash, no preexec_fn
 
@@ -38,10 +38,11 @@ So that **shell spawning is kernel-enforced without manual configuration per com
 CPython closes all fds >= 3 BEFORE calling `preexec_fn`. Without `pass_fds=(ruleset_fd,)`, `landlock_restrict_self()` fails with EBADF.
 
 ```python
+# [Updated by Epic 17: runner removed; /bin/bash used directly]
 fd = get_sandbox_ruleset()
 if fd is not None:
     subprocess.run(
-        [runner_path, "--norc", "--noprofile", "-c", command],
+        ["/bin/bash", "--norc", "--noprofile", "-c", command],
         env=_build_safe_env(),
         preexec_fn=make_preexec_fn(fd),
         pass_fds=(fd,),
@@ -58,7 +59,7 @@ if fd is not None:
 
 ### Dependencies
 
-- Story 8.4 (runner binary) must be done first - this story uses `get_runner_path()` and `_get_shell_binary()`
+- Story 8.4 (runner binary) ~~must be done first~~ [Superseded by Epic 17 -- runner binary removed; /bin/bash used directly]
 - Story 8.3 (Landlock sandbox) is done - sandbox.py exists
 
 ### WSL2 Limitation

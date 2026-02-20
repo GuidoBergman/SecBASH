@@ -126,10 +126,10 @@ Landlock (Linux 5.13+) is a kernel-enforced security module that lets an **unpri
 **Key mechanism:** `LANDLOCK_ACCESS_FS_EXECUTE` controls which files can be run via `execve()`. We create a ruleset that allows execution of everything except shell binaries.
 
 **The bash paradox and its resolution:**
-aegish needs bash to run commands, but wants to prevent child processes from spawning bash. Solution:
-1. Create a symlink: `/opt/aegish/bin/runner → /bin/bash`
-2. Apply Landlock ruleset that allows execute on `/opt/aegish/bin/runner` but **denies** execute on `/bin/bash`, `/bin/sh`, `/bin/zsh`, `/bin/dash`, `/usr/bin/bash`, `/usr/bin/zsh`, etc.
-3. aegish runs commands via `subprocess.run(["/opt/aegish/bin/runner", "--norc", "--noprofile", "-c", command])`
+aegish needs bash to run commands, but wants to prevent child processes from spawning bash. Solution (updated by Epic 17):
+1. aegish uses `/bin/bash` directly for command execution
+2. The Landlock dropper (`landlock_sandboxer.so`) is loaded via `LD_PRELOAD` and applies Landlock restrictions in the child process's constructor, denying future `execve()` calls to shell binaries
+3. aegish runs commands via `subprocess.run(["/bin/bash", "--norc", "--noprofile", "-c", command])`
 4. When vim tries `:!bash`, the kernel blocks `execve("/bin/bash")` → EPERM
 
 **Implementation in executor.py:**
@@ -150,23 +150,15 @@ DENIED_SHELLS = {
     "/usr/bin/fish", "/usr/bin/ksh", "/usr/bin/csh", "/usr/bin/tcsh",
 }
 
-RUNNER_PATH = "/opt/aegish/bin/runner"  # symlink to /bin/bash
-
-def _apply_landlock():
-    """Apply Landlock ruleset in preexec_fn to deny shell execution."""
-    # 1. Create ruleset handling EXECUTE
-    # 2. Add rules allowing EXECUTE on all paths
-    # 3. Add rules DENYING execute on shell binaries
-    #    (by not granting EXECUTE for those specific paths)
-    # 4. landlock_restrict_self()
-    ...
+# [Updated by Epic 17: runner binary removed; /bin/bash used directly]
+# Landlock dropper (LD_PRELOAD) applies restrictions in the child process
 
 def execute_command(command: str, last_exit_code: int = 0) -> int:
     wrapped_command = f"(exit {last_exit_code}); {command}"
 
     if get_mode() == "production" and landlock_available():
         result = subprocess.run(
-            [RUNNER_PATH, "--norc", "--noprofile", "-c", wrapped_command],
+            ["/bin/bash", "--norc", "--noprofile", "-c", wrapped_command],
             env=_build_safe_env(),
             preexec_fn=_apply_landlock,
         )
@@ -207,9 +199,7 @@ def execute_command(command: str, last_exit_code: int = 0) -> int:
 
 **Design Decision DD-16:** Accept that `./script.sh` shebang execution breaks in production mode rather than trying to distinguish interactive vs non-interactive bash. **Rationale:** Landlock operates on file paths, not invocation arguments. The kernel sees the same `execve("/bin/bash")` for both `vim :!bash` and `./script.sh`. Trying to distinguish them would require ptrace (too slow) or seccomp USER_NOTIF (TOCTTOU-vulnerable). The workaround for all production mode users (human sysadmins and LLM agents alike) is to use `source script.sh` or `. script.sh`, which bypasses `execve()` entirely.
 
-**Design Decision DD-17:** Runner symlink (`/opt/aegish/bin/runner → /bin/bash`) instead of a compiled wrapper binary. **Rationale:** A symlink is zero-maintenance — it automatically picks up bash updates. A compiled wrapper would need to be rebuilt when bash is updated. The symlink's security comes from Landlock allowing execute on the symlink path while denying the real bash path. Landlock resolves symlinks, so we need to verify this works correctly (if Landlock resolves the symlink to `/bin/bash` and denies it, we'd need a hardlink or a copy instead).
-
-> **IMPORTANT NOTE on DD-17:** Landlock resolves symlinks before checking permissions. A symlink to `/bin/bash` would be resolved to `/bin/bash` and denied. The solution is to use a **hardlink** (`ln /bin/bash /opt/aegish/bin/runner`) or a **copy** instead. A hardlink shares the same inode but has a different path, and Landlock checks the path of the hardlink, not the target. This needs verification during implementation. If hardlinks don't work either (same inode = same Landlock decision), a copy of the bash binary is the fallback.
+**Design Decision DD-17:** ~~Runner symlink/hardlink (`/opt/aegish/bin/runner`) for bash execution.~~ [RETIRED in Epic 17] Runner binary removed. aegish now uses `/bin/bash` directly. The Landlock dropper (`landlock_sandboxer.so` via `LD_PRELOAD`) applies Landlock restrictions that deny `/bin/bash` for future `execve()` calls after the process is already running. This eliminates the need for a separate runner binary entirely.
 
 ---
 
@@ -468,13 +458,13 @@ Cache entries are keyed on full message content. The `envsubst` expansion (BYPAS
 | DD-14 | Production/development modes via `AEGISH_MODE` | Development is for testing; production is the deployment mode for humans and agents |
 | DD-15 | Landlock over seccomp/ptrace/LD_PRELOAD/rbash/AppArmor | Kernel-enforced, unprivileged, irrevocable, pure Python |
 | DD-16 | `./script.sh` shebangs break in production mode | Use `source script.sh` instead; applies to all users |
-| DD-17 | Runner hardlink/copy (not symlink) for bash | Landlock resolves symlinks; hardlink has distinct path |
+| DD-17 | ~~Runner hardlink/copy (not symlink) for bash~~ [RETIRED in Epic 17] | Runner binary removed. aegish now uses /bin/bash directly. Landlock denies /bin/bash for future execve() calls after the process is already running. |
 | DD-18 | WARN for variable-in-command-position | False positives possible; WARN preserves user agency |
 | DD-19 | Post-elevation Landlock for sudo commands | Skip preexec_fn for sudo; sandboxer library sets NO_NEW_PRIVS + Landlock inside elevated process |
 
 ---
 
-**Design Decision DD-19:** Post-elevation Landlock sandboxing for sysadmin sudo commands. **Rationale:** `PR_SET_NO_NEW_PRIVS` (required by Landlock) prevents SUID binaries like sudo from escalating privileges. For sysadmin users in production mode, the executor skips `preexec_fn` and lets sudo elevate first. The `LD_PRELOAD` sandboxer library then applies `NO_NEW_PRIVS` + Landlock inside the already-elevated process, blocking shell escapes even as root. Only `sudo <command>` is supported in v1; sudo flags like `-u`, `-E`, `-i` are not supported through this path (documented as known limitation). On pre-flight failure (invalid sudo binary or missing sandboxer), the executor falls back to running the stripped command without sudo.
+**Design Decision DD-19:** Post-elevation Landlock sandboxing for sysadmin sudo commands. **Rationale:** `PR_SET_NO_NEW_PRIVS` (required by Landlock) prevents SUID binaries like sudo from escalating privileges. For sysadmin users in production mode, the executor skips `preexec_fn` and lets sudo elevate first. The `LD_PRELOAD` sandboxer library then applies `NO_NEW_PRIVS` + Landlock inside the already-elevated process, blocking shell escapes even as root. The command structure uses `/bin/bash` directly: `sudo env LD_PRELOAD=<sandboxer> /bin/bash --norc --noprofile -c "<command>"`. Only `sudo <command>` is supported in v1; sudo flags like `-u`, `-E`, `-i` are not supported through this path (documented as known limitation). On pre-flight failure (invalid sudo binary or missing sandboxer), the executor falls back to running the stripped command without sudo.
 
 ---
 
@@ -520,7 +510,7 @@ Cache entries are keyed on full message content. The `envsubst` expansion (BYPAS
 - Story 8.1: Implement `AEGISH_MODE` configuration (production/development)
 - Story 8.2: Login shell exit behavior (production: session terminates; development: exit with warning)
 - Story 8.3: Landlock sandbox implementation in Python (ctypes)
-- Story 8.4: Runner binary setup (hardlink/copy of bash at `/opt/aegish/bin/runner`)
+- Story 8.4: ~~Runner binary setup~~ [Superseded by Epic 17 -- runner binary removed]
 - Story 8.5: Integrate Landlock into executor.py with graceful fallback for unsupported kernels
 - Story 8.6: Docker-based testing infrastructure (see Testing Strategy below)
 - Story 8.7: Integration test suite for bypass verification
@@ -563,9 +553,7 @@ COPY . /opt/aegish-src
 WORKDIR /opt/aegish-src
 RUN pip install --break-system-packages -e .
 
-# Create runner binary (hardlink to bash)
-RUN mkdir -p /opt/aegish/bin && \
-    ln /bin/bash /opt/aegish/bin/runner
+# [Updated by Epic 17: runner binary no longer needed; /bin/bash used directly]
 
 # Register aegish as a valid login shell
 RUN echo "$(which aegish)" >> /etc/shells

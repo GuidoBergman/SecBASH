@@ -73,11 +73,13 @@ This document provides the complete epic and story breakdown for aegish, decompo
 - FR43: Production mode (AEGISH_MODE=production): exit terminates session (login shell), Landlock enforces shell execution denial
 - FR44: Development mode (AEGISH_MODE=development): exit works normally with warning, no Landlock enforcement
 - FR45: Landlock sandbox denies execve of shell binaries (/bin/bash, /bin/sh, /bin/zsh, etc.) for child processes in production mode
-- FR46: Runner binary (hardlink/copy of bash) at /opt/aegish/bin/runner used for command execution in production mode
+- FR46: ~~Runner binary (hardlink/copy of bash) at /opt/aegish/bin/runner used for command execution in production mode~~ [RETIRED -- Superseded by FR80 in Epic 17]
 - FR47: Graceful Landlock fallback: if kernel < 5.13, production mode warns and falls back to development behavior
 - FR48: Provider allowlist validates configured models against known-good providers
 - FR49: Startup health check verifies primary model responds correctly before entering shell loop
 - FR50: Non-default model configuration triggers visible warning at startup
+- FR80: Production mode uses `/bin/bash` directly. SHA-256 hash verification applies to `/bin/bash` and the sandboxer library (`landlock_sandboxer.so`). The runner binary concept is retired.
+- FR81: Sandboxer library SHA-256 verified at startup; path hardcoded in production
 
 ### NonFunctional Requirements
 
@@ -240,7 +242,7 @@ The validation pipeline enriches LLM context with expanded variables, detects va
 ### Epic 8: Production Mode — Login Shell + Landlock Enforcement
 In production mode, aegish operates as a login shell with kernel-enforced Landlock restrictions that prevent child processes from spawning shells. This structurally eliminates the two most trivial bypass vectors (exit escape and interactive shell spawning) without relying on LLM classification.
 
-**FRs covered:** FR43, FR44, FR45, FR46, FR47
+**FRs covered:** FR43, FR44, FR45, ~~FR46~~ (retired), FR47
 **NFRs addressed:** NFR6 (bypass resistance)
 **NFR Assessment:** BYPASS-12 (exit escape), BYPASS-13 (interactive shell spawning), BYPASS-18 (exec shell)
 **Design decisions:** DD-13, DD-14, DD-15, DD-16, DD-17 (see docs/security-hardening-scope.md)
@@ -1683,7 +1685,7 @@ So that **programs like vim, less, and python3 cannot spawn unmonitored shells i
 **And** `execve("/bin/zsh", ...)` returns EPERM
 **And** `execve("/bin/dash", ...)` returns EPERM
 **And** all shell binaries in DENIED_SHELLS are blocked
-**And** `execve("/opt/aegish/bin/runner", ...)` is allowed (the runner binary)
+**And** `execve("/opt/aegish/bin/runner", ...)` is allowed (the runner binary) [Updated by Epic 17: runner removed; `/bin/bash` used directly with LD_PRELOAD sandboxer]
 **And** `execve("/usr/bin/python3", ...)` is allowed (non-shell programs)
 **And** `execve("/usr/bin/git", ...)` is allowed
 **And** `execve("/usr/bin/ls", ...)` is allowed
@@ -1706,7 +1708,7 @@ So that **programs like vim, less, and python3 cannot spawn unmonitored shells i
 - Syscall numbers (x86_64): `SYS_landlock_create_ruleset=444`, `SYS_landlock_add_rule=445`, `SYS_landlock_restrict_self=446`
 - Consider using the `landlock` PyPI package as an alternative to raw ctypes
 
-### Story 8.4: Runner Binary Setup
+### Story 8.4: Runner Binary Setup [Superseded by Epic 17 -- runner binary removed]
 
 As a **developer**,
 I want **a runner binary (hardlink or copy of bash) for production mode command execution**,
@@ -1790,7 +1792,7 @@ So that **login shell + Landlock behavior can be tested safely without affecting
 - SSH server for login shell testing
 - Test tools: vim, less, python3, git
 - Production mode environment variables set
-- Runner binary at `/opt/aegish/bin/runner`
+- ~~Runner binary at `/opt/aegish/bin/runner`~~ [Removed in Epic 17 -- runner binary retired]
 
 **Given** a running test container
 **When** connecting via SSH as testuser
@@ -1982,7 +1984,7 @@ Removing the runner simplifies deployment (no hardlink creation step, no runner 
 **FRs affected:** FR46 (retired), FR71 (simplified), FR73 (updated)
 **New FR:** FR80: Production mode uses `/bin/bash` directly; SHA-256 hash verification applies to `/bin/bash`
 **Design decisions retired:** DD-17 (runner hardlink vs symlink — no longer relevant)
-**Dependencies:** None (self-contained refactor)
+**Dependencies:** Story 17.8 (sandboxer hash verification) MUST be implemented before or alongside Story 17.1 (runner removal). Removing the runner eliminates the only hash-verified binary; without 17.8, the sandboxer `.so` — the sole Landlock enforcement point — has no integrity check.
 
 ### Story 17.1: Remove Runner Binary from Executor and Config
 
@@ -2048,12 +2050,15 @@ So that **system bash updates are detected and the operator must acknowledge the
 
 **Given** the system bash is updated by the package manager
 **When** aegish starts after the update
-**Then** the hash check fails with an actionable message that includes the exact fix command:
+**Then** the hash check fails with a message that guides verification before acceptance:
 ```
 FATAL: /bin/bash hash mismatch.
   Expected: abc123...
   Actual:   def456...
-If this is a legitimate system update, verify and update the hash:
+Step 1 — Verify the binary is a legitimate package update:
+  dpkg --verify bash        # Debian/Ubuntu — no output means OK
+  rpm -V bash               # RHEL/CentOS  — no output means OK
+Step 2 — Only after verification, update the stored hash:
   sudo sed -i 's/^AEGISH_BASH_HASH=.*/AEGISH_BASH_HASH=def456.../' /etc/aegish/config
 ```
 **And** the `Actual` hash and the hash in the `sed` command are the real computed value (not a placeholder)
@@ -2215,12 +2220,13 @@ All changes follow the existing runner binary pattern — no new abstractions or
 **When** called in production mode
 **Then** it reads the expected hash via `_get_security_config("AEGISH_SANDBOXER_HASH")`
 **And** computes the actual hash with the existing `_compute_file_sha256()`
-**And** returns failure on hash mismatch with an actionable message including the exact fix command (same pattern as Story 17.2):
+**And** returns failure on hash mismatch with a message that guides verification before acceptance (same pattern as Story 17.2):
 ```
 FATAL: Sandboxer library hash mismatch at /opt/aegish/lib/landlock_sandboxer.so.
   Expected: abc123...
   Actual:   def456...
-If this is a legitimate rebuild, verify and update the hash:
+Step 1 — Verify the library is legitimate (rebuild from source and compare hashes).
+Step 2 — Only after verification, update the stored hash:
   sudo sed -i 's/^AEGISH_SANDBOXER_HASH=.*/AEGISH_SANDBOXER_HASH=def456.../' /etc/aegish/config
 ```
 **And** returns failure if no hash is configured: `"No sandboxer hash configured in /etc/aegish/config. Rebuild the container to embed AEGISH_SANDBOXER_HASH."`
@@ -2249,6 +2255,79 @@ RUN SANDBOXER_HASH=$(sha256sum /opt/aegish/lib/landlock_sandboxer.so | cut -d' '
 - `validate_sandboxer_library()` mirrors `validate_runner_binary()` exactly — same hash logic, same error message structure, same fail-closed behavior.
 - `get_sandboxer_path()` mirrors `get_runner_path()` — hardcoded in production, `_get_security_config()` otherwise.
 - The shell.py change is a one-line fix: replace the fallback block (lines 273-276) with the same `sys.exit(1)` pattern used for runner validation (lines 267-268).
+
+### Story 17.9: Harden LLM Model Variables as Security-Critical
+
+As a **security engineer**,
+I want **`AEGISH_PRIMARY_MODEL` and `AEGISH_FALLBACK_MODELS` added to `SECURITY_CRITICAL_KEYS` and routed through `_get_security_config()`**,
+So that **an attacker who can set environment variables cannot redirect validation to a malicious LLM endpoint that rubber-stamps every command as ALLOW**.
+
+**Context:**
+
+Both variables currently read from raw `os.environ.get()` (config.py lines 543, 559). An attacker who can inject env vars (via `docker -e`, `.env` file, shell profile, or systemd override) can point aegish at an endpoint they control. That endpoint returns `{"action": "ALLOW"}` for every command, completely defeating security validation. The same `_get_security_config()` pattern used for `AEGISH_MODE`, `AEGISH_FAIL_MODE`, etc. should apply here.
+
+**Acceptance Criteria:**
+
+**Given** `SECURITY_CRITICAL_KEYS` in config.py
+**When** updated
+**Then** `"AEGISH_PRIMARY_MODEL"` and `"AEGISH_FALLBACK_MODELS"` are in the set
+
+**Given** `get_primary_model()` in config.py
+**When** called in production mode
+**Then** it reads from `_get_security_config("AEGISH_PRIMARY_MODEL")` instead of `os.environ.get()`
+
+**Given** `get_fallback_models()` in config.py
+**When** called in production mode
+**Then** it reads from `_get_security_config("AEGISH_FALLBACK_MODELS")` instead of `os.environ.get()`
+
+**Given** the Dockerfile
+**When** the image is built
+**Then** `AEGISH_PRIMARY_MODEL` and `AEGISH_FALLBACK_MODELS` are embedded in `/etc/aegish/config`
+
+**Files to modify:**
+- `src/aegish/config.py`: Add both keys to `SECURITY_CRITICAL_KEYS`, refactor `get_primary_model()` and `get_fallback_models()` to use `_get_security_config()`
+- `Dockerfile`: Embed model config in `/etc/aegish/config`
+- `tests/test_config.py`: Verify both keys are in `SECURITY_CRITICAL_KEYS`, verify production reads from config file
+
+### Story 17.10: Add AEGISH_SKIP_BASH_HASH Option for Bare-Metal Deployments
+
+As a **system administrator**,
+I want **a configuration option to disable `/bin/bash` hash verification**,
+So that **automated package manager updates (e.g., `unattended-upgrades`) don't cause aegish to refuse to start on bare-metal installs**.
+
+**Context:**
+
+On bare metal, system bash updates change the `/bin/bash` inode, breaking the hash check and requiring manual intervention. While this is the correct default (fail-closed), some environments with automated patching and host-level integrity monitoring (e.g., AIDE, OSSEC) prefer to delegate binary verification to those tools rather than having aegish self-DoS after every bash patch.
+
+In Docker this is irrelevant — nothing auto-updates inside a container.
+
+**Acceptance Criteria:**
+
+**Given** `SECURITY_CRITICAL_KEYS` in config.py
+**When** updated
+**Then** `"AEGISH_SKIP_BASH_HASH"` is in the set (read from `/etc/aegish/config` in production, never from env vars)
+
+**Given** `AEGISH_SKIP_BASH_HASH=true` in `/etc/aegish/config`
+**When** aegish starts in production mode
+**Then** the `/bin/bash` SHA-256 hash check is skipped entirely
+**And** a warning is logged at startup: `"WARNING: /bin/bash hash verification disabled via AEGISH_SKIP_BASH_HASH. Binary integrity is not checked."`
+
+**Given** `AEGISH_SKIP_BASH_HASH` is unset or set to any value other than `true`
+**When** aegish starts in production mode
+**Then** the hash check runs normally (default behavior, fail-closed)
+
+**Given** the sandboxer library hash check (Story 17.8)
+**When** `AEGISH_SKIP_BASH_HASH=true`
+**Then** the sandboxer `.so` hash check is NOT affected — it still runs regardless
+
+**Files to modify:**
+- `src/aegish/config.py`: Add `AEGISH_SKIP_BASH_HASH` to `SECURITY_CRITICAL_KEYS`, add `skip_bash_hash()` helper, gate hash check in `validate_runner_binary()` (or its replacement)
+- `src/aegish/shell.py`: Use `skip_bash_hash()` to conditionally skip the check at startup, log warning
+- `tests/test_config.py`: Test that `AEGISH_SKIP_BASH_HASH=true` skips hash check, `false`/unset does not
+
+**Implementation Notes:**
+- This must be in `SECURITY_CRITICAL_KEYS` so it cannot be set via `docker -e` or env vars in production — only via the root-owned `/etc/aegish/config`. Otherwise an attacker could skip the hash check by injecting the env var.
+- The sandboxer hash check has no equivalent skip option — it is always enforced.
 
 ### Story 17.7: Update All Documentation
 

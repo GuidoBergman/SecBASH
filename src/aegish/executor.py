@@ -9,7 +9,7 @@ environment capture. See docs/shell-state-persistence.md.
 Architecture (Story 14.2):
     In production mode, Landlock enforcement is handled by an LD_PRELOAD
     shared library (landlock_sandboxer.so) whose constructor applies
-    restrictions inside the runner (bash) process before main(). The
+    restrictions inside the bash process before main(). The
     preexec_fn only sets NO_NEW_PRIVS (required by landlock_restrict_self).
     No ruleset fd or pass_fds is needed.
 """
@@ -23,7 +23,6 @@ import subprocess
 from aegish.config import (
     get_mode,
     get_role,
-    get_runner_path,
     get_sandboxer_path,
     validate_sandboxer_library,
 )
@@ -33,9 +32,6 @@ logger = logging.getLogger(__name__)
 
 # Maximum bytes to read from env capture pipe (1 MB safety limit).
 MAX_ENV_SIZE = 1048576
-
-# Default path to the LD_PRELOAD sandboxer library
-DEFAULT_SANDBOXER_PATH = "/opt/aegish/lib/landlock_sandboxer.so"
 
 # Allowlist approach: only known-safe variables are passed to child processes.
 # Unknown variables (including future attack vectors) are blocked by default.
@@ -177,17 +173,14 @@ def _execute_sudo_sandboxed(
         return execute_command("sudo", last_exit_code, env, cwd)
 
     sandboxer_path = get_sandboxer_path()
-    runner_path = get_runner_path()
 
     # Build the sudo command:
-    # sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> \
-    #   <runner> --norc --noprofile -c "<command>"
+    # sudo env LD_PRELOAD=<sandboxer> /bin/bash --norc --noprofile -c "<command>"
     args = [
         SUDO_BINARY_PATH,
         "env",
         f"LD_PRELOAD={sandboxer_path}",
-        f"AEGISH_RUNNER_PATH={runner_path}",
-        runner_path,
+        "/bin/bash",
         "--norc",
         "--noprofile",
         "-c",
@@ -204,18 +197,6 @@ def _execute_sudo_sandboxed(
     return result.returncode, env, cwd
 
 
-def _get_sandboxer_path() -> str:
-    """Get the path to the sandboxer shared library.
-
-    Reads from AEGISH_SANDBOXER_PATH environment variable.
-    Falls back to DEFAULT_SANDBOXER_PATH if not set.
-
-    Returns:
-        Path to landlock_sandboxer.so.
-    """
-    return os.environ.get("AEGISH_SANDBOXER_PATH", DEFAULT_SANDBOXER_PATH)
-
-
 def _build_safe_env() -> dict[str, str]:
     """Build a sanitized environment for subprocess execution.
 
@@ -225,7 +206,7 @@ def _build_safe_env() -> dict[str, str]:
     vectors without needing to enumerate them.
 
     In production mode, injects LD_PRELOAD with the sandboxer library
-    path so the Landlock constructor runs inside the runner process.
+    path so the Landlock constructor runs inside the bash process.
     """
     env = {}
     for key, value in os.environ.items():
@@ -233,12 +214,10 @@ def _build_safe_env() -> dict[str, str]:
             env[key] = value
 
     # In production: inject LD_PRELOAD so the sandboxer library applies
-    # Landlock inside the runner process before bash main() runs.
+    # Landlock inside the bash process before main() runs.
     # This is safe because the env is built by us, not the user.
     if get_mode() == "production":
-        env["LD_PRELOAD"] = _get_sandboxer_path()
-        # Pass runner path so the C library knows what to deny
-        env["AEGISH_RUNNER_PATH"] = get_runner_path()
+        env["LD_PRELOAD"] = get_sandboxer_path()
 
     return env
 
@@ -267,8 +246,7 @@ def sanitize_env(captured: dict[str, str]) -> dict[str, str]:
 
     # Re-inject production sandboxer LD_PRELOAD
     if get_mode() == "production":
-        env["LD_PRELOAD"] = _get_sandboxer_path()
-        env["AEGISH_RUNNER_PATH"] = get_runner_path()
+        env["LD_PRELOAD"] = get_sandboxer_path()
 
     return env
 
@@ -352,14 +330,14 @@ def resolve_cd(
 def _get_shell_binary() -> str:
     """Get the shell binary path based on operational mode.
 
-    Production mode: uses the runner binary (hardlink of bash).
-    Development mode: uses "bash" from PATH.
+    Returns /bin/bash (absolute) in production, "bash" (PATH-resolved)
+    in development.
 
     Returns:
         Path to the shell binary.
     """
     if get_mode() == "production":
-        return get_runner_path()
+        return "/bin/bash"
     return "bash"
 
 

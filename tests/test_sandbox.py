@@ -114,12 +114,6 @@ class TestConstants:
 
         assert len(DENIED_SHELLS) == 32
 
-    def test_default_runner_path(self):
-        """DEFAULT_RUNNER_PATH is correct."""
-        from aegish.sandbox import DEFAULT_RUNNER_PATH
-
-        assert DEFAULT_RUNNER_PATH == "/opt/aegish/bin/runner"
-
 
 # =============================================================================
 # landlock_available() function

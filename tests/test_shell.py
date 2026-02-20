@@ -314,7 +314,7 @@ class TestStartupModeBanner:
     def test_production_mode_displayed_in_banner(self, capsys):
         """AC2: Production mode banner shows mode with enforcement details."""
         with patch("aegish.shell.get_mode", return_value="production"):
-            with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+            with patch("aegish.shell.validate_bash_binary", return_value=(True, "")), patch("aegish.shell.skip_bash_hash", return_value=False):
                 with patch("builtins.input", side_effect=["exit"]):
                     with pytest.raises(SystemExit):
                         run_shell()
@@ -406,7 +406,7 @@ class TestStartupFailModeBanner:
     def test_both_mode_and_fail_mode_displayed(self, capsys):
         """AC5: Production mode and fail mode shown independently."""
         with patch("aegish.shell.get_mode", return_value="production"):
-            with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+            with patch("aegish.shell.validate_bash_binary", return_value=(True, "")), patch("aegish.shell.skip_bash_hash", return_value=False):
                 with patch("aegish.shell.get_fail_mode", return_value="open"):
                     with patch("builtins.input", side_effect=["exit"]):
                         with pytest.raises(SystemExit):
@@ -476,7 +476,9 @@ class TestExitBehavior:
         with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
             with patch("aegish.shell.get_api_key", return_value="test-key"):
                 with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
-                    with patch("aegish.shell.validate_runner_binary", return_value=(True, "")):
+                    with patch("aegish.shell.validate_bash_binary", return_value=(True, "")), \
+                         patch("aegish.shell.skip_bash_hash", return_value=False), \
+                         patch("aegish.shell.validate_sandboxer_library", return_value=(True, "")):
                         yield
 
     def test_production_exit_calls_sys_exit(self, capsys):
@@ -736,3 +738,57 @@ class TestLoginShellWarning:
                     captured = capsys.readouterr()
                     assert "login shell" not in captured.out
                     assert "degraded mode" in captured.out.lower()
+
+
+# =============================================================================
+# Story 17: Production Startup Validation Tests
+# =============================================================================
+
+
+class TestProductionStartupValidation:
+    """Tests for production mode startup validation of bash binary and skip-hash option."""
+
+    @pytest.fixture(autouse=True)
+    def mock_banner(self):
+        """Mock startup dependencies to isolate production validation tests."""
+        with patch("aegish.shell.get_model_chain", return_value=["openai/gpt-4"]):
+            with patch("aegish.shell.get_api_key", return_value="test-key"):
+                with patch("aegish.shell.health_check", return_value=(True, "", "openai/gpt-4")):
+                    yield
+
+    def test_skip_bash_hash_prints_warning(self, capsys):
+        """Story 17-10: skip_bash_hash=True prints warning and skips validation."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("aegish.shell.skip_bash_hash", return_value=True):
+                with patch("aegish.shell.validate_sandboxer_library", return_value=(True, "")):
+                    with patch("aegish.shell.validate_bash_binary") as mock_validate_bash:
+                        with patch("builtins.input", side_effect=["exit"]):
+                            with pytest.raises(SystemExit):
+                                run_shell()
+                            mock_validate_bash.assert_not_called()
+                            captured = capsys.readouterr()
+                            assert "hash verification disabled" in captured.out
+
+    def test_bash_integrity_verified_in_banner(self, capsys):
+        """Story 17-5: Successful bash validation shows 'bash integrity: verified'."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("aegish.shell.skip_bash_hash", return_value=False):
+                with patch("aegish.shell.validate_bash_binary", return_value=(True, "bash binary verified")):
+                    with patch("aegish.shell.validate_sandboxer_library", return_value=(True, "")):
+                        with patch("builtins.input", side_effect=["exit"]):
+                            with pytest.raises(SystemExit):
+                                run_shell()
+                            captured = capsys.readouterr()
+                            assert "bash integrity: verified" in captured.out
+
+    def test_bash_validation_failure_exits(self, capsys):
+        """Story 17-5: Failed bash validation prints FATAL to stderr and exits with code 1."""
+        with patch("aegish.shell.get_mode", return_value="production"):
+            with patch("aegish.shell.skip_bash_hash", return_value=False):
+                with patch("aegish.shell.validate_bash_binary", return_value=(False, "hash mismatch detected")):
+                    with pytest.raises(SystemExit) as exc_info:
+                        run_shell()
+                    assert exc_info.value.code == 1
+                    captured = capsys.readouterr()
+                    assert "FATAL:" in captured.err
+                    assert "hash mismatch detected" in captured.err

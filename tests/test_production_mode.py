@@ -54,16 +54,15 @@ def docker_exec(container_id: str, command: str) -> tuple[int, str, str]:
     return result.returncode, result.stdout, result.stderr
 
 
-def _sandboxed_runner_exec(container_id: str, command: str) -> tuple[int, str, str]:
-    """Run *command* through the sandboxed runner (replicating aegish production mode)."""
+def _sandboxed_bash_exec(container_id: str, command: str) -> tuple[int, str, str]:
+    """Run *command* through sandboxed /bin/bash (replicating aegish production mode)."""
     script = (
         "import ctypes, os, sys\n"
         "libc = ctypes.CDLL('libc.so.6', use_errno=True)\n"
         "libc.prctl(38, 1, 0, 0, 0)\n"
         "os.environ['LD_PRELOAD'] = '/opt/aegish/lib/landlock_sandboxer.so'\n"
-        "os.environ['AEGISH_RUNNER_PATH'] = '/opt/aegish/bin/runner'\n"
-        "os.execv('/opt/aegish/bin/runner', "
-        "['runner', '--norc', '--noprofile', '-c', sys.argv[1]])\n"
+        "os.execv('/bin/bash', "
+        "['bash', '--norc', '--noprofile', '-c', sys.argv[1]])\n"
     )
     result = subprocess.run(
         ["docker", "exec", container_id, "python3", "-c", script, command],
@@ -188,14 +187,14 @@ class TestBypass13ShellSpawning:
     def test_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(production_container, "bash")
+        rc, out, err = _sandboxed_bash_exec(production_container, "bash")
         # bash execution must be denied (126 = cannot execute, 127 = not found)
         assert rc in (126, 127), f"Expected bash blocked (rc 126/127), got {rc}. out: {out}"
 
     def test_python3_os_system_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container,
             'python3 -c "import os; r=os.system(\'bash\'); exit(os.WEXITSTATUS(r) if os.WIFEXITED(r) else 1)"',
         )
@@ -204,7 +203,7 @@ class TestBypass13ShellSpawning:
     def test_python3_os_execv_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container,
             "python3 -c \"import os; os.execv('/bin/bash', ['bash'])\"",
         )
@@ -214,61 +213,33 @@ class TestBypass13ShellSpawning:
 
 
 # ===================================================================
-# Runner binary direct execution
+# Sandboxed /bin/bash execution (runner removed in Story 17)
 # ===================================================================
 
 @skip_no_docker
-class TestRunnerDirect:
-    """Verify the runner binary and sandboxed execution pipeline."""
+class TestSandboxedBashDirect:
+    """Verify sandboxed /bin/bash execution pipeline (runner removed)."""
 
-    def test_runner_exists_and_executable(self, production_container):
-        rc, out, err = docker_exec(
-            production_container, "test -x /opt/aegish/bin/runner",
-        )
-        assert rc == 0, f"Runner binary not executable: {err}"
-
-    def test_runner_executes_echo(self, production_container):
-        rc, out, err = docker_exec(
-            production_container,
-            "/opt/aegish/bin/runner -c 'echo works'",
-        )
-        assert rc == 0, f"Runner failed to execute echo: {err}"
-        assert "works" in out
-
-    def test_runner_is_bash_hardlink(self, production_container):
-        rc, out, err = docker_exec(
-            production_container,
-            "stat -c %i /opt/aegish/bin/runner && stat -c %i /bin/bash",
-        )
-        assert rc == 0, f"stat failed: {err}"
-        inodes = out.strip().split()
-        assert len(inodes) == 2, f"Expected 2 inodes, got: {out}"
-        assert inodes[0] == inodes[1], (
-            f"Runner inode ({inodes[0]}) != bash inode ({inodes[1]}); not a hardlink"
-        )
-
-    def test_sandboxed_runner_blocks_bash(self, production_container, has_landlock):
+    def test_sandboxed_bash_blocks_child_bash(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(production_container, "bash")
+        rc, out, err = _sandboxed_bash_exec(production_container, "bash")
         assert rc in (126, 127), f"Expected bash blocked (rc 126/127), got {rc}. out: {out}"
 
-    def test_sandboxed_runner_allows_echo(self, production_container, has_landlock):
+    def test_sandboxed_bash_allows_echo(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(production_container, "echo works")
+        rc, out, err = _sandboxed_bash_exec(production_container, "echo works")
         assert rc == 0, f"echo should succeed under sandbox, got rc={rc}. err: {err}"
         assert "works" in out
 
-    def test_sandboxed_runner_blocks_self(self, production_container, has_landlock):
-        if not has_landlock:
-            pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
-            production_container, "/opt/aegish/bin/runner --version",
+    def test_bash_executes_echo(self, production_container):
+        rc, out, err = docker_exec(
+            production_container,
+            "/bin/bash -c 'echo works'",
         )
-        assert rc != 0, (
-            f"Runner should deny its own re-execution, got rc={rc}. out: {out}"
-        )
+        assert rc == 0, f"/bin/bash failed to execute echo: {err}"
+        assert "works" in out
 
 
 # ===================================================================
@@ -282,7 +253,7 @@ class TestBypass13GTFOBinsEscape:
     def test_git_pager_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container, "git -c core.pager=bash diff",
         )
         assert rc != 0, (
@@ -292,7 +263,7 @@ class TestBypass13GTFOBinsEscape:
     def test_git_exec_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container, "git -c core.editor=bash tag -a test -m x",
         )
         assert rc != 0, (
@@ -302,7 +273,7 @@ class TestBypass13GTFOBinsEscape:
     def test_man_pager_bash_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container, "PAGER=bash man man",
         )
         assert rc != 0, (
@@ -312,7 +283,7 @@ class TestBypass13GTFOBinsEscape:
     def test_man_pager_sh_blocked(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sandboxed_runner_exec(
+        rc, out, err = _sandboxed_bash_exec(
             production_container, "PAGER=sh man man",
         )
         assert rc != 0, (
@@ -352,18 +323,16 @@ class TestRegressionLegitimateCommands:
 # Story 16.1: Sudo post-elevation sandboxing
 # ===================================================================
 
-def _sudo_sandboxed_runner_exec(container_id: str, command: str) -> tuple[int, str, str]:
+def _sudo_sandboxed_bash_exec(container_id: str, command: str) -> tuple[int, str, str]:
     """Run *command* as testuser via sudo with LD_PRELOAD sandboxer.
 
     Replicates the aegish sudo production path:
-    sudo env LD_PRELOAD=<sandboxer> AEGISH_RUNNER_PATH=<runner> \
-        <runner> --norc --noprofile -c "<command>"
+    sudo env LD_PRELOAD=<sandboxer> /bin/bash --norc --noprofile -c "<command>"
     """
     inner_cmd = (
         "sudo env "
         "LD_PRELOAD=/opt/aegish/lib/landlock_sandboxer.so "
-        "AEGISH_RUNNER_PATH=/opt/aegish/bin/runner "
-        "/opt/aegish/bin/runner --norc --noprofile -c "
+        "/bin/bash --norc --noprofile -c "
         f"'{command}'"
     )
     result = subprocess.run(
@@ -381,14 +350,14 @@ class TestSudoSandboxedExecution:
     def test_sudo_whoami_returns_root(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(production_container, "whoami")
+        rc, out, err = _sudo_sandboxed_bash_exec(production_container, "whoami")
         assert rc == 0, f"sudo whoami failed: rc={rc}, err={err}"
         assert "root" in out, f"Expected 'root' in output, got: {out}"
 
     def test_sudo_command_sandboxed_blocks_bash(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(production_container, "bash")
+        rc, out, err = _sudo_sandboxed_bash_exec(production_container, "bash")
         assert rc in (126, 127), (
             f"Expected bash blocked (rc 126/127) even as root, got {rc}. out: {out}"
         )
@@ -396,7 +365,7 @@ class TestSudoSandboxedExecution:
     def test_sudo_command_sandboxed_blocks_sh(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(production_container, "sh")
+        rc, out, err = _sudo_sandboxed_bash_exec(production_container, "sh")
         assert rc in (126, 127), (
             f"Expected sh blocked (rc 126/127) even as root, got {rc}. out: {out}"
         )
@@ -404,20 +373,20 @@ class TestSudoSandboxedExecution:
     def test_sudo_sandboxed_allows_echo(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(production_container, "echo elevated")
+        rc, out, err = _sudo_sandboxed_bash_exec(production_container, "echo elevated")
         assert rc == 0, f"echo should succeed elevated, got rc={rc}. err: {err}"
         assert "elevated" in out
 
     def test_sudo_sandboxed_allows_ls(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(production_container, "ls /")
+        rc, out, err = _sudo_sandboxed_bash_exec(production_container, "ls /")
         assert rc == 0, f"ls should succeed elevated, got rc={rc}. err: {err}"
 
     def test_sudo_sandboxed_allows_apt(self, production_container, has_landlock):
         if not has_landlock:
             pytest.skip("Landlock not available (kernel too old or not enabled)")
-        rc, out, err = _sudo_sandboxed_runner_exec(
+        rc, out, err = _sudo_sandboxed_bash_exec(
             production_container, "apt list --installed 2>/dev/null | head -3",
         )
         assert rc == 0, f"apt list should succeed elevated, got rc={rc}. err: {err}"

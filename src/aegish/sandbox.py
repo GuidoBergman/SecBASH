@@ -11,8 +11,8 @@ This module provides:
 Architecture (Story 14.2):
     Landlock enforcement has moved from Python (preexec_fn) to a C shared
     library loaded via LD_PRELOAD. The library's constructor runs inside the
-    runner (bash) process before main(), applying Landlock restrictions that
-    deny both shell binaries and the runner itself.
+    bash process before main(), applying Landlock restrictions that
+    deny all shell binaries listed in DENIED_SHELLS.
 
     preexec_fn now only sets NO_NEW_PRIVS. The LD_PRELOAD sandboxer library
     handles all Landlock ruleset creation and activation.
@@ -80,9 +80,6 @@ DENIED_SHELLS = {
     "/bin/pwsh", "/usr/bin/pwsh",
     "/bin/xonsh", "/usr/bin/xonsh",
 }
-
-# Default runner path
-DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"
 
 # =============================================================================
 # Internal helpers

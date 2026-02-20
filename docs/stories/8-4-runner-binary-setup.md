@@ -1,6 +1,8 @@
 # Story 8.4: Runner Binary Setup
 
-Status: done
+> **Note:** This story was superseded by Epic 17 (Remove Runner Binary). aegish now uses /bin/bash directly.
+
+**Status:** superseded
 
 ## Story
 

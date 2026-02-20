@@ -7,11 +7,9 @@ from unittest.mock import MagicMock, patch, sentinel
 from aegish.executor import (
     ALLOWED_ENV_PREFIXES,
     ALLOWED_ENV_VARS,
-    DEFAULT_SANDBOXER_PATH,
     SUDO_BINARY_PATH,
     _build_safe_env,
     _execute_sudo_sandboxed,
-    _get_sandboxer_path,
     _get_shell_binary,
     _is_sudo_command,
     _sandbox_kwargs,
@@ -754,7 +752,7 @@ class TestRunBashCommandHardening:
 
 
 # =============================================================================
-# Story 8.4: Runner Binary Setup Tests
+# Story 17.1: Shell Binary Resolution Tests
 # =============================================================================
 
 
@@ -766,25 +764,15 @@ class TestGetShellBinary:
         mocker.patch.dict(os.environ, {}, clear=True)
         assert _get_shell_binary() == "bash"
 
-    def test_production_mode_returns_runner_path(self, mocker):
-        """AC3: Production mode returns runner path."""
+    def test_production_mode_returns_bin_bash(self, mocker):
+        """AC3: Production mode returns /bin/bash (runner removed)."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
         result = _get_shell_binary()
-        assert result == "/opt/aegish/bin/runner"
-
-    def test_production_mode_ignores_custom_runner_path(self, mocker):
-        """Story 13.4: Production mode hardcodes runner path, ignores env var."""
-        mocker.patch.dict(os.environ, {
-            "AEGISH_MODE": "production",
-            "AEGISH_RUNNER_PATH": "/custom/runner",
-        }, clear=True)
-        # In production, runner path is always the hardcoded production path
-        from aegish.config import PRODUCTION_RUNNER_PATH
-        assert _get_shell_binary() == PRODUCTION_RUNNER_PATH
+        assert result == "/bin/bash"
 
 
-class TestExecuteCommandRunner:
-    """Tests for execute_command() using runner binary (Story 8.4)."""
+class TestExecuteCommandProduction:
+    """Tests for execute_command() using /bin/bash in production (Story 17.6)."""
 
     def test_execute_command_uses_bash_in_dev_mode(self, mocker):
         """AC5: Development mode uses 'bash' binary."""
@@ -797,8 +785,8 @@ class TestExecuteCommandRunner:
         cmd_list = mock_run.call_args[0][0]
         assert cmd_list[0] == "bash"
 
-    def test_execute_command_uses_runner_in_prod_mode(self, mocker):
-        """AC3: Production mode uses runner binary."""
+    def test_execute_command_uses_bin_bash_in_prod_mode(self, mocker):
+        """AC3: Production mode uses /bin/bash directly."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = mocker.MagicMock(returncode=0)
@@ -806,13 +794,13 @@ class TestExecuteCommandRunner:
         execute_command("echo test")
 
         cmd_list = mock_run.call_args[0][0]
-        assert cmd_list[0] == "/opt/aegish/bin/runner"
+        assert cmd_list[0] == "/bin/bash"
         assert "--norc" in cmd_list
         assert "--noprofile" in cmd_list
         assert "-c" in cmd_list
 
-    def test_run_bash_command_uses_runner_in_prod_mode(self, mocker):
-        """AC3: run_bash_command also uses runner in production mode."""
+    def test_run_bash_command_uses_bin_bash_in_prod_mode(self, mocker):
+        """AC3: run_bash_command also uses /bin/bash in production mode."""
         mocker.patch.dict(os.environ, {"AEGISH_MODE": "production"}, clear=True)
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = mocker.MagicMock(returncode=0, stdout="", stderr="")
@@ -820,26 +808,12 @@ class TestExecuteCommandRunner:
         run_bash_command("echo test")
 
         cmd_list = mock_run.call_args[0][0]
-        assert cmd_list[0] == "/opt/aegish/bin/runner"
+        assert cmd_list[0] == "/bin/bash"
 
 
 # =============================================================================
 # Story 14.2: LD_PRELOAD Sandboxer Integration Tests
 # =============================================================================
-
-
-class TestSandboxerPath:
-    """Tests for _get_sandboxer_path() helper."""
-
-    def test_default_path(self, mocker):
-        """Returns default path when env var not set."""
-        mocker.patch.dict(os.environ, {}, clear=True)
-        assert _get_sandboxer_path() == DEFAULT_SANDBOXER_PATH
-
-    def test_custom_path(self, mocker):
-        """Returns custom path from AEGISH_SANDBOXER_PATH."""
-        mocker.patch.dict(os.environ, {"AEGISH_SANDBOXER_PATH": "/custom/lib.so"}, clear=True)
-        assert _get_sandboxer_path() == "/custom/lib.so"
 
 
 class TestBuildSafeEnvLdPreload:
@@ -858,26 +832,18 @@ class TestBuildSafeEnvLdPreload:
             "AEGISH_MODE": "production",
         }, clear=True)
         env = _build_safe_env()
-        assert env["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
+        assert env["LD_PRELOAD"] == "/opt/aegish/lib/landlock_sandboxer.so"
 
-    def test_prod_mode_injects_runner_path(self, mocker):
-        """Production mode injects AEGISH_RUNNER_PATH for the C library."""
-        mocker.patch.dict(os.environ, {
-            "PATH": "/usr/bin",
-            "AEGISH_MODE": "production",
-        }, clear=True)
-        env = _build_safe_env()
-        assert "AEGISH_RUNNER_PATH" in env
-
-    def test_prod_mode_custom_sandboxer_path(self, mocker):
-        """Production mode uses custom AEGISH_SANDBOXER_PATH."""
+    def test_prod_mode_ignores_custom_sandboxer_path(self, mocker):
+        """Production mode ignores AEGISH_SANDBOXER_PATH env var (Story 17.8)."""
         mocker.patch.dict(os.environ, {
             "PATH": "/usr/bin",
             "AEGISH_MODE": "production",
             "AEGISH_SANDBOXER_PATH": "/custom/sandboxer.so",
         }, clear=True)
         env = _build_safe_env()
-        assert env["LD_PRELOAD"] == "/custom/sandboxer.so"
+        # In production, sandboxer path is hardcoded, ignoring env vars
+        assert env["LD_PRELOAD"] == "/opt/aegish/lib/landlock_sandboxer.so"
 
     def test_user_ld_preload_blocked(self, mocker):
         """User's LD_PRELOAD from os.environ is blocked by allowlist."""
@@ -935,7 +901,7 @@ class TestExecuteCommandLandlock:
         kwargs = mock_run.call_args.kwargs
         assert kwargs["preexec_fn"] is mock_preexec
         cmd_list = mock_run.call_args[0][0]
-        assert cmd_list[0] == "/opt/aegish/bin/runner"
+        assert cmd_list[0] == "/bin/bash"
 
     def test_prod_mode_env_has_ld_preload(self, mocker):
         """Production mode: env dict includes LD_PRELOAD with sandboxer."""
@@ -948,7 +914,7 @@ class TestExecuteCommandLandlock:
         execute_command("echo test")
 
         env_dict = mock_run.call_args.kwargs["env"]
-        assert env_dict["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
+        assert env_dict["LD_PRELOAD"] == "/opt/aegish/lib/landlock_sandboxer.so"
 
     def test_dev_mode_no_preexec(self, mocker):
         """Development mode: no preexec_fn."""
@@ -992,7 +958,7 @@ class TestRunBashCommandLandlock:
         run_bash_command("echo test")
 
         env_dict = mock_run.call_args.kwargs["env"]
-        assert env_dict["LD_PRELOAD"] == DEFAULT_SANDBOXER_PATH
+        assert env_dict["LD_PRELOAD"] == "/opt/aegish/lib/landlock_sandboxer.so"
 
     def test_dev_mode_no_preexec(self, mocker):
         """Development: run_bash_command has no sandbox."""
@@ -1408,7 +1374,6 @@ class TestExecuteSudoSandboxed:
         mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
         mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
         mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/landlock_sandboxer.so")
-        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
 
@@ -1419,8 +1384,7 @@ class TestExecuteSudoSandboxed:
         assert args[0] == SUDO_BINARY_PATH
         assert args[1] == "env"
         assert args[2] == "LD_PRELOAD=/opt/aegish/lib/landlock_sandboxer.so"
-        assert args[3] == "AEGISH_RUNNER_PATH=/opt/aegish/bin/runner"
-        assert args[4] == "/opt/aegish/bin/runner"
+        assert args[3] == "/bin/bash"
         assert "--norc" in args
         assert "--noprofile" in args
         assert "-c" in args
@@ -1431,7 +1395,6 @@ class TestExecuteSudoSandboxed:
         mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
         mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
         mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/sandboxer.so")
-        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
 
@@ -1445,7 +1408,6 @@ class TestExecuteSudoSandboxed:
         mocker.patch("aegish.executor._validate_sudo_binary", return_value=(True, ""))
         mocker.patch("aegish.executor.validate_sandboxer_library", return_value=(True, ""))
         mocker.patch("aegish.executor.get_sandboxer_path", return_value="/opt/aegish/lib/sandboxer.so")
-        mocker.patch("aegish.executor.get_runner_path", return_value="/opt/aegish/bin/runner")
         mock_run = mocker.patch("subprocess.run")
         mock_run.return_value = MagicMock(returncode=0)
 

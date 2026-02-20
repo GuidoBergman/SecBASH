@@ -129,7 +129,7 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - Advanced static pre-LLM validation (control-flow AST traversal, regex blocklist, meta-exec builtins, compound command decomposition)
 - LLM pipeline hardening (timeouts, rate limiting, markdown JSON parsing, COMMAND tag injection prevention, source/dot script inspection)
 - Configuration hardening (immutable production config file, invalid mode rejection, role-based trust levels, empty model rejection)
-- Allowlist-based environment sanitization, absolute envsubst path, runner binary SHA-256 integrity verification
+- Allowlist-based environment sanitization, absolute envsubst path, `/bin/bash` SHA-256 integrity verification
 - Shell state persistence (cwd, exported env vars, exit code across commands)
 - Landlock dropper (LD_PRELOAD C library) and complete DENIED_SHELLS list
 - Persistent structured audit logging (JSON format, root-owned in production)
@@ -200,7 +200,7 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - Advanced static pre-LLM validation (AST traversal, regex blocklist, meta-exec builtins, compound command decomposition)
 - LLM pipeline hardening (timeouts, rate limiting, markdown JSON parsing, COMMAND tag injection prevention, source/dot script inspection)
 - Configuration hardening (immutable production config, invalid mode rejection, role-based trust levels)
-- Environment & subprocess security (allowlist sanitization, absolute envsubst path, runner binary integrity verification)
+- Environment & subprocess security (allowlist sanitization, absolute envsubst path, `/bin/bash` integrity verification)
 - Shell state persistence (cwd, exported env vars, exit code across commands)
 - Landlock dropper and complete DENIED_SHELLS list
 - Persistent structured audit logging
@@ -299,7 +299,7 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - FR43: Production mode (AEGISH_MODE=production): exit terminates session (login shell), Landlock enforces shell execution denial
 - FR44: Development mode (AEGISH_MODE=development): exit works normally with warning, no Landlock enforcement
 - FR45: Landlock sandbox denies execve of shell binaries for child processes in production mode
-- FR46: Runner binary (hardlink/copy of bash) at /opt/aegish/bin/runner used for command execution in production mode
+- FR46: ~~Runner binary (hardlink/copy of bash) at /opt/aegish/bin/runner used for command execution in production mode~~ [RETIRED -- Superseded by FR80 in Epic 17. Runner binary removed; aegish uses /bin/bash directly.]
 - FR47: Graceful Landlock fallback: if kernel < 5.13, production mode warns and falls back to development behavior
 
 ### Environment Variable Integrity
@@ -339,12 +339,12 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - FR68: Environment sanitization uses an allowlist instead of blocklist (unknown variables blocked by default)
 - FR69: Full variable expansion to LLM by default; sensitive variable filter is opt-in via AEGISH_FILTER_SENSITIVE_VARS
 - FR70: envsubst is invoked via absolute path resolved at startup (prevents PATH poisoning)
-- FR71: Runner binary path is hardcoded in production mode and verified via SHA-256 hash at startup
+- FR71: `/bin/bash` path is used directly in production mode and verified via SHA-256 hash at startup
 
 ### Production Infrastructure & Shell State
 
 - FR72: Shell state (cwd, exported env vars, exit code) persists across commands via pipe-based environment capture
-- FR73: Landlock dropper (LD_PRELOAD C library) prevents runner binary from being executed as interactive shell
+- FR73: Landlock dropper (LD_PRELOAD C library) prevents `/bin/bash` from being executed as interactive shell by denying future execve() calls after the process is already running
 - FR74: DENIED_SHELLS list includes all common shell binaries (bash, sh, zsh, fish, dash, csh, tcsh, ksh, ash, busybox, mksh, rbash, elvish, nu, pwsh, xonsh)
 - FR75: ctypes syscall() uses correct c_long return type for 64-bit compatibility
 
@@ -354,11 +354,12 @@ aegish is an LLM-powered shell that validates every command before execution, pr
 - FR77: litellm dependency has a version ceiling to prevent untested major upgrades (>=1.81.0,<2.0.0)
 - FR78: Benchmark-only dependencies (adjusttext) are not in runtime dependencies
 - FR79: Benchmark metadata counts are computed dynamically from actual datasets (not hardcoded)
-- FR80: .gitignore and .env.example reflect current project structure and providers
+- FR80: Production mode uses `/bin/bash` directly. SHA-256 hash verification applies to `/bin/bash` and the sandboxer library (`landlock_sandboxer.so`). The runner binary concept is retired.
+- FR81: .gitignore and .env.example reflect current project structure and providers
 
 ### Sudo Post-Elevation Sandboxing
 
-- FR81: Sudo commands in production mode with sysadmin role are sandboxed: Landlock dropper via LD_PRELOAD blocks shell escapes even after privilege elevation
+- FR82: Sudo commands in production mode with sysadmin role are sandboxed: Landlock dropper via LD_PRELOAD blocks shell escapes even after privilege elevation
 
 ## Non-Functional Requirements
 

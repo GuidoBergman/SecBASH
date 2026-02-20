@@ -22,13 +22,6 @@ COPY pyproject.toml uv.lock README.md ./
 COPY src/ src/
 RUN uv pip install .
 
-# Create runner binary (MUST be hardlink, NOT symlink -- DD-17)
-# Landlock resolves symlinks before checking permissions, so a symlink
-# to /bin/bash would be resolved and denied. A hardlink has a distinct
-# path entry that Landlock checks independently.
-RUN mkdir -p /opt/aegish/bin && \
-    ln /bin/bash /opt/aegish/bin/runner
-
 # Register aegish as a valid login shell
 RUN echo "$(which aegish)" >> /etc/shells
 
@@ -57,18 +50,24 @@ RUN mkdir -p /etc/aegish && \
         "AEGISH_ROLE=${AEGISH_ROLE}" \
         'AEGISH_ALLOWED_PROVIDERS=openai,anthropic,groq,together_ai,ollama,gemini,featherless_ai,huggingface' \
         'AEGISH_VAR_CMD_ACTION=block' \
+        'AEGISH_PRIMARY_MODEL=gemini/gemini-3-flash-preview' \
+        'AEGISH_FALLBACK_MODELS=featherless_ai/trendmicro-ailab/Llama-Primus-Reasoning,openai/gpt-5-mini,anthropic/claude-haiku-4-5-20251001,anthropic/claude-sonnet-4-5-20250929,openai/gpt-5.1,anthropic/claude-opus-4-6,openai/gpt-5-nano,featherless_ai/fdtn-ai/Foundation-Sec-8B-Instruct' \
     > /etc/aegish/config && \
     chmod 644 /etc/aegish/config
 
-# Compute runner hash and embed in config (Story 13.4: fail-closed integrity check)
-RUN RUNNER_HASH=$(sha256sum /opt/aegish/bin/runner | cut -d' ' -f1) && \
-    echo "AEGISH_RUNNER_HASH=${RUNNER_HASH}" >> /etc/aegish/config
+# Compute bash hash and embed in config (Story 17.2: fail-closed integrity check)
+RUN BASH_HASH=$(sha256sum /bin/bash | cut -d' ' -f1) && \
+    echo "AEGISH_BASH_HASH=${BASH_HASH}" >> /etc/aegish/config
 
 # Create audit log directory (writable by all users)
 RUN mkdir -p /var/log/aegish && chmod 1733 /var/log/aegish
 
 # Build and install the Landlock sandboxer library
 RUN cd /opt/aegish-src/src/sandboxer && make && make install
+
+# Compute sandboxer hash and embed in config (Story 17.8: integrity check)
+RUN SANDBOXER_HASH=$(sha256sum /opt/aegish/lib/landlock_sandboxer.so | cut -d' ' -f1) && \
+    echo "AEGISH_SANDBOXER_HASH=${SANDBOXER_HASH}" >> /etc/aegish/config
 
 # Expose SSH port and start SSH daemon
 EXPOSE 22

@@ -12,7 +12,7 @@ So that **programs like vim, less, and python3 cannot spawn unmonitored shells i
 
 1. **Given** a Landlock ruleset is created, **When** applied via `preexec_fn` in `subprocess.run()`, **Then** `execve("/bin/bash", ...)` returns EPERM for the child process, **And** `execve("/bin/sh", ...)` returns EPERM, **And** `execve("/bin/zsh", ...)` returns EPERM, **And** `execve("/bin/dash", ...)` returns EPERM, **And** all shell binaries in `DENIED_SHELLS` are blocked
 
-2. **Given** the Landlock ruleset is applied, **Then** `execve("/opt/aegish/bin/runner", ...)` is allowed (the runner binary), **And** `execve("/usr/bin/python3", ...)` is allowed (non-shell programs), **And** `execve("/usr/bin/git", ...)` is allowed, **And** `execve("/usr/bin/ls", ...)` is allowed
+2. **Given** the Landlock ruleset is applied, **Then** `execve("/opt/aegish/bin/runner", ...)` is allowed (the runner binary) [Updated by Epic 17: runner removed; /bin/bash used directly], **And** `execve("/usr/bin/python3", ...)` is allowed (non-shell programs), **And** `execve("/usr/bin/git", ...)` is allowed, **And** `execve("/usr/bin/ls", ...)` is allowed
 
 3. **Given** the Landlock restriction is applied, **When** a child process forks its own children, **Then** the Landlock restriction is inherited (grandchildren also cannot spawn shells)
 
@@ -27,7 +27,7 @@ So that **programs like vim, less, and python3 cannot spawn unmonitored shells i
   - [x] 1.2: Define ctypes structs: `LandlockRulesetAttr` (field: `handled_access_fs` uint64), `LandlockPathBeneathAttr` (packed, fields: `allowed_access` uint64, `parent_fd` int32)
   - [x] 1.3: Define access flags: `LANDLOCK_ACCESS_FS_EXECUTE = 1 << 0`, `LANDLOCK_RULE_PATH_BENEATH = 1`, `LANDLOCK_CREATE_RULESET_VERSION = 1 << 0`, `PR_SET_NO_NEW_PRIVS = 38`
   - [x] 1.4: Define `DENIED_SHELLS` set with all known shell binary paths (both `/bin/` and `/usr/bin/` variants): bash, sh, dash, zsh, fish, ksh, csh, tcsh
-  - [x] 1.5: Define `DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"`
+  - [x] 1.5: Define `DEFAULT_RUNNER_PATH = "/opt/aegish/bin/runner"` [Updated by Epic 17: runner removed; /bin/bash used directly]
 
 - [x] Task 2: Implement `landlock_available()` function (AC: #5)
   - [x] 2.1: Load `libc.so.6` via `ctypes.CDLL`
@@ -40,7 +40,7 @@ So that **programs like vim, less, and python3 cannot spawn unmonitored shells i
 - [x] Task 3: Implement `create_sandbox_ruleset()` function (AC: #1, #2)
   - [x] 3.1: Create a Landlock ruleset handling only `LANDLOCK_ACCESS_FS_EXECUTE` via `SYS_landlock_create_ruleset`
   - [x] 3.2: Enumerate executable directories from `PATH` environment variable (split on `:`, resolve symlinks, deduplicate)
-  - [x] 3.3: Add the runner directory (`/opt/aegish/bin/`) to the enumeration list
+  - [x] 3.3: Add the runner directory (`/opt/aegish/bin/`) to the enumeration list [Updated by Epic 17: runner removed; /bin/bash used directly]
   - [x] 3.4: For each directory, use `os.scandir()` to iterate over entries
   - [x] 3.5: For each regular, executable file: resolve its real path via `os.path.realpath()`, check if it's in `DENIED_SHELLS` (compare resolved paths), and if NOT a shell, add an EXECUTE rule via `_add_path_rule()`
   - [x] 3.6: Implement `_add_path_rule(ruleset_fd, path)`: open path with `O_PATH | O_CLOEXEC`, create `LandlockPathBeneathAttr` with `allowed_access=EXECUTE` and `parent_fd=fd`, call `SYS_landlock_add_rule`, close the fd
@@ -73,7 +73,7 @@ This story is part of **Epic 8: Production Mode -- Login Shell + Landlock Enforc
 - 8.1: `AEGISH_MODE` configuration (config.py)
 - 8.2: Login shell exit behavior (shell.py)
 - **8.3: Landlock sandbox implementation (sandbox.py) -- THIS STORY**
-- 8.4: Runner binary setup (executor.py + config.py)
+- 8.4: Runner binary setup (executor.py + config.py) [Superseded by Epic 17]
 - 8.5: Integrate Landlock into executor.py (executor.py)
 - 8.6: Docker-based testing infrastructure (DONE -- in review)
 - 8.7: Integration tests for bypass verification
@@ -139,6 +139,7 @@ result = subprocess.run(
     pass_fds=(ruleset_fd,),  # CRITICAL: fd must survive close_fds
 )
 ```
+> *[Updated by Epic 17: RUNNER_PATH replaced by /bin/bash]*
 
 `preexec_fn` runs in the child process AFTER `fork()` but BEFORE `exec()`. CPython's subprocess implementation closes all fds >= 3 (except stdin/stdout/stderr) BEFORE calling `preexec_fn`. Therefore, the `ruleset_fd` must be listed in `pass_fds` to survive. This is handled by Story 8.5, but sandbox.py must document this requirement.
 
@@ -199,7 +200,7 @@ PR_SET_NO_NEW_PRIVS = 38
 
 **Files NOT to modify (those belong to other stories):**
 - `src/aegish/executor.py` -- Story 8.5 handles Landlock integration
-- `src/aegish/config.py` -- Story 8.1 handles `AEGISH_MODE`, Story 8.4 handles `RUNNER_PATH`
+- `src/aegish/config.py` -- Story 8.1 handles `AEGISH_MODE`, Story 8.4 handles `RUNNER_PATH` [Superseded by Epic 17: runner removed]
 - `src/aegish/shell.py` -- Story 8.2 handles exit behavior
 - `pyproject.toml` -- No new dependencies needed
 
@@ -249,7 +250,9 @@ resolved_denied = {os.path.realpath(s) for s in DENIED_SHELLS if os.path.exists(
 
 [Source: docs/security-hardening-scope.md#BYPASS-13]
 
-### Landlock Hardlink/Symlink Behavior (DD-17)
+### Landlock Hardlink/Symlink Behavior (DD-17) [RETIRED in Epic 17 -- runner binary removed]
+
+> *[Epic 17 note: This section describes the retired runner approach. aegish now uses /bin/bash directly.]*
 
 **CRITICAL:** Landlock resolves symlinks but checks PATHS for access decisions:
 - A symlink `/bin/bash -> /usr/bin/bash` is resolved to `/usr/bin/bash` by the kernel
@@ -293,7 +296,7 @@ subprocess.run(
 | DD-14 | Production/development modes | sandbox.py is used ONLY in production mode; caller checks mode |
 | DD-15 | Landlock over seccomp/ptrace/LD_PRELOAD/rbash/AppArmor | This story implements the Landlock approach |
 | DD-16 | `./script.sh` shebangs break in production mode | Accepted -- `#!/bin/bash` shebangs trigger `execve("/bin/bash")` which Landlock denies; use `source script.sh` instead |
-| DD-17 | Runner hardlink (not symlink) | Runner binary at `/opt/aegish/bin/runner` is a hardlink; its path gets an explicit EXECUTE rule |
+| DD-17 | ~~Runner hardlink (not symlink)~~ [RETIRED in Epic 17] | Runner binary removed. aegish now uses /bin/bash directly. |
 
 ### WSL2 + Docker Compatibility Note
 
@@ -327,7 +330,7 @@ Recent commits show:
 **Story 8.6 (Docker infrastructure) learnings:**
 - Ubuntu 24.04 base image works well
 - `uv` installation via `COPY --from=ghcr.io/astral-sh/uv:latest` pattern
-- Runner binary created with hardlink: `ln /bin/bash /opt/aegish/bin/runner` (verified Links: 2)
+- Runner binary created with hardlink: `ln /bin/bash /opt/aegish/bin/runner` (verified Links: 2) [Retired in Epic 17]
 - Landlock NOT supported on WSL2 -- documented in completion notes
 - SSH + login shell testing pattern established
 

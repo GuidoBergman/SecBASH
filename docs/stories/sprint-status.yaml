@@ -178,3 +178,16 @@ development_status:
   # Epic 16: Sudo Post-Elevation Sandboxing
   epic-16: done
   16-1-sudo-post-elevation-sandboxing: done
+
+  # Epic 17: Remove Runner Binary — Use /bin/bash Directly
+  epic-17: done
+  17-1-remove-runner-binary-from-executor-and-config: done
+  17-2-update-hash-verification-to-target-bin-bash: done
+  17-3-update-c-sandboxer-to-remove-runner-logic: done
+  17-4-remove-runner-from-dockerfiles-and-infrastructure: done
+  17-5-update-shell-startup-validation: done
+  17-6-update-tests: done
+  17-7-update-all-documentation: done
+  17-8-sha256-hash-verification-for-sandboxer-library: done
+  17-9-harden-llm-model-variables-as-security-critical: done
+  17-10-add-aegish-skip-bash-hash-option: done
