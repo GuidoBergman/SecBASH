@@ -1,6 +1,6 @@
 # *aegish*: Using LLMs To Block Malicious Shell Commands Before Execution
 
-*This project was completed as part of the [Technical AI Safety Project Course](https://bluedot.org/courses/technical-ai-safety-project) by BlueDot Impact. All code, data, and results are available in [this repository](https://github.com/GuidoBergman/aegish.git).*
+*This project was completed as part of the [Technical AI Safety Project Course](https://bluedot.org/courses/technical-ai-safety-project) by BlueDot Impact. All code, data, and results are available in [this repository](https://github.com/GuidoBergman/aegish.git). The idea for this project was taken from [this post](https://www.lesswrong.com/posts/2wxufQWK8rXcDGbyL/access-to-powerful-ai-might-make-computer-security-radically).* 
 
 ## TL;DR
 
@@ -10,8 +10,6 @@
 * Surprisingly, **mid-size models outperform flagships**. GPT-4o-mini beats GPT-4o, and Claude Haiku beats both Opus and Sonnet, suggesting that for this specific task, model reasoning capability is not the primary bottleneck.
 * It is important to note that *aegish* remains a prototype; while it demonstrates high malicious detection rates, it currently lacks the failsafes and robustness required for production deployment.
 
-
----
 
 ## 1. Introduction
 
@@ -93,7 +91,7 @@ The LLM returns the decision as a structured JSON object, e.g., for the input `v
 
 To evaluate the system and compare different LLMs, a dataset of **1,172 commands** was constructed:
 
-### Dataset Composition
+### Dataset
 
 1. **Malicious (676 commands):** Sourced from **[GTFOBins](https://gtfobins.github.io/)**, a curated list of Unix binaries exploited to bypass local security restrictions. 8 of the 12 GTFOBins categories were included; the remaining four require runtime context unavailable from command text alone (see Appendix E). Since GTFOBins entries use abstract placeholders, these were replaced with realistic values to test whether models recognize malice from context rather than generic keywords (see Appendix E).
 
@@ -104,44 +102,76 @@ To evaluate the system and compare different LLMs, a dataset of **1,172 commands
 
 The scoring is asymmetric:
 
-* **Malicious Detection Rate**: blocking malicious commands. Only **BLOCK** is considered correct. WARN is scored as a failure because an attacker can simply bypass a warning.
+* **Malicious Detection Rate**: blocking malicious commands. Only **BLOCK** is considered correct. *Rationale: WARN is scored as a failure because an attacker can simply bypass a warning.*
 * **Harmless Acceptance Rate:** allowing harmless commands. Both **ALLOW** and **WARN** are acceptable. Only BLOCK is considered a failure.
 
-A target of 95% target of bout 
+A target rate of 95% was established for both metrics. 
 Error bars and intervals show ±1 standard error (SE).
+
+
 
 ## 4. Results
 
-### Detection vs. Harmless Acceptance Rate
+### Malicious Detection Rate vs. Harmless Acceptance Rate
 
-*Figure 1: Malicious detection rate vs. harmless acceptance rate for all 9 models.*
+Figure 2 shows the detection and acceptance rate across models.
 
-**The harmless benchmark is saturated.** All 9 models achieved between **96.8% and 100%** on the harmless dataset. This indicates that false positives are not the primary bottleneck; the models are capable of recognizing safe operations. The differentiator is the **Malicious Detection Rate**.
+![Detection vs. Harmless Acceptance Rate](../benchmark/results/plots/detection_vs_pass.png)
+*Figure 2: Malicious detection rate vs. harmless acceptance rate for all 9 models.*
 
-### Model Performance
+All 9 models successfully allowed between 96.8% and 100% of harmless commands. Additionally, many of the few false positive blocks come with specific, well-reasoned justifications that lead to conservative calls that disagree with the ground truth label. The full per-model error breakdown is in Appendix B. For this reason, we can say that **the harmless benchmark is saturated**.
 
-Four models achieved a malicious detection rate greater than 95%. Notably, **mid-size models consistently outperformed flagship models.**
+Since harmless acceptance rate contributes no signal, the rest of the analysis focuses entirely on **malicious detection rate**. Against our 95% target, the models split cleanly: **only 4 of the 9 models met the malicious detection target:** Gemini-3-Flash, GPT-5-mini, Claude-Haiku-4-5, and Llama-Primus-Reasoning.
 
-* **Gemini 1.5 Flash:** 97.8% Detection (Highest Performance)
-* **GPT-4o-mini:** 97.2% Detection
-* **Claude 3 Haiku:** 96.5% Detection
+Conversely, several models fell short of the 95% threshold established: Claude Sonnet 4.5 (92.9%), GPT-5.1 (92.6%), Claude Opus 4.6 (92.0%), and GPT-5-Nano (88.3%). Furthermore, Foundation-Sec-8B ranked significantly below the malicious detection target. Its dominant failure mode was classifying malicious commands as WARN rather than strictly enforcing a BLOCK (accounting for 128 of its 145 errors).
 
-### Analysis: Why Smaller Models Prevailed
+### Consistency Across Attack Categories
 
-Contrary to the expectation that larger parameter counts yield better reasoning, flagship models (like Claude Opus or GPT-4o) underperformed for three specific reasons:
+We evaluate performance using two metrics:
 
-1. **Safety Filter Interference:** Flagship models have aggressive internal safety filters. When presented with a malicious command for analysis, they often refused to process the prompt entirely, resulting in a scoring failure.
-2. **Excessive Hedging:** Larger models tended to "over-reason," classifying obvious threats as **WARN** (e.g., "This *could* be dangerous") rather than the required **BLOCK**.
-3. **Efficiency:** Mid-size models appear optimized for this type of rapid classification task.
+* **Micro Rate (Aggregate):** Weights every command equally. This score is dominated by the largest categories in the dataset, such as 'shell' and 'file-read'.
+* **Macro Rate (Category Average):** Averages all 8 threat categories equally, regardless of how many commands they contain.
+
+A large gap between these two metrics exposes models that inflate their aggregate score by acing easy, high-volume categories while failing on small, complex ones.
+
+![Micro vs. Macro Detection](../benchmark/results/plots/micro_vs_macro.png)
+*Figure 3: Micro (aggregate) vs. macro (unweighted category average) detection.*
+
+The clear winner on accuracy and consistency is **Gemini-3-Flash**. It not only maintained a high overall detection rate but also exhibited a very small gap between micro and macro performance (just 1%), indicating highly consistent threat recognition across all categories.
+
+At the other end of the spectrum, **GPT-5-Nano** and **GPT-5.1** exhibited the largest disparities: gaps of 5.41% and 5.39% respectively between their micro and macro scores. Both models scored well on high-volume categories like shell and file-read but dropped to ~30% detection on the "command" category, where GTFOBins exploits abuse legitimate utilities to run arbitrary commands.
+
+
+### Analysis: Why Mid-Size Models Prevailed
+
+Counterintuitively, across both OpenAI and Anthropic, **mid-size models consistently outperformed flagship models**. We identified four distinct reasons for this:
+
+1. **Content filters penalize flagships.** (Only for Anthropic models) Opus and Sonnet trigger safety filters on GTFOBins commands, returning empty responses scored as missed detections. Haiku has zero filter activations.
+2. **Cautious reasoning:** Opus tended to "over-reason," frequently classifying threats as **WARN** (e.g., "This *could* be dangerous") rather than the required **BLOCK**.
+3. **Struggles with indirect execution:** GPT-5.1 tended to fail to recognize indirect execution vectors, consistently classifying these subtle bypass attempts as ALLOW rather than inspecting them properly.
+4. **The smallest models lack capability:** While mid-size models hit the sweet spot, scaling down too far degrades performance. GPT-5-Nano is the cheapest and fastest model tested, but completely fails the malicious detection target at 88.3%. Its dominant failure mode isn't caution—it simply fails to recognize the threats, resulting in outright ALLOW classifications on malicious commands (50 ALLOW errors, the most of any model).
+
+For this reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error analysis and examples are in Appendix F.
 
 ### Production Viability: Cost and Latency
 
-From a deployment perspective, the cost-to-performance ratio heavily favors efficient models.
+Since malicious detection rate is the only metric that differentiates models, production decisions reduce to: **how much detection do you get per dollar, and per second of latency?**
 
-* **Gemini 1.5 Flash:** ~$0.59 per 1,000 commands.
-* **Claude 3 Opus:** ~$12.89 per 1,000 commands.
+Figure 4 plots cost-effectiveness against Malicious Detection Rate. The full per-model cost breakdown is in Appendix C.
 
-*Figure 2: The Pareto Frontier. Gemini 1.5 Flash and GPT-4o-mini dominate the field by offering the highest malicious detection rates at the lowest costs.*
+![Cost vs. Malicious Detection Rate](../benchmark/results/plots/cost_vs_detection_rate.png)
+*Figure 4: Cost per 1,000 commands vs. malicious detection rate. Models above the Pareto frontier are strictly dominated: another model offers equal or better detection for less money.*
+
+From this plot, we can see that costs vary by nearly two orders of magnitude, ranging from $0.59 to $12.89 per 1,000 commands. Crucially, **spending more does not buy more detection**: Opus costs 11.5× more than Gemini 3 Flash for a *lower* malicious detection rate.
+
+![Latency vs. Malicious Detection Rate](../benchmark/results/plots/latency_vs_detection_rate.png)
+*Figure 5: Mean latency vs. malicious detection rate.*
+
+Latency reveals a similar efficiency gap. *(Note: Gemini 1.5 Flash's high benchmark latency of ~70.9s was primarily due to rate-limit queuing during concurrent testing; its actual production latency is ~10s).*
+
+Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash and GPT-5-nano**. No other models offer better detection capability at a lower price or latency. 
+
+
 
 ## 5. Related Work
 
@@ -155,10 +185,7 @@ Several tools address similar problems, but *aegish* occupies a unique position:
 
 It is important to acknowledge that *aegish* is currently a prototype and not a production-ready security product. Key limitations include:
 
-1. **The "Exit" Loophole:** *aegish* operates as a wrapper. If the user executes `exit`, they return to the parent shell, which is unmonitored.
-2. **Interactive Application Escapes:** As noted in the Decision Tree, allowed programs like `vim` or `less` provide internal command execution interfaces. Because *aegish* cannot inspect the internal state of a running binary, these escape vectors are difficult to monitor once the binary is allowed to run.
 3. **Prompt Injection:** The system is potentially susceptible to adversarial inputs designed to manipulate the LLM's classification logic.
-4. **Fail-Open Architecture:** In the current design, API failures result in a WARN state to preserve usability. A high-security environment would require a "fail-closed" (BLOCK by default) configuration.
 5. **Latency:** The round-trip time for LLM inference adds perceptible latency compared to a native shell.
 
 ## 7. Conclusion
