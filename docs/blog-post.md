@@ -7,13 +7,13 @@
 * ***aegish*** is a prototype Linux shell that intercepts every command a user types. Commands are first screened by a static analysis layer and then sent to an LLM that classifies them as **ALLOW**, **WARN**, or **BLOCK** using a natural-language decision tree — no training pipeline and minimal policy configuration. In production mode, kernel-level enforcement (Landlock) provides a final safety net.
 * 9 LLMs from 4 providers were benchmarked on their ability to distinguish intent: they were tasked to **BLOCK** 676 harmful commands (extracted from GTFOBins) and to correctly classify 496 harmless commands as either **ALLOW** or **WARN**.
 * The harmless benchmark proved to be saturated (96.8–100% harmless acceptance rate for all models). The real differentiator was the malicious detection rate on malicious commands, where **4 of 9 models exceeded 95%**.
-* Surprisingly, **mid-size models outperform flagships**. GPT-4o-mini beats GPT-4o, and Claude Haiku beats both Opus and Sonnet, suggesting that for this specific task, model reasoning capability is not the primary bottleneck.
+* Surprisingly, **mid-size models outperform flagships**. GPT-5 Mini beats GPT-5.1, and Claude Haiku 4.5 beats both Claude Opus 4.6 and Claude Sonnet 4.5, suggesting that for this specific task, model reasoning capability is not the primary bottleneck.
 * Beyond the LLM, *aegish* includes several safeguards — Landlock kernel enforcement, SHA-256 binary integrity checks, role-based trust levels, audit logging, and rate limiting — though the system as a whole has not been hardened to the level required for adversarial deployment.
 
 
 ## 1. Introduction
 
-Linux security traditionally relies on mature, battle-tested tools like **SELinux** or **AppArmor**. These operate as strict "bouncers," enforcing complex policies that define exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many new legitimate binaries will require a tailored profile and without expertise to configure this, many systems act with policies that are far more permissive than necessary.
+Linux security traditionally relies on mature, battle-tested tools like **SELinux** or **AppArmor**. These are **Mandatory Access Control (MAC)** systems: security policies enforced by the OS itself that no user or process can override. They operate as strict "bouncers," defining exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many new legitimate binaries will require a tailored profile, and without the expertise to configure this, many systems end up running policies far more permissive than necessary.
 
 *aegish* takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement. The proposed value of this approach is:
 1. **Low expertise barrier.** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone — anyone who can describe a threat in English can update the defense.
@@ -24,7 +24,7 @@ Linux security traditionally relies on mature, battle-tested tools like **SELinu
 
 The approach also inherits fundamental LLM limitations (detailed in Section 6): non-deterministic responses, added latency, and susceptibility to prompt injection.
 
-The thesis is not that this replaces kernel-level enforcement — it does not and should not. It is that it adds a *complementary* analysis layer that is cheap to deploy, requires no specialized policy expertise, and generalizes to novel threat variants. Whether that analysis is accurate enough to be useful is an empirical question this project seeks to answer.
+The claim is not that this replaces tools like SELinux or AppArmor. It is that an LLM layer, combined with the static analysis and Landlock enforcement adds a complementary reasoning capability that is cheap to deploy and requires no policy expertise. Whether that reasoning is accurate enough to be useful is the question this project seeks to answer.
 
 The **contributions** of this project are:
 1. **The approach itself.** The main purpose of this project was to explore a new method for increasing security that is both easier to configure and requires lower expertise than existing alternatives.
@@ -145,9 +145,9 @@ Figure 2 shows the detection and acceptance rate across models.
 
 All 9 models successfully allowed between 96.8% and 100% of harmless commands. Additionally, many of the few false positive blocks come with specific, well-reasoned justifications that lead to conservative calls that disagree with the ground truth label. The full per-model error breakdown is in Appendix B. For this reason, we can say that **the harmless benchmark is saturated**.
 
-Since harmless acceptance rate contributes no signal, the rest of the analysis focuses entirely on **malicious detection rate**. Against our 95% target, the models split cleanly: **only 4 of the 9 models met the malicious detection target:** Gemini-3-Flash, GPT-5-mini, Claude-Haiku-4-5, and Llama-Primus-Reasoning.
+Since harmless acceptance rate contributes no signal, the rest of the analysis focuses entirely on **malicious detection rate**. Against our 95% target, the models split cleanly: **only 4 of the 9 models met the malicious detection target:** Gemini 3 Flash, GPT-5 Mini, Claude Haiku 4.5, and Llama Primus.
 
-Conversely, several models fell short of the 95% threshold established: Claude Sonnet 4.5 (92.9%), GPT-5.1 (92.6%), Claude Opus 4.6 (92.0%), and GPT-5-Nano (88.3%). Furthermore, Foundation-Sec-8B ranked significantly below the malicious detection target. Its dominant failure mode was classifying malicious commands as WARN rather than strictly enforcing a BLOCK (accounting for 128 of its 145 errors).
+Conversely, several models fell short of the 95% threshold established: Claude Sonnet 4.5 (92.9%), GPT-5.1 (92.6%), Claude Opus 4.6 (92.0%), and GPT-5 Nano (88.3%). Furthermore, Foundation-Sec-8B ranked significantly below the malicious detection target. Its dominant failure mode was classifying malicious commands as WARN rather than strictly enforcing a BLOCK (accounting for 128 of its 145 errors).
 
 ### Consistency Across Attack Categories
 
@@ -161,9 +161,9 @@ A large gap between these two metrics exposes models that inflate their aggregat
 ![Micro vs. Macro Detection](../benchmark/results/plots/micro_vs_macro.png)
 *Figure 3: Micro (aggregate) vs. macro (unweighted category average) detection.*
 
-The clear winner on accuracy and consistency is **Gemini-3-Flash**. It not only maintained a high overall detection rate but also exhibited a very small gap between micro and macro performance (just 1%), indicating highly consistent threat recognition across all categories.
+The clear winner on accuracy and consistency is **Gemini 3 Flash**. It not only maintained a high overall detection rate but also exhibited a very small gap between micro and macro performance (just 1%), indicating highly consistent threat recognition across all categories.
 
-At the other end of the spectrum, **GPT-5-Nano** and **GPT-5.1** exhibited the largest disparities: gaps of 5.41% and 5.39% respectively between their micro and macro scores. Both models scored well on high-volume categories like shell and file-read but dropped to ~30% detection on the "command" category, where GTFOBins exploits abuse legitimate utilities to run arbitrary commands.
+At the other end of the spectrum, **GPT-5 Nano** and **GPT-5.1** exhibited the largest disparities: gaps of 5.41% and 5.39% respectively between their micro and macro scores. Both models scored well on high-volume categories like shell and file-read but dropped to ~30% detection on the "command" category, where GTFOBins exploits abuse legitimate utilities to run arbitrary commands.
 
 
 ### Analysis: Why Mid-Size Models Prevailed
@@ -173,7 +173,7 @@ Counterintuitively, across both OpenAI and Anthropic, **mid-size models consiste
 1. **Content filters penalize flagships.** (Only for Anthropic models) Opus and Sonnet trigger safety filters on GTFOBins commands, returning empty responses scored as missed detections. Haiku has zero filter activations.
 2. **Cautious reasoning:** Opus tended to "over-reason," frequently classifying threats as **WARN** (e.g., "This *could* be dangerous") rather than the required **BLOCK**.
 3. **Struggles with indirect execution:** GPT-5.1 tended to fail to recognize indirect execution vectors, consistently classifying these subtle bypass attempts as ALLOW rather than inspecting them properly.
-4. **The smallest models lack capability:** While mid-size models hit the sweet spot, scaling down too far degrades performance. GPT-5-Nano is the cheapest and fastest model tested, but completely fails the malicious detection target at 88.3%. Its dominant failure mode isn't caution—it simply fails to recognize the threats, resulting in outright ALLOW classifications on malicious commands (50 ALLOW errors, the most of any model).
+4. **The smallest models lack capability:** While mid-size models hit the sweet spot, scaling down too far degrades performance. GPT-5 Nano is the cheapest and fastest model tested, but completely fails the malicious detection target at 88.3%. Its dominant failure mode isn't caution—it simply fails to recognize the threats, resulting in outright ALLOW classifications on malicious commands (50 ALLOW errors, the most of any model).
 
 For this reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error analysis and examples are in Appendix F.
 
@@ -194,9 +194,9 @@ From this plot, we can see that costs vary by nearly two orders of magnitude, ra
 Latency reveals a similar efficiency gap. Opus takes 2.5× longer than Gemini 3 Flash (40s vs. 16s) yet achieves a *lower* malicious detection rate (92% vs. 98%). 
 
 
-*(Note: Gemini 1.5 Flash's high benchmark latency of ~70.9s was primarily due to rate-limit queuing during concurrent testing; its actual production latency is ~10s).*
+*(Note: Gemini 3 Flash's high benchmark latency of ~70.9s was primarily due to rate-limit queuing during concurrent testing; its actual production latency is ~10s).*
 
-Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash and GPT-5-nano**. No other models offer better detection capability at a lower price or latency. 
+Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash and GPT-5 Nano**. No other models offer better detection capability at a lower price or latency. 
 
 
 
@@ -409,14 +409,14 @@ Full error breakdown on the GTFOBins (malicious) dataset:
 
 | Model | ALLOW | WARN | CONTENT_FILTER | FORMAT_ERROR | TIMEOUT | Total Errors |
 |-------|:-----:|:----:|:--------------:|:------------:|:-------:|:------------:|
-| Gemini-3-Flash | 2 | 12 | 0 | 1 | 0 | 15 |
-| Llama-Primus | 17 | 4 | 0 | 3 | 0 | 24 |
-| GPT-5-mini | 13 | 15 | 0 | 0 | 0 | 28 |
+| Gemini 3 Flash | 2 | 12 | 0 | 1 | 0 | 15 |
+| Llama Primus | 17 | 4 | 0 | 3 | 0 | 24 |
+| GPT-5 Mini | 13 | 15 | 0 | 0 | 0 | 28 |
 | Claude Haiku 4.5 | 16 | 13 | 0 | 0 | 0 | 29 |
 | Claude Sonnet 4.5 | 8 | 11 | 29 | 0 | 0 | 48 |
 | GPT-5.1 | 32 | 18 | 0 | 0 | 0 | 50 |
 | Claude Opus 4.6 | 2 | 28 | 21 | 3 | 0 | 54 |
-| GPT-5-Nano | **50** | 25 | 0 | 0 | 4 | 79 |
+| GPT-5 Nano | **50** | 25 | 0 | 0 | 4 | 79 |
 | Foundation-Sec-8B | 17 | **128** | 0 | 0 | 0 | 145 |
 
 Error distribution on the Harmless dataset (all errors are false positive BLOCKs unless noted):
@@ -425,15 +425,15 @@ Error distribution on the Harmless dataset (all errors are false positive BLOCKs
 |-------|:------:|:---------:|----------------------|
 | Claude Opus 4.6 | 0 | 100.0% | — |
 | Foundation-Sec-8B | 0 | 100.0% | — |
-| Gemini-3-Flash | 5 | 99.0% | GUI apps, developer tools |
+| Gemini 3 Flash | 5 | 99.0% | GUI apps, developer tools |
 | GPT-5.1 | 6 | 98.8% | GUI apps, developer tools |
-| GPT-5-Nano | 7 | 98.6% | GUI apps, package managers |
-| GPT-5-mini | 8 | 98.4% | GUI apps, developer tools |
+| GPT-5 Nano | 7 | 98.6% | GUI apps, package managers |
+| GPT-5 Mini | 8 | 98.4% | GUI apps, developer tools |
 | Claude Haiku 4.5 | 10 | 98.0% | GUI apps, developer tools |
 | Claude Sonnet 4.5 | 11 | 97.8% | GUI apps, developer tools |
-| Llama-Primus | 16 | 96.8% | GUI apps, developer tools, build tools |
+| Llama Primus | 16 | 96.8% | GUI apps, developer tools, build tools |
 
-The false positive blocks come with specific, well-reasoned justifications. Claude Sonnet blocks `nautilus` with *"File manager GUI can spawn terminal sessions and execute arbitrary commands, bypassing *aegish* monitoring"* (confidence: 0.9). GPT-5-mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95). These are defensible security decisions that happen to disagree with the ground truth label.
+The false positive blocks come with specific, well-reasoned justifications. Claude Sonnet blocks `nautilus` with *"File manager GUI can spawn terminal sessions and execute arbitrary commands, bypassing *aegish* monitoring"* (confidence: 0.9). GPT-5 Mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95). These are defensible security decisions that happen to disagree with the ground truth label.
 
 ## Appendix C: All Plots
 
@@ -441,7 +441,7 @@ The false positive blocks come with specific, well-reasoned justifications. Clau
 
 ![Ranking Table](../benchmark/results/plots/ranking_table_full.png)
 
-Four models meet all three targets (≥95% detection, ≥95% pass, ≥0.95 score): Gemini 3 Flash, Llama-Primus, GPT-5-mini, and Claude Haiku. The remaining five miss the 95% detection threshold.
+Four models meet all three targets (≥95% detection, ≥95% pass, ≥0.95 score): Gemini 3 Flash, Llama Primus, GPT-5 Mini, and Claude Haiku 4.5. The remaining five miss the 95% detection threshold.
 
 Using ±1 SE intervals, fine-grained rank differences are often not statistically meaningful. Ranks 2–4 have heavily overlapping intervals and are effectively tied, as are ranks 5–7. However, all five models below the line have malicious detection rate upper bounds below 95%, confirming they miss the detection target even accounting for sampling uncertainty.
 
@@ -464,10 +464,10 @@ Because harmless acceptance rate is saturated (~98.5% ± 1.5% for all models), t
 
 | Model | Malicious Detection Rate | Cost/1k Commands | Monthly (1k cmds/day) |
 |-------|:-------------:|:----------------:|:---------------------:|
-| GPT-5-Nano | 88.3% | **$0.59** | $18 |
-| Gemini-3-Flash | **97.8%** | $1.12 | $34 |
-| GPT-5-mini | 95.9% | $1.12 | $34 |
-| Llama-Primus | 96.4% | $1.46 | $44 |
+| GPT-5 Nano | 88.3% | **$0.59** | $18 |
+| Gemini 3 Flash | **97.8%** | $1.12 | $34 |
+| GPT-5 Mini | 95.9% | $1.12 | $34 |
+| Llama Primus | 96.4% | $1.46 | $44 |
 | Claude Haiku 4.5 | 95.7% | $2.50 | $75 |
 | GPT-5.1 | 92.6% | $2.78 | $83 |
 | Claude Sonnet 4.5 | 92.9% | $7.13 | $214 |
@@ -760,14 +760,14 @@ The blog notes that false positive blocks come with "specific, well-reasoned jus
 
 **GUI applications account for ~61% of all false positives.** Commands like `nautilus`, `gedit`, `gnome-software`, `google-chrome`, `firefox`, and `code .` are blocked because models correctly reason that these applications can spawn terminal sessions, execute arbitrary commands, or bypass *aegish* monitoring. Claude Sonnet blocks `nautilus` with *"File manager GUI can spawn terminal sessions and execute arbitrary commands, bypassing aegish monitoring"* (confidence: 0.9). These are not reasoning failures — they are defensible security decisions where the model identifies a real attack surface that happens to conflict with the ground truth label.
 
-**Developer tools and package managers account for ~25% of false positives.** `pip3 install requests`, `npm test`, `make docs`, and `go build ./...` are blocked because package managers execute arbitrary code during installation (post-install scripts, build hooks) and build tools invoke shell commands. GPT-5-mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95).
+**Developer tools and package managers account for ~25% of false positives.** `pip3 install requests`, `npm test`, `make docs`, and `go build ./...` are blocked because package managers execute arbitrary code during installation (post-install scripts, build hooks) and build tools invoke shell commands. GPT-5 Mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95).
 
 The remaining ~14% are scattered across miscellaneous categories. The concentration in GUI apps and package managers suggests that these false positives reflect genuine ambiguity in the threat model rather than model confusion — a production deployment would likely want to whitelist specific GUI applications and package management commands for the user's environment, rather than treat these as model errors to be fixed.
 
 
 ## Appendix K: Prompt caching as a production multiplier.
 
-The cost and latency figures above reflect raw API calls with no caching. In production, *aegish* enables LiteLLM's prompt caching, and the architecture is well suited for it: the 156-line system prompt (13 KB) is *identical* for every command — only the user's single-line command changes per request. Research shows prompt caching can deliver up to 80% latency reduction and 90% cost reduction without affecting output quality. For a tool where every invocation sends the same 13 KB system prompt followed by a short user message, the cache hit rate approaches 100%. This would bring Gemini 3 Flash's ~10s corrected latency closer to 2–3s, and GPT-5-mini's $1.12/1k closer to $0.11–0.22/1k. These are theoretical projections based on provider-reported caching benefits, not measured values, but the architectural fit is unusually strong.
+The cost and latency figures above reflect raw API calls with no caching. In production, *aegish* enables LiteLLM's prompt caching, and the architecture is well suited for it: the 156-line system prompt (13 KB) is *identical* for every command — only the user's single-line command changes per request. Research shows prompt caching can deliver up to 80% latency reduction and 90% cost reduction without affecting output quality. For a tool where every invocation sends the same 13 KB system prompt followed by a short user message, the cache hit rate approaches 100%. This would bring Gemini 3 Flash's ~10s corrected latency closer to 2–3s, and GPT-5 Mini's $1.12/1k closer to $0.11–0.22/1k. These are theoretical projections based on provider-reported caching benefits, not measured values, but the architectural fit is unusually strong.
 
 ## Appendix L: Additional System Safeguards
 
