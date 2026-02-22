@@ -175,16 +175,17 @@ ALLOWED_ENV_PREFIXES = ("LC_", "XDG_", "AEGISH_")
 # =============================================================================
 
 # Meta-execution builtins that can run arbitrary commands (Story 10.2)
-META_EXEC_BUILTINS = {"eval", "source", "."}
+META_EXEC_BUILTINS = {"eval", "source", ".", "exec"}
 
 # Static regex blocklist for known dangerous patterns (Story 10.5).
 # Each tuple is (compiled_regex, human_reason).
 STATIC_BLOCK_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"/dev/tcp/"), "Reverse shell via /dev/tcp"),
+    (re.compile(r"/dev/udp/"), "Reverse shell via /dev/udp"),
     (re.compile(r"\bnc\b.*\s-e\s"), "Reverse shell via nc -e"),
     (re.compile(r"\bncat\b.*\s-e\s"), "Reverse shell via ncat -e"),
-    (re.compile(r"\brm\s+-[^\s]*r[^\s]*f[^\s]*\s+/\*?\s*$"), "Destructive rm -rf /"),
-    (re.compile(r"\brm\s+-[^\s]*f[^\s]*r[^\s]*\s+/\*?\s*$"), "Destructive rm -fr /"),
+    (re.compile(r"\brm\s+-[^\s]*r[^\s]*f[^\s]*\s+/(?:\s|$|\*)"), "Destructive rm -rf /"),
+    (re.compile(r"\brm\s+-[^\s]*f[^\s]*r[^\s]*\s+/(?:\s|$|\*)"), "Destructive rm -fr /"),
     (re.compile(r"\bmkfs\b"), "Filesystem format via mkfs"),
     (re.compile(r":\(\)\s*\{"), "Fork bomb"),
 ]

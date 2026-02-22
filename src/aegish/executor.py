@@ -196,6 +196,43 @@ def resolve_cd(
     return resolved, None
 
 
+def execute_for_resolution(
+    command: str,
+    env: dict[str, str] | None = None,
+    cwd: str | None = None,
+    timeout: int = 3,
+) -> subprocess.CompletedProcess:
+    """Execute a command to capture its output for substitution resolution.
+
+    Uses the SAME environment as normal execution: same shell binary,
+    same env dict, same cwd, same sandbox (Landlock + NO_NEW_PRIVS in
+    production). Captures stdout with a short timeout.
+
+    Args:
+        command: The inner command to execute.
+        env: Environment dict. If None, builds safe env.
+        cwd: Working directory. If None, uses os.getcwd().
+        timeout: Maximum execution time in seconds.
+
+    Returns:
+        CompletedProcess with stdout, stderr, and returncode.
+    """
+    if env is None:
+        env = _build_safe_env()
+    if cwd is None:
+        cwd = os.getcwd()
+
+    return subprocess.run(
+        [_get_shell_binary(), "--norc", "--noprofile", "-c", command],
+        env=env,
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        **_sandbox_kwargs(),
+    )
+
+
 def run_bash_command(command: str) -> subprocess.CompletedProcess:
     """Run a command through bash -c with captured output.
 

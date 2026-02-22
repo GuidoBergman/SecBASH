@@ -33,6 +33,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "bashlex" },
+    { name = "braceexpand" },
     { name = "litellm" },
     { name = "typer" },
 ]
@@ -57,6 +58,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "bashlex", specifier = ">=0.18,<1.0" },
+    { name = "braceexpand", specifier = ">=0.1.7" },
     { name = "litellm", specifier = ">=1.81.0,<2.0.0" },
     { name = "typer", specifier = ">=0.9.0" },
 ]
@@ -382,6 +384,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/28/a3/81d3a47c2dbfd76f185d3b894f2ad01a75096c006a2dd91f237dca182188/botocore-1.40.61.tar.gz", hash = "sha256:a2487ad69b090f9cccd64cf07c7021cd80ee9c0655ad974f87045b02f3ef52cd", size = 14393956, upload-time = "2025-10-28T19:26:46.108Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/38/c5/f6ce561004db45f0b847c2cd9b19c67c6bf348a82018a48cb718be6b58b0/botocore-1.40.61-py3-none-any.whl", hash = "sha256:17ebae412692fd4824f99cde0f08d50126dc97954008e5ba2b522eb049238aa7", size = 14055973, upload-time = "2025-10-28T19:26:42.15Z" },
+]
+
+[[package]]
+name = "braceexpand"
+version = "0.1.7"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/54/93/badd4f5ccf25209f3fef2573073da9fe4a45a3da99fca2f800f942130c0f/braceexpand-0.1.7.tar.gz", hash = "sha256:e6e539bd20eaea53547472ff94f4fb5c3d3bf9d0a89388c4b56663aba765f705", size = 7777, upload-time = "2021-05-07T13:49:07.323Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fa/93/e8c04e80e82391a6e51f218ca49720f64236bc824e92152a2633b74cf7ab/braceexpand-0.1.7-py2.py3-none-any.whl", hash = "sha256:91332d53de7828103dcae5773fb43bc34950b0c8160e35e0f44c4427a3b85014", size = 5923, upload-time = "2021-05-07T13:49:05.146Z" },
 ]
 
 [[package]]

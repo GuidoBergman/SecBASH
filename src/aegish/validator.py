@@ -2,15 +2,25 @@
 
 Validates commands using the LLM client and returns
 security decisions (allow, warn, or block).
+
+Pipeline:
+1. Canonicalize (text transforms, no execution)
+2. Static blocklist (on canonical text + brace variants)
+3. Bashlex AST analysis (variable-in-command-position)
+4. Compound command decomposition
+5. Resolve command substitutions (recursive, depth-limited)
+6. LLM with enriched context
 """
 
 import logging
 
 import bashlex
 
+from aegish.canonicalizer import canonicalize
 from aegish.config import get_var_cmd_action
 from aegish.constants import ACTION_SEVERITY, META_EXEC_BUILTINS, STATIC_BLOCK_PATTERNS
 from aegish.llm_client import query_llm
+from aegish.resolver import resolve_substitutions
 
 logger = logging.getLogger(__name__)
 
@@ -23,17 +33,19 @@ _ACTION_SEVERITY = ACTION_SEVERITY
 # ---- Primary public API ----
 
 
-def validate_command(command: str) -> dict:
-    """Validate a command using the LLM.
+def validate_command(command: str, _depth: int = 0) -> dict:
+    """Validate a command using canonicalization, static checks, and LLM.
 
     Args:
         command: The shell command to validate.
+        _depth: Internal recursion depth (for resolver callbacks).
 
     Returns:
         dict with keys:
             - action: "allow" | "warn" | "block"
             - reason: Human-readable explanation
             - confidence: float 0.0 - 1.0
+            - resolved_command: Canonical/resolved text (when LLM used)
     """
     if not command or not command.strip():
         return {
@@ -42,23 +54,53 @@ def validate_command(command: str) -> dict:
             "confidence": 1.0,
         }
 
-    # Static blocklist check (Story 10.5) — fastest, runs first
-    blocklist_result = _check_static_blocklist(command)
-    if blocklist_result is not None:
-        return blocklist_result
+    # 1. Canonicalize
+    canonical = canonicalize(command)
 
-    # Bashlex AST check for variable-in-command-position
-    bashlex_result = _check_variable_in_command_position(command)
+    # 2. Static blocklist — on canonical text AND all brace variants
+    for text in [canonical.text] + canonical.variants:
+        blocklist_result = _check_static_blocklist(text)
+        if blocklist_result is not None:
+            return blocklist_result
+
+    # 3. Bashlex AST check for variable-in-command-position
+    parse_unreliable = len(canonical.annotations) > 0
+    bashlex_result = _check_variable_in_command_position(canonical.text)
     if bashlex_result is not None:
-        return bashlex_result
+        if isinstance(bashlex_result, dict) and bashlex_result.pop("_parse_failed", False):
+            parse_unreliable = True
+        else:
+            return bashlex_result
 
-    # Recursive decomposition for compound commands (Story 10.4)
-    decomposed = _decompose_and_validate(command)
+    # 4. Recursive decomposition for compound commands (Story 10.4)
+    decomposed = _decompose_and_validate(canonical.text, _depth=_depth)
     if decomposed is not None:
         return decomposed
 
-    # Single-pass LLM fallback
-    return query_llm(command)
+    # 5. Resolve command substitutions (recursive, depth-limited)
+    resolved_text = canonical.text
+    resolution_log = []
+    if _depth < 2 and "$(" in canonical.text:
+        resolved_text, resolution_log = resolve_substitutions(
+            canonical.text,
+            depth=_depth,
+            max_depth=2,
+            timeout=3,
+        )
+
+    # 6. LLM with enriched context
+    llm_result = query_llm(
+        resolved_command=resolved_text,
+        original_command=command,
+        resolution_log=resolution_log,
+        here_strings=canonical.here_strings,
+        annotations=canonical.annotations,
+        parse_unreliable=parse_unreliable,
+    )
+
+    # Attach resolved command for shell execution
+    llm_result["resolved_command"] = resolved_text
+    return llm_result
 
 
 # ---- Fast path: static blocklist ----
@@ -117,7 +159,8 @@ def _check_variable_in_command_position(command: str) -> dict | None:
                 "confidence": 1.0,
             }
     except Exception:
-        logger.debug("bashlex analysis failed for command: %s", command)
+        logger.debug("bashlex analysis failed for: %s", command)
+        return {"_parse_failed": True}
 
     return None
 
@@ -125,7 +168,7 @@ def _check_variable_in_command_position(command: str) -> dict | None:
 # ---- Compound command handling ----
 
 
-def _decompose_and_validate(command: str) -> dict | None:
+def _decompose_and_validate(command: str, _depth: int = 0) -> dict | None:
     """Decompose compound commands and validate subcommands independently.
 
     For compound commands (;, &&, ||): splits into subcommands and validates
@@ -164,7 +207,7 @@ def _decompose_and_validate(command: str) -> dict | None:
     for sub in subcommands:
         # Run each subcommand through the full validation pipeline
         # (static blocklist + bashlex + LLM)
-        result = validate_command(sub)
+        result = validate_command(sub, _depth=_depth)
         results.append(result)
 
         # Early exit on BLOCK
@@ -343,6 +386,7 @@ def _extract_subcommand_strings(command: str) -> list[str] | None:
     try:
         parts = bashlex.parse(command)
     except Exception:
+        logger.debug("bashlex decomposition failed for: %s", command)
         return None
 
     subcommands = []
@@ -393,6 +437,7 @@ def _has_command_substitution_in_exec_pos(command: str) -> str | None:
     try:
         parts = bashlex.parse(command)
     except Exception:
+        logger.debug("bashlex cmdsub detection failed for: %s", command)
         return None
 
     def _check_nodes(nodes):

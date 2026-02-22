@@ -28,8 +28,13 @@ class TestValidateCommand:
         with patch("aegish.validator.query_llm", return_value=mock_result) as mock_query:
             result = validate_command("ls -la")
 
-            mock_query.assert_called_once_with("ls -la")
-            assert result == mock_result
+            mock_query.assert_called_once()
+            call_kwargs = mock_query.call_args.kwargs
+            assert call_kwargs["resolved_command"] == "ls -la"
+            assert call_kwargs["original_command"] == "ls -la"
+            assert result["action"] == mock_result["action"]
+            assert result["reason"] == mock_result["reason"]
+            assert result["confidence"] == mock_result["confidence"]
 
     def test_validate_command_returns_llm_response(self):
         """Confirms return value matches query_llm() result."""
@@ -111,10 +116,11 @@ class TestCheckVariableInCommandPosition:
         result = _check_variable_in_command_position("export PATH=$PATH:/usr/local/bin")
         assert result is None
 
-    def test_parse_error_returns_none(self):
-        """AC4: Unparseable syntax → None (graceful fallback)."""
+    def test_parse_error_returns_parse_failed(self):
+        """AC4: Unparseable syntax → _parse_failed sentinel (not silently None)."""
         result = _check_variable_in_command_position("if [[ $x ==")
-        assert result is None
+        assert isinstance(result, dict)
+        assert result.get("_parse_failed") is True
 
     def test_var_in_pipeline_command_pos_blocks(self):
         """Edge case 3.2: echo hello | $CMD → BLOCK (default action, var in command pos in pipeline)."""
@@ -154,14 +160,15 @@ class TestCheckVariableInCommandPosition:
         assert result is not None
         assert result["action"] == "block"
 
-    def test_ast_walking_error_returns_none(self):
-        """AST walking error → None (graceful fallback, not just parse errors)."""
+    def test_ast_walking_error_returns_parse_failed(self):
+        """AST walking error → _parse_failed sentinel (not silently None)."""
         with patch(
             "aegish.validator._find_var_in_command_position",
             side_effect=AttributeError("unexpected"),
         ):
             result = _check_variable_in_command_position("a=ba; b=sh; $a$b")
-            assert result is None
+            assert isinstance(result, dict)
+            assert result.get("_parse_failed") is True
 
 
 class TestValidateCommandBashlex:

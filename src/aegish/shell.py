@@ -142,10 +142,11 @@ def run_shell() -> int:
 
             if result["action"] == "allow":
                 log_validation(command, "allow", result["reason"], result.get("confidence", 0.0))
-                # Execute the command with state persistence
+                # Execute the canonical/resolved form (not raw input)
+                exec_cmd = result.get("resolved_command", command)
                 last_exit_code, current_dir, previous_dir, env = (
                     _execute_and_update(
-                        command, last_exit_code,
+                        exec_cmd, last_exit_code,
                         current_dir, previous_dir, env,
                     )
                 )
@@ -162,10 +163,11 @@ def run_shell() -> int:
                     response = input("Proceed anyway? [y/N]: ").strip().lower()
                     if response in ("y", "yes"):
                         log_warn_override(command, result["reason"])
-                        # User confirmed, execute the command
+                        # User confirmed, execute canonical form
+                        exec_cmd = result.get("resolved_command", command)
                         last_exit_code, current_dir, previous_dir, env = (
                             _execute_and_update(
-                                command, last_exit_code,
+                                exec_cmd, last_exit_code,
                                 current_dir, previous_dir, env,
                             )
                         )
@@ -186,9 +188,10 @@ def run_shell() -> int:
                 try:
                     response = input("Proceed anyway? [y/N]: ").strip().lower()
                     if response in ("y", "yes"):
+                        exec_cmd = result.get("resolved_command", command)
                         last_exit_code, current_dir, previous_dir, env = (
                             _execute_and_update(
-                                command, last_exit_code,
+                                exec_cmd, last_exit_code,
                                 current_dir, previous_dir, env,
                             )
                         )

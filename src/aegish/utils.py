@@ -46,21 +46,28 @@ if _envsubst_path is None:
 
 
 def escape_command_tags(command: str) -> str:
-    """Escape COMMAND XML tags in user input to prevent tag injection.
+    """Escape XML tags used in LLM prompts to prevent tag injection.
 
-    Replaces literal <COMMAND> and </COMMAND> with backslash-escaped
-    versions so an attacker cannot prematurely close the COMMAND block
-    and inject instructions outside it.
+    Replaces literal opening/closing tags with backslash-escaped versions
+    so an attacker cannot prematurely close a structured block and inject
+    instructions outside it.
 
     Args:
         command: Raw command string.
 
     Returns:
-        Command with COMMAND tags escaped.
+        Command with all prompt-used XML tags escaped.
     """
-    return command.replace("</COMMAND>", r"<\/COMMAND>").replace(
-        "<COMMAND>", r"<\/COMMAND>"
-    )
+    # All XML tag names used in _get_messages_for_model / _build_resolution_context
+    for tag in (
+        "COMMAND", "SCRIPT_CONTENTS",
+        "RESOLVED_SUBSTITUTION", "UNRESOLVED_SUBSTITUTION",
+        "HERE_STRING_CONTENT", "ANALYSIS_FLAGS",
+    ):
+        command = command.replace(f"</{tag}>", f"<\\/{tag}>")
+        command = command.replace(f"<{tag}>", f"<\\/{tag}>")
+        command = command.replace(f"<{tag} ", f"<\\/{tag} ")
+    return command
 
 
 # =============================================================================
