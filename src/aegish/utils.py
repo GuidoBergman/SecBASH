@@ -434,6 +434,22 @@ def detect_script_files(command: str) -> list[tuple[str, str]]:
         results.append(read_script_file(first_token))
         return results
 
+    # --- Case 3: Bare script name (CWD or $PATH) ---
+    # Handles: a.sh, myscript.py — scripts without ./ or / prefix
+    # that bash resolves from the current directory or $PATH.
+    if os.path.isfile(first_token):
+        # CWD file: always read — read_script_file returns a [binary file]
+        # note for binaries, which still alerts the LLM. Skipping would let
+        # an attacker inject a NUL byte to evade inspection entirely.
+        results.append(read_script_file(first_token))
+        return results
+
+    which_result = shutil.which(first_token)
+    if which_result and not is_binary_file(which_result):
+        # $PATH file: skip binaries to avoid sending /usr/bin/ls etc. to LLM
+        results.append(read_script_file(which_result))
+        return results
+
     return results
 
 

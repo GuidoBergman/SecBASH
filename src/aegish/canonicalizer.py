@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 # Maximum number of brace expansion variants before annotating
 _BRACE_VARIANT_LIMIT = 64
 
+# Maximum number of glob matches per token before truncating
+_GLOB_MATCH_LIMIT = 64
+
 
 @dataclass
 class CanonicalResult:
@@ -64,7 +67,7 @@ def canonicalize(command: str) -> CanonicalResult:
     )
 
     # Step 5: Glob resolution
-    result.text = _resolve_globs(result.text)
+    result.text = _resolve_globs(result.text, result.annotations)
 
     # Step 6: Here-string extraction
     result.here_strings = _extract_here_strings(result.text)
@@ -127,9 +130,15 @@ def _resolve_single_ansi_c(m: re.Match) -> str:
     """Resolve a single $'...' string to its literal content."""
     body = m.group(1)
     try:
-        return _ANSI_ESCAPE_RE.sub(_decode_ansi_escape, body)
+        resolved = _ANSI_ESCAPE_RE.sub(_decode_ansi_escape, body)
     except (ValueError, OverflowError):
         return m.group(0)  # Return original on failure
+    # If resolved content contains shell expansion chars ($ or `),
+    # wrap in single quotes to preserve ANSI-C literal semantics.
+    if "$" in resolved or "`" in resolved:
+        escaped = resolved.replace("'", "'\\''")
+        return f"'{escaped}'"
+    return resolved
 
 
 def _resolve_ansi_c_quotes(text: str, annotations: list[str]) -> str:
@@ -231,11 +240,15 @@ def _expand_braces(
 _GLOB_META_RE = re.compile(r"[\*\?\[]")
 
 
-def _resolve_globs(text: str) -> str:
+def _resolve_globs(text: str, annotations: list[str]) -> str:
     """Resolve glob patterns to matched filesystem paths.
 
     Only resolves tokens that contain glob metacharacters and produce
     matches. Non-matching globs are left as-is (bash behavior).
+
+    If a single glob token matches more than _GLOB_MATCH_LIMIT paths,
+    the expansion is truncated and an annotation is added so the LLM
+    knows the full scope of the expansion.
     """
     if not _GLOB_META_RE.search(text):
         return text
@@ -251,6 +264,14 @@ def _resolve_globs(text: str) -> str:
         if _GLOB_META_RE.search(token):
             matches = sorted(glob_mod.glob(token))
             if matches:
+                if len(matches) > _GLOB_MATCH_LIMIT:
+                    annotations.append(
+                        f"GLOB_EXPANSION_CAPPED: '{token}' matched "
+                        f"{len(matches)} paths, showing first "
+                        f"{_GLOB_MATCH_LIMIT}. The actual command "
+                        f"will operate on ALL {len(matches)} paths."
+                    )
+                    matches = matches[:_GLOB_MATCH_LIMIT]
                 resolved_tokens.extend(matches)
                 changed = True
             else:

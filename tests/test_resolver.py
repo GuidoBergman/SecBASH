@@ -55,6 +55,53 @@ class TestExtractSubstitutions:
         assert len(result) == 1
         assert result[0] == ("$()", "")
 
+    def test_arithmetic_not_extracted(self):
+        """$((1+2)) is arithmetic expansion, not command substitution."""
+        result = _extract_innermost_substitutions("echo $((1+2))")
+        assert result == []
+
+    def test_arithmetic_with_real_substitution(self):
+        """Mixed arithmetic + real substitution: only the real one extracted."""
+        result = _extract_innermost_substitutions("echo $((1+2)) $(whoami)")
+        assert len(result) == 1
+        assert result[0] == ("$(whoami)", "whoami")
+
+    def test_single_quoted_not_extracted(self):
+        """$() inside single quotes is literal, not a substitution."""
+        result = _extract_innermost_substitutions("echo '$(cmd)'")
+        assert result == []
+
+    def test_single_quoted_with_real_sibling(self):
+        """Single-quoted $() ignored but real sibling extracted."""
+        result = _extract_innermost_substitutions("echo '$(fake)' $(real)")
+        assert len(result) == 1
+        assert result[0] == ("$(real)", "real")
+
+    def test_escaped_dollar_not_extracted(self):
+        r"""Escaped \$ is literal, not a substitution."""
+        result = _extract_innermost_substitutions("echo \\$(cmd)")
+        assert result == []
+
+    def test_double_quoted_substitution_extracted(self):
+        """$() inside double quotes IS a real substitution."""
+        result = _extract_innermost_substitutions('echo "$(cmd)"')
+        assert len(result) == 1
+        assert result[0][1] == "cmd"
+
+    def test_obfuscated_dollar_single_quote_paren(self):
+        """$''(cmd) — dollar + empty ANSI-C quote + paren is NOT a substitution."""
+        result = _extract_innermost_substitutions("$''(cmd)")
+        # $'' is ANSI-C quoting (empty string), (cmd) is a subshell — not $()
+        patterns = [r[0] for r in result]
+        assert "$(cmd)" not in patterns
+
+    def test_fallback_on_bashlex_error(self):
+        """When bashlex fails, the fallback scanner is used."""
+        with patch("aegish.resolver.bashlex.parse", side_effect=Exception("parse fail")):
+            result = _extract_innermost_substitutions("echo $(whoami)")
+        assert len(result) == 1
+        assert result[0] == ("$(whoami)", "whoami")
+
 
 class TestResolveSubstitutions:
     """Tests for the resolution pipeline."""

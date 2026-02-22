@@ -61,6 +61,43 @@ class TestAnsiCQuotes:
         _resolve_ansi_c_quotes("$'incomplete", annotations)
         assert "ANSI_C_PARTIAL" in annotations
 
+    def test_ansi_c_preserves_literal_dollar(self):
+        """$'$(whoami)' is literal text — must not become bare $(whoami)."""
+        annotations = []
+        result = _resolve_ansi_c_quotes("$'$(whoami)'", annotations)
+        assert result == "'$(whoami)'"
+
+    def test_ansi_c_preserves_literal_backtick(self):
+        """`whoami` inside $'...' is literal — must not become bare backticks."""
+        annotations = []
+        result = _resolve_ansi_c_quotes("$'`whoami`'", annotations)
+        assert result == "'`whoami`'"
+
+    def test_ansi_c_hex_dollar_preserved(self):
+        r"""$'\x24(cmd)' resolves \x24 to $ then wraps to preserve literalness."""
+        annotations = []
+        result = _resolve_ansi_c_quotes(r"$'\x24(cmd)'", annotations)
+        assert result == "'$(cmd)'"
+
+    def test_ansi_c_no_quoting_for_safe_content(self):
+        r"""$'\x72\x6d' → rm — no wrapping needed for safe resolved content."""
+        annotations = []
+        result = _resolve_ansi_c_quotes(r"$'\x72\x6d'", annotations)
+        assert result == "rm"
+
+    def test_ansi_c_single_quote_in_body(self):
+        r"""Resolved content with both $ and ' uses '\'' escape idiom."""
+        annotations = []
+        # \x24 = $, \x27 = '
+        result = _resolve_ansi_c_quotes(r"$'\x24\x27test'", annotations)
+        assert result == "'" + "$" + "'\\''" + "test" + "'"
+
+    def test_ansi_c_does_not_enable_substitution(self):
+        """Full pipeline: echo $'$(whoami)' must not contain bare $(whoami)."""
+        result = canonicalize("echo $'$(whoami)'")
+        # The canonical text must not have bare $(whoami) — it should be quoted
+        assert "$(whoami)" not in result.text or "'$(whoami)'" in result.text
+
 
 class TestQuoteNormalization:
     """Tests for shell quote normalization."""
@@ -155,17 +192,57 @@ class TestGlobResolution:
         """Glob matching existing files resolves to paths."""
         (tmp_path / "test.txt").write_text("hello")
         pattern = str(tmp_path / "*.txt")
-        result = _resolve_globs(f"cat {pattern}")
+        annotations = []
+        result = _resolve_globs(f"cat {pattern}", annotations)
         assert str(tmp_path / "test.txt") in result
+        assert annotations == []
 
     def test_no_match_passthrough(self):
         """Glob with no matches keeps original pattern."""
-        result = _resolve_globs("cat /nonexistent_dir_xyz_123/*.txt")
+        annotations = []
+        result = _resolve_globs("cat /nonexistent_dir_xyz_123/*.txt", annotations)
         assert "/nonexistent_dir_xyz_123/*.txt" in result
 
     def test_no_globs_passthrough(self):
-        result = _resolve_globs("echo hello")
+        annotations = []
+        result = _resolve_globs("echo hello", annotations)
         assert result == "echo hello"
+
+    def test_glob_expansion_capped(self, tmp_path):
+        """Glob exceeding _GLOB_MATCH_LIMIT is truncated with annotation."""
+        from aegish.canonicalizer import _GLOB_MATCH_LIMIT
+
+        # Create more files than the limit
+        num_files = _GLOB_MATCH_LIMIT + 20
+        for i in range(num_files):
+            (tmp_path / f"file_{i:04d}.dat").write_text("")
+        pattern = str(tmp_path / "*.dat")
+        annotations = []
+        result = _resolve_globs(f"rm {pattern}", annotations)
+
+        # Should have exactly one annotation about capping
+        assert len(annotations) == 1
+        assert "GLOB_EXPANSION_CAPPED" in annotations[0]
+        assert str(num_files) in annotations[0]
+
+        # Result should contain only _GLOB_MATCH_LIMIT paths (plus "rm")
+        import shlex
+        tokens = shlex.split(result)
+        # First token is "rm", rest are expanded paths
+        assert len(tokens) == _GLOB_MATCH_LIMIT + 1
+
+    def test_glob_under_limit_no_annotation(self, tmp_path):
+        """Glob within limit expands fully without annotation."""
+        for i in range(5):
+            (tmp_path / f"f{i}.txt").write_text("")
+        pattern = str(tmp_path / "*.txt")
+        annotations = []
+        result = _resolve_globs(f"ls {pattern}", annotations)
+
+        assert annotations == []
+        import shlex
+        tokens = shlex.split(result)
+        assert len(tokens) == 6  # "ls" + 5 files
 
 
 class TestHereStringExtraction:

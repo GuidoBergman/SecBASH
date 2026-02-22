@@ -10,8 +10,9 @@ annotated but not executed.
 """
 
 import logging
-import re
 from dataclasses import dataclass
+
+import bashlex
 
 logger = logging.getLogger(__name__)
 
@@ -151,24 +152,108 @@ def resolve_substitutions(
     return resolved, log
 
 
-def _extract_innermost_substitutions(
-    text: str,
-) -> list[tuple[str, str]]:
-    """Extract innermost $(...) substitutions from text.
+def _contains_cmdsub(node) -> bool:
+    """Check if any descendant of a bashlex AST node is a commandsubstitution."""
+    if node.kind == "commandsubstitution":
+        return True
+    for attr in ("parts", "list"):
+        children = getattr(node, attr, None)
+        if children:
+            for child in children:
+                if _contains_cmdsub(child):
+                    return True
+    command = getattr(node, "command", None)
+    if command and _contains_cmdsub(command):
+        return True
+    return False
 
-    Uses a balanced-parenthesis scanner to correctly handle nested
-    substitutions. Returns innermost patterns first for bottom-up
-    resolution.
+
+def _collect_innermost_cmdsubs(node, results: list) -> None:
+    """Walk a bashlex AST and collect innermost commandsubstitution nodes."""
+    if node.kind == "commandsubstitution":
+        # Innermost if .command subtree has no further commandsubstitution
+        command = getattr(node, "command", None)
+        if not command or not _contains_cmdsub(command):
+            results.append(node)
+            return
+    # Recurse into children
+    for attr in ("parts", "list"):
+        children = getattr(node, attr, None)
+        if children:
+            for child in children:
+                _collect_innermost_cmdsubs(child, results)
+    command = getattr(node, "command", None)
+    if command:
+        _collect_innermost_cmdsubs(command, results)
+
+
+def _extract_via_bashlex(text: str) -> list[tuple[str, str]]:
+    """Extract innermost $() substitutions using bashlex AST.
+
+    Raises on parse error — caller should catch and fall back.
+    """
+    parts = bashlex.parse(text)
+    cmdsub_nodes: list = []
+    for p in parts:
+        _collect_innermost_cmdsubs(p, cmdsub_nodes)
+
+    results = []
+    for node in cmdsub_nodes:
+        s, e = node.pos
+        # bashlex sometimes excludes the closing ) from pos
+        if e < len(text) and text[e] == ")" and (e == s or text[e - 1] != ")"):
+            e += 1
+        full_pattern = text[s:e]
+        inner_command = text[s + 2:e - 1]
+        results.append((full_pattern, inner_command))
+    return results
+
+
+def _extract_via_scanner(text: str) -> list[tuple[str, str]]:
+    """Fallback: extract innermost $() using balanced-paren scanner.
+
+    Used when bashlex cannot parse the input (arithmetic expansion,
+    escaped dollar signs, bare parens, empty substitution, etc.).
+    Tracks top-level quoting and escaping to avoid false extractions.
 
     Returns:
         List of (full_pattern, inner_command) tuples.
-        full_pattern includes "$(" and ")".
     """
     results = []
     i = 0
+    outer_in_single_quote = False
+    outer_in_double_quote = False
+
     while i < len(text) - 1:
+        ch = text[i]
+
+        # Track top-level quoting
+        if ch == "'" and not outer_in_double_quote:
+            outer_in_single_quote = not outer_in_single_quote
+            i += 1
+            continue
+        if ch == '"' and not outer_in_single_quote:
+            outer_in_double_quote = not outer_in_double_quote
+            i += 1
+            continue
+
+        # Skip everything inside single quotes
+        if outer_in_single_quote:
+            i += 1
+            continue
+
         # Find $( start
-        if text[i] == "$" and text[i + 1] == "(":
+        if ch == "$" and text[i + 1] == "(":
+            # Skip escaped $
+            if i > 0 and text[i - 1] == "\\":
+                i += 1
+                continue
+
+            # Skip arithmetic expansion $((
+            if i + 2 < len(text) and text[i + 2] == "(":
+                i += 3
+                continue
+
             start = i
             # Scan for balanced closing paren
             depth = 0
@@ -176,7 +261,7 @@ def _extract_innermost_substitutions(
             in_single_quote = False
             in_double_quote = False
             while j < len(text):
-                ch = text[j]
+                ch2 = text[j]
 
                 # Handle escapes
                 if j > 0 and text[j - 1] == "\\":
@@ -184,14 +269,14 @@ def _extract_innermost_substitutions(
                     continue
 
                 # Track quoting context
-                if ch == "'" and not in_double_quote:
+                if ch2 == "'" and not in_double_quote:
                     in_single_quote = not in_single_quote
-                elif ch == '"' and not in_single_quote:
+                elif ch2 == '"' and not in_single_quote:
                     in_double_quote = not in_double_quote
                 elif not in_single_quote and not in_double_quote:
-                    if ch == "(":
+                    if ch2 == "(":
                         depth += 1
-                    elif ch == ")":
+                    elif ch2 == ")":
                         depth -= 1
                         if depth == 0:
                             # Found the matching close paren
@@ -211,3 +296,28 @@ def _extract_innermost_substitutions(
         i += 1
 
     return results
+
+
+def _extract_innermost_substitutions(
+    text: str,
+) -> list[tuple[str, str]]:
+    """Extract innermost $(...) substitutions from text.
+
+    Uses bashlex as primary parser for correct handling of quoting,
+    nesting, and escaping. Falls back to a balanced-parenthesis scanner
+    when bashlex cannot parse the input (arithmetic expansion, escaped
+    dollar signs, bare parens, empty substitution, etc.).
+
+    Returns:
+        List of (full_pattern, inner_command) tuples.
+        full_pattern includes "$(" and ")".
+    """
+    try:
+        return _extract_via_bashlex(text)
+    except Exception:
+        logger.debug(
+            "bashlex parse failed for substitution extraction, "
+            "using fallback scanner: %s",
+            text,
+        )
+        return _extract_via_scanner(text)
