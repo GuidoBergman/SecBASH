@@ -1,0 +1,39 @@
+rules:
+  - id: aegish-unvalidated-execution
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run($CMD, ...)
+          - pattern: subprocess.Popen($CMD, ...)
+          - pattern: subprocess.call($CMD, ...)
+          - pattern: subprocess.check_call($CMD, ...)
+          - pattern: subprocess.check_output($CMD, ...)
+          - pattern: os.system($CMD)
+          - pattern: os.popen($CMD)
+          - pattern: os.exec($CMD)
+          - pattern: os.execv($CMD, ...)
+          - pattern: os.execve($CMD, ...)
+          - pattern: os.execvp($CMD, ...)
+    message: >
+      Direct subprocess/os execution found outside the executor module.
+      In aegish, ALL command execution must go through executor.py's
+      execute_command() or execute_for_resolution() functions, which
+      apply the sandbox (LD_PRELOAD, NO_NEW_PRIVS) and safe environment.
+      Direct subprocess calls bypass validation and sandboxing.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: command-injection
+      confidence: MEDIUM
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      impact: HIGH
+      likelihood: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/78.html
+    paths:
+      exclude:
+        - "**/executor.py"
+        - "**/test_*"
+        - "**/tests/*"
+        - "**/benchmark/*"

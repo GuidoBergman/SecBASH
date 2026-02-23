@@ -1,0 +1,108 @@
+rules:
+  - id: aegish-execute-without-validate
+    patterns:
+      - pattern: |
+          execute_command($CMD, ...)
+      - pattern-not-inside: |
+          $RESULT = validate_command(...)
+          ...
+          execute_command($CMD, ...)
+      - pattern-not-inside: |
+          def execute_command(...):
+              ...
+      - pattern-not-inside: |
+          def _execute_sudo_sandboxed(...):
+              ...
+    message: >
+      execute_command() is called without a preceding validate_command()
+      call in the same code path. In aegish, every user command must be
+      validated before execution. Any code path that calls
+      execute_command() without first obtaining a validation result
+      represents a validation bypass.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: authorization-bypass
+      confidence: LOW
+      cwe:
+        - "CWE-862: Missing Authorization"
+      impact: HIGH
+      likelihood: LOW
+    paths:
+      exclude:
+        - "**/executor.py"
+        - "**/test_*"
+        - "**/tests/*"
+
+  - id: aegish-env-var-security-config-bypass
+    pattern: os.environ.get("AEGISH_FAIL_MODE", ...)
+    message: >
+      Direct os.environ access for security-critical setting
+      AEGISH_FAIL_MODE. In production mode, security-critical
+      configuration must be read from the config file
+      (/etc/aegish/config) via _get_security_config(), not from
+      environment variables which users can manipulate. Use
+      get_fail_mode() from config.py instead.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: config-bypass
+      confidence: HIGH
+      cwe:
+        - "CWE-15: External Control of System or Configuration Setting"
+      impact: HIGH
+      likelihood: MEDIUM
+    paths:
+      exclude:
+        - "**/config.py"
+        - "**/constants.py"
+        - "**/test_*"
+
+  - id: aegish-env-var-mode-bypass
+    pattern: os.environ.get("AEGISH_MODE", ...)
+    message: >
+      Direct os.environ access for AEGISH_MODE. In production mode,
+      this must be read via get_mode() from config.py, which reads
+      from the root-owned config file. Direct env var access allows
+      users to downgrade from production to development mode,
+      disabling all sandboxing.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: config-bypass
+      confidence: HIGH
+      cwe:
+        - "CWE-15: External Control of System or Configuration Setting"
+      impact: HIGH
+      likelihood: MEDIUM
+    paths:
+      exclude:
+        - "**/config.py"
+        - "**/constants.py"
+        - "**/test_*"
+
+  - id: aegish-env-var-role-bypass
+    pattern: os.environ.get("AEGISH_ROLE", ...)
+    message: >
+      Direct os.environ access for AEGISH_ROLE. In production mode,
+      the role must be read from the config file. Direct env var access
+      allows users to escalate their role (e.g., setting sysadmin
+      role to gain sudo pass-through).
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: privilege-escalation
+      confidence: HIGH
+      cwe:
+        - "CWE-269: Improper Privilege Management"
+      impact: HIGH
+      likelihood: MEDIUM
+    paths:
+      exclude:
+        - "**/config.py"
+        - "**/constants.py"
+        - "**/test_*"

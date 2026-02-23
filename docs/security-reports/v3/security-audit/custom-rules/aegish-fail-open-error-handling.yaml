@@ -1,0 +1,50 @@
+rules:
+  - id: aegish-fail-open-error-handling
+    patterns:
+      - pattern: |
+          try:
+              ...
+              $RESULT = validate_command(...)
+              ...
+          except $EXCEPTION:
+              ...
+    message: >
+      Security-sensitive validation call wrapped in try/except. If the
+      except branch allows command execution or returns a permissive
+      default (action="allow"), this creates a fail-open vulnerability.
+      An attacker who can trigger an exception in the validation pipeline
+      (e.g., via malformed input that crashes bashlex or the LLM parser)
+      can bypass all security checks. Ensure except branches block or
+      warn, never allow execution.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: error-handling
+      confidence: LOW
+      cwe:
+        - "CWE-754: Improper Check for Unusual or Exceptional Conditions"
+      impact: HIGH
+      likelihood: LOW
+
+  - id: aegish-fail-open-default-action
+    patterns:
+      - pattern-either:
+          - pattern: $X.get("action", "allow")
+          - pattern: $X.get("action") or "allow"
+    message: >
+      Using "allow" as the default value when reading the validation
+      action field. If the key is missing or the dict is malformed,
+      execution will be permitted without validation. Use "block" as
+      the default to maintain fail-safe behavior (aegish design
+      decision DD-05).
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: fail-open
+      confidence: HIGH
+      cwe:
+        - "CWE-636: Not Failing Securely"
+      impact: HIGH
+      likelihood: MEDIUM

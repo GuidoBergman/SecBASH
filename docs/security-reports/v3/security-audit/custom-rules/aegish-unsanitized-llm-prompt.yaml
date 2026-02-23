@@ -1,0 +1,53 @@
+rules:
+  - id: aegish-prompt-missing-escape
+    patterns:
+      - pattern: |
+          {"role": "user", "content": $CONTENT}
+      - pattern-not-inside: |
+          $Y = _escape_command_tags(...)
+          ...
+      - pattern-not-inside: |
+          $Y = escape_command_tags(...)
+          ...
+    message: >
+      LLM message dict constructed with user role content that may not
+      have been sanitized through escape_command_tags(). If the content
+      includes user-controlled data (commands, script contents, resolved
+      substitution output), an attacker can inject XML closing tags to
+      break out of structured blocks and manipulate the LLM's security
+      decision. In aegish, all user input embedded in prompts must pass
+      through escape_command_tags() first.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: prompt-injection
+      confidence: LOW
+      cwe:
+        - "CWE-74: Improper Neutralization of Special Elements in Output Used by a Downstream Component"
+      impact: HIGH
+      likelihood: LOW
+    paths:
+      exclude:
+        - "**/test_*"
+        - "**/tests/*"
+        - "**/benchmark/*"
+
+  - id: aegish-format-string-with-command
+    pattern-regex: 'f"[^"]*<(?:COMMAND|SCRIPT_CONTENTS|HERE_STRING_CONTENT)>[^"]*\{[^}]+\}[^"]*</'
+    message: >
+      F-string embeds a variable inside LLM prompt XML tags (COMMAND,
+      SCRIPT_CONTENTS, or HERE_STRING_CONTENT). Verify the variable has
+      been sanitized through escape_command_tags() to prevent tag
+      injection. An attacker can inject closing tags to escape the
+      structured block.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: prompt-injection
+      confidence: MEDIUM
+      cwe:
+        - "CWE-74: Improper Neutralization of Special Elements in Output Used by a Downstream Component"
+      impact: HIGH
+      likelihood: MEDIUM

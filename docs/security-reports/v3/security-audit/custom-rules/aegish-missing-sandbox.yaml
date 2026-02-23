@@ -1,0 +1,49 @@
+rules:
+  - id: aegish-subprocess-missing-sandbox-kwargs
+    patterns:
+      - pattern: |
+          subprocess.run($ARGS, ...)
+      - pattern-not: |
+          subprocess.run($ARGS, ..., **_sandbox_kwargs(), ...)
+      - pattern-not: |
+          subprocess.run($ARGS, ..., **sandbox_kw, ...)
+      - pattern-not: |
+          subprocess.run($ARGS, ..., preexec_fn=..., ...)
+    message: >
+      subprocess.run() call without sandbox kwargs (_sandbox_kwargs() or
+      preexec_fn). In aegish, all subprocess calls that execute user
+      commands must include the sandbox configuration (NO_NEW_PRIVS +
+      LD_PRELOAD for Landlock). Without these, the subprocess runs
+      unsandboxed even in production mode. Relevant in executor.py,
+      resolver.py, sandbox.py, shell.py.
+    severity: WARNING
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: sandbox-bypass
+      confidence: LOW
+      cwe:
+        - "CWE-265: Privilege Issues"
+      impact: HIGH
+      likelihood: LOW
+
+  - id: aegish-subprocess-missing-safe-env
+    patterns:
+      - pattern: |
+          subprocess.run($ARGS, ..., env=os.environ, ...)
+    message: >
+      subprocess.run() uses os.environ directly instead of the sanitized
+      environment from _build_safe_env(). The raw os.environ may contain
+      user-injected variables like BASH_ENV, LD_PRELOAD, or
+      LD_LIBRARY_PATH that can compromise the subprocess. Always use
+      _build_safe_env() to filter to the allowlisted variables only.
+    severity: ERROR
+    languages: [python]
+    metadata:
+      category: security
+      subcategory: env-injection
+      confidence: HIGH
+      cwe:
+        - "CWE-78: Improper Neutralization of Special Elements used in an OS Command"
+      impact: HIGH
+      likelihood: MEDIUM
