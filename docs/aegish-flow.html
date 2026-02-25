@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>aegish Shell – Command Validation Flow</title>
+<title>aegish Shell – Command Validation Flow (B1)</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -66,6 +66,16 @@
     letter-spacing: 0.3px;
   }
 
+  .title-block .subtitle {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 300;
+    letter-spacing: 0.3px;
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    opacity: 0.5;
+  }
+
   .flow {
     display: flex;
     flex-direction: column;
@@ -105,6 +115,26 @@
     font-size: 11px;
     color: var(--text-dim);
     white-space: nowrap;
+  }
+
+  /* Inner connectors between pipeline stages */
+  .connector-inner {
+    width: 2px;
+    height: 16px;
+    background: var(--border);
+    margin: 4px auto;
+    position: relative;
+  }
+  .connector-inner::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0; height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid var(--border);
   }
 
   /* Node base */
@@ -166,37 +196,6 @@
     margin-top: 4px;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 400;
-  }
-
-  /* Validator special */
-  .node-validator {
-    animation-delay: 0.35s;
-  }
-  .node-validator .box {
-    background: var(--surface);
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    padding: 20px 36px;
-    min-width: 240px;
-    box-shadow: 0 0 30px var(--accent-glow);
-  }
-  .node-validator .box h3 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--accent);
-    margin-bottom: 6px;
-  }
-  .node-validator .chip {
-    display: inline-block;
-    background: var(--accent-glow);
-    border: 1px solid rgba(167,139,250,0.25);
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 11px;
-    color: var(--accent);
-    font-weight: 500;
   }
 
   /* Decision diamond */
@@ -331,7 +330,7 @@
     color: var(--text);
   }
 
-  /* Outcome sub-cards (shared across all branches) */
+  /* Outcome sub-cards */
   .outcome-sub {
     display: flex;
     gap: 12px;
@@ -377,15 +376,16 @@
     margin-bottom: 4px;
   }
 
-  /* Pipeline pre-processing stages */
+  /* Pipeline box - vertical layout */
   .pipeline {
     width: 100%;
-    max-width: 680px;
+    max-width: 700px;
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 20px 24px 22px;
     position: relative;
+    animation: fadeUp 0.5s ease-out 0.28s both;
   }
   .pipeline-header {
     margin-bottom: 16px;
@@ -402,13 +402,9 @@
     border-radius: 4px;
     padding: 3px 10px;
   }
-  .pipeline-stages {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+
+  /* Stages - full-width vertical bars */
   .stage {
-    flex: 1;
     display: flex;
     align-items: flex-start;
     gap: 10px;
@@ -417,6 +413,7 @@
     border-radius: 8px;
     padding: 12px 14px;
     transition: border-color 0.3s, box-shadow 0.3s;
+    width: 100%;
   }
   .stage:hover {
     border-color: var(--accent);
@@ -463,14 +460,141 @@
     border-radius: 3px;
     color: var(--accent);
   }
-  .stage-arrow {
-    color: var(--text-dim);
-    opacity: 0.4;
-    flex-shrink: 0;
+
+  /* Stages-with-loop wrapper: stages 1-3 with recurse arrow */
+  .stages-with-loop {
+    position: relative;
+    padding-right: 48px;
+  }
+
+  .loop-arrow {
+    position: absolute;
+    right: 6px;
+    top: 14px;
+    bottom: 14px;
+    width: 28px;
+    overflow: visible;
+  }
+  .loop-arrow svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+  /* Left-pointing arrowhead at the return endpoint */
+  .loop-arrow::before {
+    content: '';
+    position: absolute;
+    top: -5px;
+    left: -6px;
+    width: 0; height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-right: 6px solid var(--accent);
+    opacity: 0.5;
+  }
+  .loop-label {
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+    opacity: 0.5;
+    letter-spacing: 0.5px;
+  }
+
+  /* Wrapper for stages outside the loop, matching the loop padding */
+  .stages-rest {
+    padding-right: 48px;
+  }
+
+  /* LLM Classification expanded layout */
+  .llm-branches {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .llm-branch {
+    flex: 1;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .llm-branch.allow {
+    background: var(--green-bg);
+    border: 1px solid var(--green-border);
+  }
+  .llm-branch.warn {
+    background: var(--amber-bg);
+    border: 1px solid var(--amber-border);
+  }
+  .llm-branch.block {
+    background: var(--red-bg);
+    border: 1px solid var(--red-border);
+  }
+  .llm-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
     display: flex;
     align-items: center;
-    padding-top: 8px;
+    justify-content: center;
+    gap: 5px;
   }
+  .llm-branch.allow .llm-badge { color: var(--green); }
+  .llm-branch.warn .llm-badge { color: var(--amber); }
+  .llm-branch.block .llm-badge { color: var(--red); }
+  .llm-badge .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .llm-desc {
+    font-size: 11px;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+  .llm-desc code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    background: rgba(0,0,0,0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--text);
+  }
+  .llm-outcome {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 4px;
+    padding: 4px 6px;
+    margin-top: auto;
+    white-space: nowrap;
+  }
+  .llm-outcome.yes {
+    background: rgba(63, 185, 80, 0.1);
+    color: var(--green);
+  }
+  .llm-outcome.no {
+    background: rgba(248, 81, 73, 0.1);
+    color: var(--red);
+  }
+  .llm-outcome code { font-family: inherit; color: inherit; }
+  .llm-outcomes {
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+  }
+  .llm-outcomes .llm-outcome { flex: 1; }
 
   /* SVG connectors for branches */
   .branch-svg {
@@ -518,6 +642,7 @@
 <div class="title-block">
   <h1><span>aegish</span> Shell</h1>
   <p>LLM-powered command validation flow</p>
+  <p class="subtitle">Layout B1: vertical pipeline with side loop</p>
 </div>
 
 <div class="flow">
@@ -546,12 +671,16 @@
 
   <div class="connector short" style="animation: fadeUp 0.4s ease-out 0.22s both;"></div>
 
-  <!-- Pipeline stages -->
-  <div class="pipeline" style="animation: fadeUp 0.5s ease-out 0.28s both;">
+  <!-- Validation Pipeline (vertical stack of all 4 stages) -->
+  <div class="pipeline">
     <div class="pipeline-header">
-      <span class="pipeline-tag">PRE-PROCESSING</span>
+      <span class="pipeline-tag">VALIDATION PIPELINE</span>
     </div>
-    <div class="pipeline-stages">
+
+    <!-- Stages 1-3 with loop bracket -->
+    <div class="stages-with-loop">
+
+      <!-- Stage 1: Canonicalization -->
       <div class="stage">
         <div class="stage-number">1</div>
         <div class="stage-content">
@@ -559,9 +688,10 @@
           <div class="stage-desc">Normalizes raw input into what the shell will execute, defeating obfuscation</div>
         </div>
       </div>
-      <div class="stage-arrow">
-        <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16M12 1l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
+
+      <div class="connector-inner"></div>
+
+      <!-- Stage 2: Static Validations -->
       <div class="stage">
         <div class="stage-number">2</div>
         <div class="stage-content">
@@ -569,9 +699,10 @@
           <div class="stage-desc">Regex blocklist catches known-dangerous signatures (e.g. <code>rm -rf /</code>)</div>
         </div>
       </div>
-      <div class="stage-arrow">
-        <svg width="20" height="12" viewBox="0 0 20 12"><path d="M0 6h16M12 1l5 5-5 5" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </div>
+
+      <div class="connector-inner"></div>
+
+      <!-- Stage 3: Command Substitution -->
       <div class="stage">
         <div class="stage-number">3</div>
         <div class="stage-content">
@@ -579,90 +710,63 @@
           <div class="stage-desc">Resolves <code>$(…)</code> by sandboxing inner commands first, so the LLM sees the expanded result</div>
         </div>
       </div>
-    </div>
-  </div>
 
-  <div class="connector med" style="animation: fadeUp 0.4s ease-out 0.38s both;">
-    <span class="connector-label">resolved command + context</span>
-  </div>
-
-  <!-- Validator -->
-  <div class="node node-validator">
-    <div class="box">
-      <h3>Validator</h3>
-      <div class="chip">LLM Client</div>
-    </div>
-  </div>
-
-  <div class="connector short" style="animation: fadeUp 0.4s ease-out 0.42s both;"></div>
-
-  <!-- Decision -->
-  <div class="node node-decision">
-    <div class="diamond-wrap">
-      <div class="diamond"></div>
-      <div class="diamond-label">Decision</div>
-    </div>
-  </div>
-
-  <!-- Branch connectors (SVG) -->
-  <svg class="branch-svg" viewBox="0 0 780 50" preserveAspectRatio="xMidYMid meet" style="animation: fadeUp 0.4s ease-out 0.55s both;">
-    <line x1="390" y1="0" x2="124" y2="46" class="line-green" />
-    <line x1="390" y1="0" x2="390" y2="46" class="line-amber" />
-    <line x1="390" y1="0" x2="656" y2="46" class="line-red" />
-    <!-- Arrowheads -->
-    <polygon points="121,40 128,40 124,48" fill="rgba(63,185,80,0.3)" />
-    <polygon points="387,40 393,40 390,48" fill="rgba(210,153,34,0.3)" />
-    <polygon points="653,40 659,40 656,48" fill="rgba(248,81,73,0.3)" />
-  </svg>
-
-  <!-- Branch cards -->
-  <div class="branches">
-
-    <!-- ALLOW -->
-    <div class="branch-card allow">
-      <div class="badge"><span class="badge-dot"></span> ALLOW</div>
-      <div class="desc">
-        Safe command detected
+      <!-- Recurse arrow: stage 3 -> stage 1 (single SVG path = no shaky joints) -->
+      <div class="loop-arrow">
+        <svg viewBox="0 0 30 100" preserveAspectRatio="none" fill="none">
+          <path d="M0,98 H14 Q24,98 24,92 V6 Q24,0 14,0 H0"
+                stroke="#a78bfa" stroke-width="2" opacity="0.5"
+                vector-effect="non-scaling-stroke"/>
+        </svg>
+        <span class="loop-label">recurse</span>
       </div>
-      <div class="outcome-sub">
-        <div class="sub-card yes">
-          <div class="sub-label">Result</div>
-          Execute command<br>Show output
+
+    </div>
+
+    <div class="stages-rest">
+
+      <div class="connector-inner"></div>
+
+      <!-- Stage 4: Script Inspection -->
+      <div class="stage">
+        <div class="stage-number">4</div>
+        <div class="stage-content">
+          <div class="stage-title">Script Inspection</div>
+          <div class="stage-desc">When the command runs a script, includes its content in the LLM prompt</div>
         </div>
       </div>
-    </div>
 
-    <!-- WARN -->
-    <div class="branch-card warn">
-      <div class="badge"><span class="badge-dot"></span> WARN</div>
-      <div class="desc">
-        Show <code>&lt;reason&gt;</code><br>
-        Prompt user <code>[Y/N]</code>
-      </div>
-      <div class="outcome-sub two-col">
-        <div class="sub-card yes">
-          <div class="sub-label">Yes</div>
-          Execute command
-        </div>
-        <div class="sub-card no">
-          <div class="sub-label">No</div>
-          Cancelled
-        </div>
-      </div>
-    </div>
+      <div class="connector-inner"></div>
 
-    <!-- BLOCK -->
-    <div class="branch-card block">
-      <div class="badge"><span class="badge-dot"></span> BLOCK</div>
-      <div class="desc">
-        Dangerous command detected
-      </div>
-      <div class="outcome-sub">
-        <div class="sub-card no">
-          <div class="sub-label">Result</div>
-          <code>BLOCKED:</code> <code>&lt;reason&gt;</code>
+      <!-- Stage 5: LLM Classification with full decision tree -->
+      <div class="stage">
+        <div class="stage-number">5</div>
+        <div class="stage-content">
+          <div class="stage-title">LLM Classification</div>
+          <div class="stage-desc">Natural-language decision tree</div>
+          <div class="llm-branches">
+            <div class="llm-branch allow">
+              <div class="llm-badge"><span class="dot"></span> ALLOW</div>
+              <div class="llm-desc">Safe command</div>
+              <div class="llm-outcome yes">Execute &amp; show output</div>
+            </div>
+            <div class="llm-branch warn">
+              <div class="llm-badge"><span class="dot"></span> WARN</div>
+              <div class="llm-desc">Show reason, prompt <code>[Y/N]</code></div>
+              <div class="llm-outcomes">
+                <span class="llm-outcome yes">Y &rarr; Execute</span>
+                <span class="llm-outcome no">N &rarr; Cancel</span>
+              </div>
+            </div>
+            <div class="llm-branch block">
+              <div class="llm-badge"><span class="dot"></span> BLOCK</div>
+              <div class="llm-desc">Dangerous command</div>
+              <div class="llm-outcome no"><code>BLOCKED:</code> reason</div>
+            </div>
+          </div>
         </div>
       </div>
+
     </div>
 
   </div>

