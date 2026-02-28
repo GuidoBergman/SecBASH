@@ -460,10 +460,10 @@ Full error breakdown on the GTFOBins (malicious) dataset:
 ![Table B1 Malicious Errors](table_images/table_b1_malicious_errors.png)
 *Table 1: Per-model error breakdown on the malicious (GTFOBins) dataset.*
 
-Error distribution on the Harmless dataset (all errors are false positive BLOCKs unless noted):
+Error distribution on the Harmless dataset:
 
 ![Table B2 Harmless Errors](table_images/table_b2_harmless_errors.png)
-*Table 2: Per-model error breakdown on the harmless dataset. All errors are false positive BLOCKs unless noted.*
+*Table 2: Per-model error breakdown on the harmless dataset.*
 
 The false positive blocks come with well-reasoned justifications (e.g., Sonnet blocks `nautilus` citing terminal spawning risk; GPT-5 Mini blocks `pip3 install` citing arbitrary code execution). These are defensible security decisions that disagree with the ground truth label.
 
@@ -626,10 +626,10 @@ This layer is composed of:
 
 ## Appendix L: Models Tested
 
-The 9 models were selected to span flagship, mid-tier, and small models across 4 providers, plus a security-specialized model:
+List of models selected:
 
 ![Table N Models](table_images/table_n_models.png)
-*Table 9: The 9 models benchmarked, spanning flagship, mid-tier, and small tiers across 4 providers.*
+*Table 9: The 9 models benchmarked.*
 
 
 ## Appendix M: Role-Specific Prompts
