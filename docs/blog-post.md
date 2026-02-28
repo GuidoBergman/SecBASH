@@ -19,6 +19,7 @@
 Linux security traditionally relies on mature, battle-tested tools like **[SELinux](https://selinuxproject.org/)** or **[AppArmor](https://apparmor.net/)**. These are **Mandatory Access Control (MAC)** systems: security policies enforced by the OS itself that no user or process can override. They operate as strict "bouncers," defining exactly which files a process can read and which network ports it can access. While highly effective, they impose a significant maintenance burden. Many systems run with policies far more permissive than they should be, not because the tools lack capability, but because the expertise and maintenance burden is enormous ([Pahuja et al., 2023](https://arxiv.org/abs/2312.04586)).
 
 *aegish* targets **enterprise sysadmins who lack deep security knowledge** and need affordable, easy-to-use protection for production servers. It takes a different approach: **use an LLM to reason about what a command means before letting it run**, complemented by static analysis and kernel-level enforcement[^kernel]. Before any command reaches the LLM, a static analysis layer blocks deterministic threats with zero latency (see Appendix M for more details). After the LLM classifies a command, [Landlock](https://landlock.io/), a Linux security module, provides a kernel-level safety net by denying execution of shell binaries (e.g., `bash`) from within child processes, so that even if a command passes validation and then attempts to spawn an unmonitored shell at runtime, the kernel blocks it. The proposed value of this approach is:
+
 1. **Low expertise barrier:** Unlike AppArmor profiles, SELinux policies, or sudo rules, there is no specialized policy language to learn. The LLM reasons about intent from the command text alone, so anyone who can describe a threat in English can update the defense.
 2. **Easy to configure:** There are no per-binary or per-resource policies to write. The security logic is a natural-language prompt. When new attack patterns emerge, updating the prompt is faster than writing MAC policy rules.
 3. **Block before execution:** Static rules and the LLM flag catastrophic actions before they run, not after. There is no forensic analysis of damage already done: the damage simply doesn't happen.
@@ -456,31 +457,13 @@ Output: {"action": "allow", "reason": "Standard directory listing on user path",
 
 Full error breakdown on the GTFOBins (malicious) dataset:
 
-| Model | ALLOW | WARN | CONTENT_FILTER | FORMAT_ERROR | TIMEOUT | Total Errors |
-|-------|:-----:|:----:|:--------------:|:------------:|:-------:|:------------:|
-| Gemini 3 Flash | 2 | 12 | 0 | 1 | 0 | 15 |
-| Llama Primus | 17 | 4 | 0 | 3 | 0 | 24 |
-| GPT-5 Mini | 13 | 15 | 0 | 0 | 0 | 28 |
-| Claude Haiku 4.5 | 16 | 13 | 0 | 0 | 0 | 29 |
-| Claude Sonnet 4.5 | 8 | 11 | 29 | 0 | 0 | 48 |
-| GPT-5.1 | 32 | 18 | 0 | 0 | 0 | 50 |
-| Claude Opus 4.6 | 2 | 28 | 21 | 3 | 0 | 54 |
-| GPT-5 Nano | **50** | 25 | 0 | 0 | 4 | 79 |
-| Foundation-Sec-8B | 17 | **128** | 0 | 0 | 0 | 145 |
+![Table B1 Malicious Errors](table_images/table_b1_malicious_errors.png)
+
 
 Error distribution on the Harmless dataset (all errors are false positive BLOCKs unless noted):
 
-| Model | Errors | Harmless Acceptance Rate | Common False Positives |
-|-------|:------:|:---------:|----------------------|
-| Claude Opus 4.6 | 0 | 100.0% | — |
-| Foundation-Sec-8B | 0 | 100.0% | — |
-| Gemini 3 Flash | 5 | 99.0% | GUI apps, developer tools |
-| GPT-5.1 | 6 | 98.8% | GUI apps, developer tools |
-| GPT-5 Nano | 7 | 98.6% | GUI apps, package managers |
-| GPT-5 Mini | 8 | 98.4% | GUI apps, developer tools |
-| Claude Haiku 4.5 | 10 | 98.0% | GUI apps, developer tools |
-| Claude Sonnet 4.5 | 11 | 97.8% | GUI apps, developer tools |
-| Llama Primus | 16 | 96.8% | GUI apps, developer tools, build tools |
+![Table B2 Harmless Errors](table_images/table_b2_harmless_errors.png)
+
 
 The false positive blocks come with well-reasoned justifications (e.g., Sonnet blocks `nautilus` citing terminal spawning risk; GPT-5 Mini blocks `pip3 install` citing arbitrary code execution). These are defensible security decisions that disagree with the ground truth label.
 
@@ -516,16 +499,8 @@ Cross-provider latency comparisons should be interpreted with caution due to dif
 ![Cost Comparison](https://i.imgur.com/IEfk8x7.png)
 *Figure 9: Cost per 1,000 commands by model.*
 
-| Model | Malicious Detection Rate | Cost/1k Commands | Monthly (1k cmds/day) |
-|-------|:-------------:|:----------------:|:---------------------:|
-| GPT-5 Nano | 88.3% | **$0.59** | $18 |
-| Gemini 3 Flash | **97.8%** | $1.12 | $34 |
-| GPT-5 Mini | 95.9% | $1.12 | $34 |
-| Llama Primus | 96.4% | $1.46 | $44 |
-| Claude Haiku 4.5 | 95.7% | $2.50 | $75 |
-| GPT-5.1 | 92.6% | $2.78 | $83 |
-| Claude Sonnet 4.5 | 92.9% | $7.13 | $214 |
-| Claude Opus 4.6 | 92.0% | $12.89 | $387 |
+![Table C Cost](table_images/table_c_cost.png)
+
 
 
 
@@ -533,16 +508,8 @@ Cross-provider latency comparisons should be interpreted with caution due to dif
 
 ### Per-Category Difficulty
 
-| Rank | Category | Avg Detection | Samples | Difficulty |
-|------|----------|:------------:|:-------:|:----------:|
-| 1 | reverse-shell | 100.00% | 19 | Solved |
-| 2 | bind-shell | 98.41% | 7 | Near-solved |
-| 3 | download | 97.32% | 29 | Easy |
-| 4 | file-read | 97.32% | 207 | Easy |
-| 5 | shell | 93.58% | 264 | Moderate |
-| 6 | upload | 88.56% | 32 | Moderate |
-| 7 | file-write | 87.15% | 84 | Moderate |
-| 8 | **command** | **57.20%** | 34 | **Hard** |
+![Table D Category Difficulty](table_images/table_d_category_difficulty.png)
+
 
 *Note: Confidence intervals widen sharply for small categories (e.g., ±17pp at n=34 for "command"). For this reason, category-level conclusions should be interpreted with sample sizes in mind.*
 
@@ -554,26 +521,14 @@ Cross-provider latency comparisons should be interpreted with caution due to dif
 ### GTFOBins
 GTFOBins defines 12 categories. Four were excluded because they require runtime system state that cannot be determined from command text alone:
 
-| Excluded Category | Reason for Exclusion |
-|-------------------|---------------------|
-| SUID | Requires knowing whether a binary has the SUID bit set (`-rwsr-xr-x`). The same command is benign or dangerous depending on file permissions visible only at runtime. |
-| Sudo | Requires knowing the user's sudo configuration (`/etc/sudoers`). Whether `sudo vim` is an escalation vector depends on what privileges are granted. |
-| Capabilities | Requires knowing Linux capabilities assigned to binaries (e.g., `cap_setuid+ep`). These are invisible in the command text. |
-| Library Load | Requires knowing whether a binary dynamically loads attacker-controlled libraries. This depends on the binary's implementation, not its invocation. |
+![Table E1 Excluded Categories](table_images/table_e1_excluded_categories.png)
+
 
 The remaining 8 categories can be assessed from command syntax and arguments alone.
 
 
-| Category | Commands | % of Total |
-|----------|:--------:|:----------:|
-| shell | 264 | 39.1% |
-| file-read | 207 | 30.6% |
-| file-write | 84 | 12.4% |
-| command | 34 | 5.0% |
-| upload | 32 | 4.7% |
-| download | 29 | 4.3% |
-| reverse-shell | 19 | 2.8% |
-| bind-shell | 7 | 1.0% |
+![Table E2 Category Distribution](table_images/table_e2_category_distribution.png)
+
 Raw GTFOBins placeholders (`$TF`, `$URL`) were replaced with realistic values (e.g., `/etc/sudoers.d/custom`, `http://10.0.0.1/update.tar.gz`) to test whether models recognize malice from context rather than keywords.
 
 
@@ -593,28 +548,14 @@ After benchmarking was complete, a manual review of the malicious dataset identi
 
 
 
-| Command | GTFOBins Category | Why It Reached the Dataset |
-|---------|:-----------------:|---------------------------|
-| `dpkg -i x_1.0_all.deb` | shell | Debian packages run pre/post-install scripts |
-| `rpm -ivh x-1.0-1.noarch.rpm` | command | RPM packages contain scriptlets |
-| `dnf install -y x-1.0-1.noarch.rpm --disablerepo=*` | command | Same; `--disablerepo=*` bypasses repo signatures |
-| `yum localinstall -y x-1.0-1.noarch.rpm` | command | Same as rpm |
-| `pkg install -y --no-repo-update ./x-1.0.txz` | command | FreeBSD packages contain install scripts |
-| `opkg install x_1.0_all.deb` | shell | OpenWrt packages run install scripts |
-| `snap install xxxx_1.0_all.snap --dangerous --devmode` | command | Snap with signature verification and sandboxing disabled |
+![Table F1 Mislabeled Commands](table_images/table_f1_mislabeled_commands.png)
+
 
 
 ### How Models Actually Classified These Commands
 
-| Command | Flash | Mini | 5.1 | Nano | Haiku | Sonnet | Opus | Primus | Fnd-Sec |
-|---------|:-----:|:----:|:---:|:----:|:-----:|:------:|:----:|:------:|:-------:|
-| `dpkg -i` | WARN | WARN | ALLOW | WARN | WARN | WARN | WARN | ALLOW | ALLOW |
-| `rpm -ivh` | WARN | WARN | ALLOW | ALLOW | WARN | WARN | WARN | ALLOW | ALLOW |
-| `dnf install` | BLOCK | WARN | ALLOW | ALLOW | WARN | WARN | WARN | BLOCK | BLOCK |
-| `yum localinstall` | BLOCK | WARN | ALLOW | ALLOW | WARN | BLOCK | WARN | BLOCK | WARN |
-| `pkg install` | BLOCK | ALLOW | ALLOW | ALLOW | WARN | WARN | WARN | BLOCK | WARN |
-| `opkg install` | WARN | BLOCK | ALLOW | ALLOW | WARN | BLOCK | WARN | BLOCK | WARN |
-| `snap --dangerous` | BLOCK | BLOCK | WARN | WARN | BLOCK | BLOCK | WARN | BLOCK | WARN |
+![Table F2 Model Classifications](table_images/table_f2_model_classifications.png)
+
 
 **No model BLOCKs `dpkg -i` or `rpm -ivh`**: the two plainest package installs, indistinguishable from everyday sysadmin work. Commands with suspicious flags (`--disablerepo=*`, `--dangerous --devmode`) attract more BLOCK classifications, but even these are inconsistent across models.
 
@@ -630,11 +571,8 @@ The impact is disproportionately concentrated in the "command" category, where t
 
 Gemini 3 Flash reports 70.9s mean latency in the benchmark, seemingly disqualifying. But log analysis reveals this is almost entirely API rate-limit queuing:
 
-| Component | Time | % of Total |
-|-----------|:----:|:----------:|
-| Rate-limit queue/backoff | 47.6s | 76.7% |
-| Network + client overhead | 10.5s | 16.9% |
-| Google server processing | **6.8s** | 11.0% |
+![Table G Latency](table_images/table_g_latency.png)
+
 
 In production, where you're validating a single command at a time, Flash's actual latency would be approximately 10s, competitive with OpenAI.
 
@@ -696,17 +634,8 @@ This layer is composed of:
 
 The 9 models were selected to span flagship, mid-tier, and small models across 4 providers, plus a security-specialized model:
 
-| Model | Provider | Why Selected |
-|-------|----------|-------------|
-| Claude Opus 4.6 | Anthropic | Flagship: strongest reasoning, highest cost |
-| Claude Sonnet 4.5 | Anthropic | Mid-tier: balance of capability and cost |
-| Claude Haiku 4.5 | Anthropic | Small: fast and cheap, tests lower bound |
-| GPT-5.1 | OpenAI | Flagship: strongest reasoning from OpenAI |
-| GPT-5 Mini | OpenAI | Mid-tier: balance of capability and cost |
-| GPT-5 Nano | OpenAI | Smallest: cheapest and fastest, tests lower bound |
-| Gemini 3 Flash | Google | Mid-tier: Google's fast, cost-efficient model |
-| [Llama Primus](https://huggingface.co/trendmicro-ailab/Llama-Primus-Reasoning) | Meta / Trend Micro (via [Featherless AI](https://featherless.ai/)) | Security-specialized open-weight: cybersecurity fine-tuned; tests whether open models compete with proprietary ones |
-| [Foundation-Sec-8B](https://huggingface.co/fdtn-ai/Foundation-Sec-8B-Instruct) | Cisco Foundation AI (via [Featherless AI](https://featherless.ai/)) | Security-specialized: fine-tuned for cybersecurity tasks; tests whether domain specialization helps |
+![Table N Models](table_images/table_n_models.png)
+
 
 
 
