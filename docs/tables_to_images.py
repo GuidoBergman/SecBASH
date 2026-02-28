@@ -270,7 +270,7 @@ table_configs = [
         "filename": "table_n_models.png",
         "title": "Models Tested",
         "figscale": 2.5,
-        "fontsize": 10,
+        "fontsize": 13,
         "wrap_widths": {1: 35, 2: 45},
         "left_align_cols": {0, 1, 2},
     },
